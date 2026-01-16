@@ -13,7 +13,6 @@ import { GoalCard } from '@/components/goals/GoalCard';
 import { GoalModal } from '@/components/goals/GoalModal';
 import { OnboardingTour } from '@/components/onboarding/OnboardingTour';
 import { Card } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Home as HomeIcon, Plus } from 'lucide-react';
 import { startOfMonth, endOfMonth, subDays, isAfter } from 'date-fns';
 import { ScheduleItem as ScheduleItemType } from '@/types/schedule';
@@ -162,25 +161,36 @@ export function Home() {
 
       {/* Goals Section */}
       <div>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold">Goals</h2>
-          <Button onClick={() => {
-            setEditingGoal(undefined);
-            setGoalModalOpen(true);
-          }}>
-            <Plus className="w-4 h-4 mr-1" />
-            New Goal
-          </Button>
-        </div>
+        <h2 className="text-xl font-semibold mb-4">Goals</h2>
         <div className="space-y-3">
           {goals.length === 0 ? (
-            <Card className="p-8 border-2 border-dashed text-center">
-              <p className="text-muted-foreground">No goals yet. Create one to track your progress!</p>
+            <Card 
+              className="p-8 border-2 border-dashed cursor-pointer hover:border-primary transition-colors text-center"
+              onClick={() => {
+                setEditingGoal(undefined);
+                setGoalModalOpen(true);
+              }}
+            >
+              <Plus className="w-12 h-12 mx-auto mb-3 text-muted-foreground" />
+              <p className="text-lg font-medium mb-1">Add your first goal</p>
+              <p className="text-sm text-muted-foreground">Tap to track your progress</p>
             </Card>
           ) : (
-            goals.map((goal) => (
-              <GoalCard key={goal.id} goal={goal} onEdit={handleGoalEdit} />
-            ))
+            <>
+              {goals.map((goal) => (
+                <GoalCard key={goal.id} goal={goal} onEdit={handleGoalEdit} />
+              ))}
+              <Card 
+                className="p-6 border-2 border-dashed cursor-pointer hover:border-primary transition-colors text-center bg-muted/50"
+                onClick={() => {
+                  setEditingGoal(undefined);
+                  setGoalModalOpen(true);
+                }}
+              >
+                <Plus className="w-8 h-8 mx-auto text-primary" />
+                <p className="text-sm font-medium mt-2 text-muted-foreground">Add another goal</p>
+              </Card>
+            </>
           )}
         </div>
       </div>

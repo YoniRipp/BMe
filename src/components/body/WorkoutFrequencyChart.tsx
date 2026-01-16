@@ -90,9 +90,8 @@ export function WorkoutFrequencyChart({ workouts, weeks = 12 }: WorkoutFrequency
                 data={pieData}
                 cx="50%"
                 cy="50%"
-                labelLine={false}
-                label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
                 outerRadius={100}
+                innerRadius={50}
                 fill="#8884d8"
                 dataKey="value"
               >
@@ -101,6 +100,7 @@ export function WorkoutFrequencyChart({ workouts, weeks = 12 }: WorkoutFrequency
                 ))}
               </Pie>
               <Tooltip />
+              <Legend />
             </PieChart>
           ) : (
             <BarChart data={barData}>

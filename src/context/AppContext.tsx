@@ -11,7 +11,7 @@ interface AppContextType {
   updateSettings: (settings: Partial<AppSettings>) => void;
 }
 
-const AppContext = createContext<AppContextType | undefined>(undefined);
+export const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [settings, setSettings] = useLocalStorage<AppSettings>(
