@@ -1,4 +1,4 @@
-# BIMI - Life Management Application
+# BeMe - Life Management Application
 
 A comprehensive lifestyle management application built with React, TypeScript, and Tailwind CSS. Track your finances, fitness, wellness, and collaborate with groups - all in one beautiful, modern interface.
 
