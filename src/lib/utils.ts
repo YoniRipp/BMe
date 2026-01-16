@@ -19,17 +19,20 @@ export function formatCurrency(amount: number, currency: string = 'USD'): string
   }).format(amount);
 }
 
-export function formatDate(date: Date | string, dateFormat: string = 'DD/MM/YY'): string {
+export function formatDate(date: Date | string, dateFormat: string = 'DD/MM/YYYY'): string {
   const d = typeof date === 'string' ? new Date(date) : date;
   
   // Map date format strings to date-fns format strings
   const formatMap: Record<string, string> = {
+    'MM/DD/YYYY': 'MM/dd/yyyy',
+    'DD/MM/YYYY': 'dd/MM/yyyy',
+    'YYYY-MM-DD': 'yyyy-MM-dd',
+    // Legacy support for old 2-digit year formats
     'MM/DD/YY': 'MM/dd/yy',
     'DD/MM/YY': 'dd/MM/yy',
-    'YYYY-MM-DD': 'yyyy-MM-dd',
   };
   
-  const dateFnsFormat = formatMap[dateFormat] || 'dd/MM/yy';
+  const dateFnsFormat = formatMap[dateFormat] || 'dd/MM/yyyy';
   return format(d, dateFnsFormat);
 }
 

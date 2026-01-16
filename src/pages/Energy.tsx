@@ -331,26 +331,28 @@ export function Energy() {
           })}
         </div>
         
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <p className="text-3xl font-bold">
-              {sleepPeriod === 'daily' 
-                ? (selectedSleep.count > 0 ? `${selectedSleep.hours.toFixed(1)}h` : 'Not logged')
-                : selectedSleep.count > 0 
-                  ? `${selectedSleep.hours.toFixed(1)}h avg` 
-                  : 'No data'}
+        <div className="mb-4">
+          <p className="text-3xl font-bold">
+            {sleepPeriod === 'daily' 
+              ? (selectedSleep.count > 0 ? `${selectedSleep.hours.toFixed(1)}h` : 'Not logged')
+              : selectedSleep.count > 0 
+                ? `${selectedSleep.hours.toFixed(1)}h avg` 
+                : 'No data'}
+          </p>
+          {sleepPeriod !== 'daily' && selectedSleep.count > 0 && (
+            <p className="text-sm text-muted-foreground mt-1">
+              {selectedSleep.count} {selectedSleep.count === 1 ? 'day' : 'days'} logged
             </p>
-            {sleepPeriod !== 'daily' && selectedSleep.count > 0 && (
-              <p className="text-sm text-muted-foreground mt-1">
-                {selectedSleep.count} {selectedSleep.count === 1 ? 'day' : 'days'} logged
-              </p>
-            )}
-          </div>
-          <Button size="sm" onClick={() => setSleepModalOpen(true)}>
-            <Moon className="w-4 h-4 mr-1" />
-            Log Sleep
-          </Button>
+          )}
         </div>
+        
+        <Card 
+          className="p-6 border-2 border-dashed cursor-pointer hover:border-primary transition-colors text-center bg-muted/50"
+          onClick={() => setSleepModalOpen(true)}
+        >
+          <Moon className="w-8 h-8 mx-auto text-primary" />
+          <p className="text-sm font-medium mt-2 text-muted-foreground">Log sleep</p>
+        </Card>
       </Card>
 
       <SleepEditModal

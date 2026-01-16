@@ -5,7 +5,7 @@ import { PageHeader } from '@/components/shared/PageHeader';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Settings, DollarSign, Calendar, Ruler, Palette, Database, Trash2, Download, RefreshCw, Bell } from 'lucide-react';
+import { Settings as SettingsIcon, DollarSign, Calendar, Ruler, Palette, Database, Trash2, Download, RefreshCw, Bell } from 'lucide-react';
 import {
   Select,
   SelectContent,
@@ -118,7 +118,7 @@ export function Settings() {
       <PageHeader
         title="Settings"
         subtitle="Manage your preferences"
-        icon={Settings}
+        icon={SettingsIcon}
         iconColor="text-gray-600"
       />
 

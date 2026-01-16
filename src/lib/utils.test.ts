@@ -18,17 +18,17 @@ describe('formatCurrency', () => {
 });
 
 describe('formatDate', () => {
-  it('formats date in European format (DD/MM/YY)', () => {
+  it('formats date in European format (DD/MM/YYYY)', () => {
     const date = new Date(2025, 0, 16); // January 16, 2025
     const formatted = formatDate(date);
-    expect(formatted).toMatch(/^\d{2}\/\d{2}\/\d{2}$/);
-    expect(formatted).toBe('16/01/25');
+    expect(formatted).toMatch(/^\d{2}\/\d{2}\/\d{4}$/);
+    expect(formatted).toBe('16/01/2025');
   });
 
   it('handles string dates', () => {
     const dateStr = '2025-01-16T00:00:00.000Z';
     const formatted = formatDate(dateStr);
-    expect(formatted).toMatch(/^\d{2}\/\d{2}\/\d{2}$/);
+    expect(formatted).toMatch(/^\d{2}\/\d{2}\/\d{4}$/);
   });
 });
 
