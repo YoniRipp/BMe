@@ -1,0 +1,12 @@
+import { useContext } from 'react';
+import { EnergyContext } from '@/context/EnergyContext';
+
+export function useEnergy() {
+  const context = useContext(EnergyContext);
+  
+  if (!context) {
+    throw new Error('useEnergy must be used within EnergyProvider');
+  }
+  
+  return context;
+}

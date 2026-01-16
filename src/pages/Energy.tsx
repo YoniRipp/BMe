@@ -1,0 +1,382 @@
+import { useState, useMemo } from 'react';
+import { useEnergy } from '@/hooks/useEnergy';
+import { FoodEntry } from '@/types/energy';
+import { PageHeader } from '@/components/shared/PageHeader';
+import { SleepEditModal } from '@/components/energy/SleepEditModal';
+import { FoodEntryModal } from '@/components/energy/FoodEntryModal';
+import { ConfirmationDialog } from '@/components/shared/ConfirmationDialog';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Zap, Moon, Plus, Trash2 } from 'lucide-react';
+import { 
+  isSameDay, 
+  startOfDay, 
+  endOfDay, 
+  startOfWeek, 
+  endOfWeek, 
+  startOfMonth, 
+  endOfMonth, 
+  startOfYear, 
+  endOfYear,
+  isWithinInterval,
+  subWeeks,
+  subMonths,
+  subYears
+} from 'date-fns';
+
+export function Energy() {
+  const { checkIns, foodEntries, addCheckIn, updateCheckIn, addFoodEntry, updateFoodEntry, deleteFoodEntry } = useEnergy();
+  const [sleepModalOpen, setSleepModalOpen] = useState(false);
+  const [foodModalOpen, setFoodModalOpen] = useState(false);
+  const [editingFoodEntry, setEditingFoodEntry] = useState<FoodEntry | undefined>(undefined);
+  const [caloriePeriod, setCaloriePeriod] = useState<'daily' | 'weekly' | 'monthly' | 'yearly'>('daily');
+  const [sleepPeriod, setSleepPeriod] = useState<'daily' | 'weekly' | 'monthly' | 'yearly'>('daily');
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [dateRange, setDateRange] = useState<{ start: string; end: string }>({ start: '', end: '' });
+  const [calorieRange, setCalorieRange] = useState<{ min: string; max: string }>({ min: '', max: '' });
+
+  const now = new Date();
+  
+  // Date ranges for periods
+  const dayStart = startOfDay(now);
+  const dayEnd = endOfDay(now);
+  const weekStart = startOfWeek(now);
+  const weekEnd = endOfWeek(now);
+  const monthStart = startOfMonth(now);
+  const monthEnd = endOfMonth(now);
+  const yearStart = startOfYear(now);
+  const yearEnd = endOfYear(now);
+
+  // Helper to get date range for a period
+  const getPeriodRange = (period: 'daily' | 'weekly' | 'monthly' | 'yearly') => {
+    switch (period) {
+      case 'daily':
+        return { start: dayStart, end: dayEnd };
+      case 'weekly':
+        return { start: weekStart, end: weekEnd };
+      case 'monthly':
+        return { start: monthStart, end: monthEnd };
+      case 'yearly':
+        return { start: yearStart, end: yearEnd };
+    }
+  };
+
+  // Filter food entries by period, search, and filters
+  const periodFoodEntries = useMemo(() => {
+    const range = getPeriodRange(caloriePeriod);
+    let filtered = foodEntries.filter(f => 
+      isWithinInterval(new Date(f.date), range)
+    );
+    
+    // Search filter
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(f =>
+        f.name.toLowerCase().includes(query)
+      );
+    }
+    
+    // Date range filter
+    if (dateRange.start) {
+      const startDate = startOfDay(new Date(dateRange.start));
+      filtered = filtered.filter(f => new Date(f.date) >= startDate);
+    }
+    if (dateRange.end) {
+      const endDate = endOfDay(new Date(dateRange.end));
+      filtered = filtered.filter(f => new Date(f.date) <= endDate);
+    }
+    
+    // Calorie range filter
+    if (calorieRange.min) {
+      const min = parseInt(calorieRange.min);
+      filtered = filtered.filter(f => f.calories >= min);
+    }
+    if (calorieRange.max) {
+      const max = parseInt(calorieRange.max);
+      filtered = filtered.filter(f => f.calories <= max);
+    }
+    
+    return filtered;
+  }, [foodEntries, caloriePeriod, searchQuery, dateRange, calorieRange]);
+
+  // Calculate totals for selected period
+  const periodTotals = useMemo(() => {
+    return periodFoodEntries.reduce(
+      (acc, entry) => ({
+        calories: acc.calories + entry.calories,
+        protein: acc.protein + entry.protein,
+        carbs: acc.carbs + entry.carbs,
+        fats: acc.fats + entry.fats,
+      }),
+      { calories: 0, protein: 0, carbs: 0, fats: 0 }
+    );
+  }, [periodFoodEntries]);
+
+  // Calculate sleep averages for periods
+  const sleepData = useMemo(() => {
+    const ranges = {
+      daily: getPeriodRange('daily'),
+      weekly: getPeriodRange('weekly'),
+      monthly: getPeriodRange('monthly'),
+      yearly: getPeriodRange('yearly'),
+    };
+
+    const calculateSleep = (range: { start: Date; end: Date }) => {
+      const periodCheckIns = checkIns.filter(c => 
+        isWithinInterval(new Date(c.date), range)
+      );
+      const totalHours = periodCheckIns.reduce((sum, c) => sum + (c.sleepHours || 0), 0);
+      return {
+        hours: periodCheckIns.length > 0 ? totalHours / periodCheckIns.length : 0,
+        count: periodCheckIns.length,
+      };
+    };
+
+    return {
+      daily: calculateSleep(ranges.daily),
+      weekly: calculateSleep(ranges.weekly),
+      monthly: calculateSleep(ranges.monthly),
+      yearly: calculateSleep(ranges.yearly),
+    };
+  }, [checkIns]);
+
+  const selectedSleep = sleepData[sleepPeriod];
+
+  // Get today's check-in for sleep modal
+  const todayCheckIn = useMemo(() => {
+    return checkIns.find(c => isSameDay(new Date(c.date), now));
+  }, [checkIns, now]);
+
+  const handleSleepSave = (hours: number) => {
+    if (todayCheckIn) {
+      updateCheckIn(todayCheckIn.id, { sleepHours: hours });
+    } else {
+      addCheckIn({
+        date: now,
+        sleepHours: hours,
+      });
+    }
+  };
+
+  const handleFoodSave = (entry: Omit<FoodEntry, 'id'>) => {
+    if (editingFoodEntry) {
+      updateFoodEntry(editingFoodEntry.id, entry);
+    } else {
+      addFoodEntry(entry);
+    }
+    setEditingFoodEntry(undefined);
+  };
+
+  const handleAddFood = () => {
+    setEditingFoodEntry(undefined);
+    setFoodModalOpen(true);
+  };
+
+  const handleEditFood = (entry: FoodEntry) => {
+    setEditingFoodEntry(entry);
+    setFoodModalOpen(true);
+  };
+
+  const handleDeleteFood = (id: string) => {
+    setDeleteConfirmId(id);
+  };
+
+  const confirmDeleteFood = () => {
+    if (deleteConfirmId) {
+      deleteFoodEntry(deleteConfirmId);
+      setDeleteConfirmId(null);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <PageHeader
+        title="Energy"
+        subtitle="Track your daily energy"
+        icon={Zap}
+        iconColor="text-purple-600"
+      />
+
+      {/* Calories Balance Card */}
+      <Card className="p-6">
+        <h3 className="text-lg font-semibold mb-4">Calorie Balance</h3>
+        
+        {/* Period selector cards */}
+        <div className="grid grid-cols-4 gap-2 mb-4">
+          {(['daily', 'weekly', 'monthly', 'yearly'] as const).map((period) => {
+            const range = getPeriodRange(period);
+            const periodEntries = foodEntries.filter(f => 
+              isWithinInterval(new Date(f.date), range)
+            );
+            const periodCal = periodEntries.reduce((sum, e) => sum + e.calories, 0);
+            
+            return (
+              <Card
+                key={period}
+                className={`p-2 cursor-pointer transition-all hover:scale-105 ${
+                  caloriePeriod === period ? 'ring-2 ring-purple-500 shadow-lg' : ''
+                }`}
+                onClick={() => setCaloriePeriod(period)}
+              >
+                <p className="text-xs text-muted-foreground capitalize mb-1">{period}</p>
+                <p className="text-sm font-semibold">{periodCal} cal</p>
+              </Card>
+            );
+          })}
+        </div>
+        
+        <div className="mb-4">
+          <p className="text-3xl font-bold mb-2">{periodTotals.calories} cal</p>
+          <div className="grid grid-cols-3 gap-4 mt-4">
+            <div>
+              <p className="text-sm text-muted-foreground">Protein</p>
+              <p className="text-lg font-semibold">{periodTotals.protein.toFixed(1)}g</p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Carbs</p>
+              <p className="text-lg font-semibold">{periodTotals.carbs.toFixed(1)}g</p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Fats</p>
+              <p className="text-lg font-semibold">{periodTotals.fats.toFixed(1)}g</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Food entries list */}
+        <div className="space-y-2">
+          {periodFoodEntries.length === 0 ? (
+            <Card 
+              className="p-8 border-2 border-dashed cursor-pointer hover:border-primary transition-colors text-center"
+              onClick={handleAddFood}
+            >
+              <Plus className="w-12 h-12 mx-auto mb-3 text-muted-foreground" />
+              <p className="text-lg font-medium mb-1">Add your first food entry</p>
+              <p className="text-sm text-muted-foreground">Tap to log what you ate</p>
+            </Card>
+          ) : (
+            <>
+              {periodFoodEntries.map((entry) => (
+                <div 
+                  key={entry.id} 
+                  className="flex items-center justify-between p-3 bg-muted rounded-lg"
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`Food entry: ${entry.name}, ${entry.calories} calories`}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      handleEditFood(entry);
+                    }
+                  }}
+                >
+                  <div 
+                    className="flex-1 cursor-pointer"
+                    onClick={() => handleEditFood(entry)}
+                  >
+                    <p className="font-medium">{entry.name}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {entry.calories} cal • P: {entry.protein}g C: {entry.carbs}g F: {entry.fats}g
+                    </p>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteFood(entry.id);
+                    }}
+                    aria-label={`Delete food entry: ${entry.name}`}
+                  >
+                    <Trash2 className="w-4 h-4" aria-hidden="true" />
+                  </Button>
+                </div>
+              ))}
+              <Card 
+                className="p-6 border-2 border-dashed cursor-pointer hover:border-primary transition-colors text-center bg-muted/50"
+                onClick={handleAddFood}
+              >
+                <Plus className="w-8 h-8 mx-auto text-primary" />
+                <p className="text-sm font-medium mt-2 text-muted-foreground">Add another food entry</p>
+              </Card>
+            </>
+          )}
+        </div>
+      </Card>
+
+      {/* Sleep Hours Card */}
+      <Card className="p-6">
+        <h3 className="text-lg font-semibold mb-4">Hours Slept</h3>
+        
+        {/* Period selector cards */}
+        <div className="grid grid-cols-4 gap-2 mb-4">
+          {(['daily', 'weekly', 'monthly', 'yearly'] as const).map((period) => {
+            const sleep = sleepData[period];
+            return (
+              <Card
+                key={period}
+                className={`p-2 cursor-pointer transition-all hover:scale-105 ${
+                  sleepPeriod === period ? 'ring-2 ring-blue-500 shadow-lg' : ''
+                }`}
+                onClick={() => setSleepPeriod(period)}
+              >
+                <p className="text-xs text-muted-foreground capitalize mb-1">{period}</p>
+                <p className="text-sm font-semibold">
+                  {sleep.hours > 0 ? `${sleep.hours.toFixed(1)}h` : '—'}
+                </p>
+              </Card>
+            );
+          })}
+        </div>
+        
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <p className="text-3xl font-bold">
+              {sleepPeriod === 'daily' 
+                ? (selectedSleep.count > 0 ? `${selectedSleep.hours.toFixed(1)}h` : 'Not logged')
+                : selectedSleep.count > 0 
+                  ? `${selectedSleep.hours.toFixed(1)}h avg` 
+                  : 'No data'}
+            </p>
+            {sleepPeriod !== 'daily' && selectedSleep.count > 0 && (
+              <p className="text-sm text-muted-foreground mt-1">
+                {selectedSleep.count} {selectedSleep.count === 1 ? 'day' : 'days'} logged
+              </p>
+            )}
+          </div>
+          <Button size="sm" onClick={() => setSleepModalOpen(true)}>
+            <Moon className="w-4 h-4 mr-1" />
+            Log Sleep
+          </Button>
+        </div>
+      </Card>
+
+      <SleepEditModal
+        open={sleepModalOpen}
+        onOpenChange={setSleepModalOpen}
+        onSave={handleSleepSave}
+        currentHours={todayCheckIn?.sleepHours}
+      />
+
+      <FoodEntryModal
+        open={foodModalOpen}
+        onOpenChange={setFoodModalOpen}
+        onSave={handleFoodSave}
+        entry={editingFoodEntry}
+      />
+
+      <ConfirmationDialog
+        open={!!deleteConfirmId}
+        onOpenChange={(open) => !open && setDeleteConfirmId(null)}
+        title="Delete Food Entry"
+        message="Are you sure you want to delete this food entry? This action cannot be undone."
+        onConfirm={confirmDeleteFood}
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        variant="destructive"
+      />
+    </div>
+  );
+}
