@@ -1,0 +1,291 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// User and Authentication
+// ============================================
+
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  passwordHash  String    @map("password_hash")
+  name          String
+  emailVerified Boolean   @default(false) @map("email_verified")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+  
+  refreshTokens  RefreshToken[]
+  transactions   Transaction[]
+  workouts       Workout[]
+  energyCheckIns EnergyCheckIn[]
+  foodEntries    FoodEntry[]
+  scheduleItems  ScheduleItem[]
+  goals          Goal[]
+  groupMembers   GroupMember[]
+  ownedGroups    Group[]  @relation("GroupOwner")
+  settings       UserSettings?
+  
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  token     String   @unique
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+// ============================================
+// Financial (Transactions)
+// ============================================
+
+model Transaction {
+  id          String          @id @default(uuid())
+  userId      String          @map("user_id")
+  date        DateTime        @db.Date
+  type        TransactionType
+  amount      Decimal         @db.Decimal(10, 2)
+  category    String
+  description String?
+  isRecurring Boolean         @default(false) @map("is_recurring")
+  groupId     String?         @map("group_id")
+  createdAt   DateTime        @default(now()) @map("created_at")
+  updatedAt   DateTime        @updatedAt @map("updated_at")
+  
+  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  group Group? @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  
+  @@index([userId, date])
+  @@index([userId, type])
+  @@map("transactions")
+}
+
+enum TransactionType {
+  income
+  expense
+}
+
+// ============================================
+// Fitness (Workouts)
+// ============================================
+
+model Workout {
+  id            String   @id @default(uuid())
+  userId        String   @map("user_id")
+  date          DateTime @db.Date
+  title         String
+  type          WorkoutType
+  durationMinutes Int    @map("duration_minutes")
+  exercises     Json     // Array of Exercise objects
+  notes         String?
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId, date])
+  @@map("workouts")
+}
+
+enum WorkoutType {
+  strength
+  cardio
+  flexibility
+  sports
+}
+
+// ============================================
+// Energy and Wellness
+// ============================================
+
+model EnergyCheckIn {
+  id             String   @id @default(uuid())
+  userId         String   @map("user_id")
+  date           DateTime @db.Date
+  sleepHours     Decimal? @db.Decimal(3, 1) @map("sleep_hours")
+  sleepQuality   String?  @map("sleep_quality")
+  energyLevel    Int?     @map("energy_level") // 1-5
+  stressLevel    Int?     @map("stress_level") // 1-5
+  mood           String?
+  caloriesConsumed Int?   @map("calories_consumed")
+  caloriesBurned Int?     @map("calories_burned")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, date])
+  @@index([userId, date])
+  @@map("energy_checkins")
+}
+
+model FoodEntry {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  date      DateTime @db.Date
+  name      String
+  calories  Int
+  protein   Int      // in grams
+  carbs     Int      // in grams
+  fats      Int      // in grams
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId, date])
+  @@map("food_entries")
+}
+
+// ============================================
+// Schedule
+// ============================================
+
+model ScheduleItem {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  title     String
+  startTime String   @map("start_time") // HH:MM
+  endTime   String   @map("end_time")   // HH:MM
+  category  String
+  emoji     String?
+  order     Int
+  isActive  Boolean  @default(true) @map("is_active")
+  groupId   String?  @map("group_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  
+  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  group Group? @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  
+  @@index([userId, isActive])
+  @@map("schedule_items")
+}
+
+// ============================================
+// Goals
+// ============================================
+
+model Goal {
+  id        String     @id @default(uuid())
+  userId    String     @map("user_id")
+  type      GoalType
+  target    Decimal    @db.Decimal(10, 2)
+  period    GoalPeriod
+  createdAt DateTime   @default(now()) @map("created_at")
+  updatedAt DateTime   @updatedAt @map("updated_at")
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId, type, period])
+  @@map("goals")
+}
+
+enum GoalType {
+  calories
+  workouts
+  savings
+}
+
+enum GoalPeriod {
+  weekly
+  monthly
+  yearly
+}
+
+// ============================================
+// Groups (Collaboration)
+// ============================================
+
+model Group {
+  id          String        @id @default(uuid())
+  name        String
+  description String?
+  type        String        // 'household', 'event', 'project', 'other' or custom
+  ownerId     String        @map("owner_id")
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+  
+  owner       User          @relation("GroupOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  members     GroupMember[]
+  transactions Transaction[]
+  scheduleItems ScheduleItem[]
+  invitations GroupInvitation[]
+  
+  @@index([ownerId])
+  @@map("groups")
+}
+
+model GroupMember {
+  id        String   @id @default(uuid())
+  groupId   String   @map("group_id")
+  userId    String   @map("user_id")
+  role      MemberRole @default(member)
+  joinedAt  DateTime @default(now()) @map("joined_at")
+  
+  group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([groupId, userId])
+  @@index([userId])
+  @@map("group_members")
+}
+
+enum MemberRole {
+  admin
+  member
+}
+
+model GroupInvitation {
+  id        String   @id @default(uuid())
+  groupId   String   @map("group_id")
+  email     String
+  invitedBy String   @map("invited_by")
+  invitedAt DateTime @default(now()) @map("invited_at")
+  expiresAt DateTime @map("expires_at")
+  status    InvitationStatus @default(pending)
+  
+  group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  
+  @@unique([groupId, email])
+  @@index([email])
+  @@map("group_invitations")
+}
+
+enum InvitationStatus {
+  pending
+  accepted
+  rejected
+  expired
+}
+
+// ============================================
+// Settings
+// ============================================
+
+model UserSettings {
+  id        String   @id @default(uuid())
+  userId    String   @unique @map("user_id")
+  theme     String   @default("system") // 'light', 'dark', 'system'
+  currency  String   @default("USD")
+  language  String   @default("en")
+  timezone  String   @default("UTC")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("user_settings")
+}

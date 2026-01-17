@@ -2,7 +2,9 @@ import { Suspense, lazy, useEffect } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { ErrorBoundary } from './components/shared/ErrorBoundary';
 import { ToastProvider } from './components/shared/ToastProvider';
+import { AuthProvider } from './context/AuthContext';
 import { AppProvider } from './context/AppContext';
+import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import { TransactionProvider } from './context/TransactionContext';
 import { WorkoutProvider } from './context/WorkoutContext';
 import { EnergyProvider } from './context/EnergyContext';
@@ -22,6 +24,8 @@ const Energy = lazy(() => import('./pages/Energy').then(m => ({ default: m.Energ
 const Groups = lazy(() => import('./pages/Groups').then(m => ({ default: m.Groups })));
 const Settings = lazy(() => import('./pages/Settings').then(m => ({ default: m.Settings })));
 const Insights = lazy(() => import('./pages/Insights').then(m => ({ default: m.Insights })));
+const Login = lazy(() => import('./pages/Login').then(m => ({ default: m.Login })));
+const Signup = lazy(() => import('./pages/Signup').then(m => ({ default: m.Signup })));
 
 function AppContent() {
   const { settings } = useSettings();
@@ -53,7 +57,24 @@ function AppContent() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<Layout />}>
+        {/* Public routes */}
+        <Route path="/login" element={
+          <Suspense fallback={<LoadingSpinner text="Loading..." />}>
+            <Login />
+          </Suspense>
+        } />
+        <Route path="/signup" element={
+          <Suspense fallback={<LoadingSpinner text="Loading..." />}>
+            <Signup />
+          </Suspense>
+        } />
+
+        {/* Protected routes */}
+        <Route path="/" element={
+          <ProtectedRoute>
+            <Layout />
+          </ProtectedRoute>
+        }>
           <Route index element={
             <Suspense fallback={<LoadingSpinner text="Loading dashboard..." />}>
               <Home />
@@ -99,23 +120,25 @@ function App() {
   return (
     <ErrorBoundary>
       <ToastProvider />
-      <AppProvider>
-        <TransactionProvider>
-          <WorkoutProvider>
-            <EnergyProvider>
-              <ScheduleProvider>
-                <GroupProvider>
-                  <GoalsProvider>
-                    <NotificationProvider>
-                      <AppContent />
-                    </NotificationProvider>
-                  </GoalsProvider>
-                </GroupProvider>
-              </ScheduleProvider>
-            </EnergyProvider>
-          </WorkoutProvider>
-        </TransactionProvider>
-      </AppProvider>
+      <AuthProvider>
+        <AppProvider>
+          <TransactionProvider>
+            <WorkoutProvider>
+              <EnergyProvider>
+                <ScheduleProvider>
+                  <GroupProvider>
+                    <GoalsProvider>
+                      <NotificationProvider>
+                        <AppContent />
+                      </NotificationProvider>
+                    </GoalsProvider>
+                  </GroupProvider>
+                </ScheduleProvider>
+              </EnergyProvider>
+            </WorkoutProvider>
+          </TransactionProvider>
+        </AppProvider>
+      </AuthProvider>
     </ErrorBoundary>
   );
 }

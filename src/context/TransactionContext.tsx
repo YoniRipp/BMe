@@ -1,49 +1,78 @@
-import React, { createContext, useCallback } from 'react';
+import React, { createContext, useCallback, useEffect, useState } from 'react';
 import { Transaction } from '@/types/transaction';
-import { useLocalStorage } from '@/hooks/useLocalStorage';
-import { STORAGE_KEYS, storage } from '@/lib/storage';
-import { SAMPLE_TRANSACTIONS } from '@/lib/constants';
-import { generateId } from '@/lib/utils';
+import { transactionApi } from '@/lib/api/transactions';
+import { toast } from 'sonner';
 
 interface TransactionContextType {
   transactions: Transaction[];
-  addTransaction: (transaction: Omit<Transaction, 'id'>) => void;
-  updateTransaction: (id: string, transaction: Partial<Transaction>) => void;
-  deleteTransaction: (id: string) => void;
+  loading: boolean;
+  addTransaction: (transaction: Omit<Transaction, 'id'>) => Promise<void>;
+  updateTransaction: (id: string, transaction: Partial<Transaction>) => Promise<void>;
+  deleteTransaction: (id: string) => Promise<void>;
   getTransactionById: (id: string) => Transaction | undefined;
+  refreshTransactions: () => Promise<void>;
 }
 
 export const TransactionContext = createContext<TransactionContextType | undefined>(undefined);
 
 export function TransactionProvider({ children }: { children: React.ReactNode }) {
-  // Initialize with sample data if no data exists
-  const initializeTransactions = () => {
-    const existing = storage.get<Transaction[]>(STORAGE_KEYS.TRANSACTIONS);
-    return existing || SAMPLE_TRANSACTIONS;
-  };
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const [transactions, setTransactions] = useLocalStorage<Transaction[]>(
-    STORAGE_KEYS.TRANSACTIONS,
-    initializeTransactions()
-  );
+  const refreshTransactions = useCallback(async () => {
+    try {
+      const data = await transactionApi.getAll();
+      setTransactions(data);
+    } catch (error: any) {
+      console.error('Error loading transactions:', error);
+      toast.error('Failed to load transactions');
+    }
+  }, []);
 
-  const addTransaction = useCallback((transaction: Omit<Transaction, 'id'>) => {
-    const newTransaction: Transaction = {
-      ...transaction,
-      id: generateId(),
+  useEffect(() => {
+    const loadTransactions = async () => {
+      setLoading(true);
+      await refreshTransactions();
+      setLoading(false);
     };
-    setTransactions(prev => [...prev, newTransaction]);
-  }, [setTransactions]);
+    loadTransactions();
+  }, [refreshTransactions]);
 
-  const updateTransaction = useCallback((id: string, updates: Partial<Transaction>) => {
-    setTransactions(prev =>
-      prev.map(t => t.id === id ? { ...t, ...updates } : t)
-    );
-  }, [setTransactions]);
+  const addTransaction = useCallback(async (transaction: Omit<Transaction, 'id'>) => {
+    try {
+      const newTransaction = await transactionApi.create(transaction);
+      setTransactions(prev => [newTransaction, ...prev]);
+      toast.success('Transaction added successfully');
+    } catch (error: any) {
+      console.error('Error adding transaction:', error);
+      toast.error(error.response?.data?.error?.message || 'Failed to add transaction');
+      throw error;
+    }
+  }, []);
 
-  const deleteTransaction = useCallback((id: string) => {
-    setTransactions(prev => prev.filter(t => t.id !== id));
-  }, [setTransactions]);
+  const updateTransaction = useCallback(async (id: string, updates: Partial<Transaction>) => {
+    try {
+      const updated = await transactionApi.update(id, updates);
+      setTransactions(prev => prev.map(t => t.id === id ? updated : t));
+      toast.success('Transaction updated successfully');
+    } catch (error: any) {
+      console.error('Error updating transaction:', error);
+      toast.error(error.response?.data?.error?.message || 'Failed to update transaction');
+      throw error;
+    }
+  }, []);
+
+  const deleteTransaction = useCallback(async (id: string) => {
+    try {
+      await transactionApi.delete(id);
+      setTransactions(prev => prev.filter(t => t.id !== id));
+      toast.success('Transaction deleted successfully');
+    } catch (error: any) {
+      console.error('Error deleting transaction:', error);
+      toast.error(error.response?.data?.error?.message || 'Failed to delete transaction');
+      throw error;
+    }
+  }, []);
 
   const getTransactionById = useCallback((id: string) => {
     return transactions.find(t => t.id === id);
@@ -52,12 +81,22 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
   return (
     <TransactionContext.Provider value={{
       transactions,
+      loading,
       addTransaction,
       updateTransaction,
       deleteTransaction,
-      getTransactionById
+      getTransactionById,
+      refreshTransactions,
     }}>
       {children}
     </TransactionContext.Provider>
   );
+}
+
+export function useTransactions() {
+  const context = React.useContext(TransactionContext);
+  if (!context) {
+    throw new Error('useTransactions must be used within TransactionProvider');
+  }
+  return context;
 }
