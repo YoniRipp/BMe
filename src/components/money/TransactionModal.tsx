@@ -66,7 +66,8 @@ export function TransactionModal({ open, onOpenChange, onSave, transaction }: Tr
     : TRANSACTION_CATEGORIES.expense;
 
   const validateField = (field: string, value: string) => {
-    let result;
+    type ValidateResult = { isValid: boolean; error?: string };
+    let result: ValidateResult;
     switch (field) {
       case 'amount':
         if (!value) {

@@ -3,7 +3,7 @@ import { Workout } from '@/types/workout';
 import { Card } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Check, X, Flame } from 'lucide-react';
-import { format, subDays, isSameDay, subMonths, subYears } from 'date-fns';
+import { format, subDays, isSameDay } from 'date-fns';
 import { cn } from '@/lib/utils';
 
 interface WeeklyWorkoutGridProps {
@@ -22,22 +22,16 @@ export function WeeklyWorkoutGrid({ workouts }: WeeklyWorkoutGridProps) {
   let dates: Date[] = [];
   let streak = 0;
   let totalDays = 0;
-  let periodLabel = '';
 
   if (period === 'weekly') {
     dates = Array.from({ length: 7 }, (_, i) => subDays(today, 6 - i));
     totalDays = 7;
-    periodLabel = 'Weekly';
   } else if (period === 'monthly') {
-    const monthStart = subMonths(today, 1);
     dates = Array.from({ length: 30 }, (_, i) => subDays(today, 29 - i));
     totalDays = 30;
-    periodLabel = 'Monthly';
   } else if (period === 'yearly') {
-    const yearStart = subYears(today, 1);
     dates = Array.from({ length: 365 }, (_, i) => subDays(today, 364 - i));
     totalDays = 365;
-    periodLabel = 'Yearly';
   }
 
   streak = dates.filter(day => hasWorkoutOnDay(day)).length;

@@ -16,6 +16,7 @@ import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { Card } from '@/components/ui/card';
 import { Home as HomeIcon, Plus } from 'lucide-react';
 import { startOfMonth, endOfMonth, subDays, isAfter } from 'date-fns';
+import { isScheduleItemPast } from '@/lib/utils';
 import { ScheduleItem as ScheduleItemType } from '@/types/schedule';
 import { Goal } from '@/types/goals';
 
@@ -65,15 +66,25 @@ export function Home() {
 
   const activeSchedule = scheduleItems
     .filter(item => item.isActive)
-    .sort((a, b) => a.order - b.order);
+    .sort((a, b) => {
+      const aStart = a.startTime || '00:00';
+      const bStart = b.startTime || '00:00';
+      if (aStart !== bStart) return aStart.localeCompare(bStart);
+      return (a.endTime || '00:00').localeCompare(b.endTime || '00:00');
+    });
 
-  const handleScheduleSave = (item: Omit<ScheduleItemType, 'id'>) => {
-    if (editingSchedule) {
-      updateScheduleItem(editingSchedule.id, item);
-    } else {
-      addScheduleItem({ ...item, order: scheduleItems.length });
+  const handleScheduleSave = async (item: Omit<ScheduleItemType, 'id'>) => {
+    try {
+      if (editingSchedule) {
+        await updateScheduleItem(editingSchedule.id, item);
+      } else {
+        await addScheduleItem({ ...item, order: scheduleItems.length });
+      }
+      setEditingSchedule(undefined);
+      setScheduleModalOpen(false);
+    } catch {
+      // Error already set in context; keep modal open
     }
-    setEditingSchedule(undefined);
   };
 
   const handleScheduleEdit = (item: ScheduleItemType) => {
@@ -130,6 +141,7 @@ export function Home() {
                 <ScheduleItem
                   key={item.id}
                   item={item}
+                  isPast={isScheduleItemPast(item.endTime)}
                   onEdit={handleScheduleEdit}
                   onDelete={deleteScheduleItem}
                 />

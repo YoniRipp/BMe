@@ -1,34 +1,22 @@
 import React, { createContext, useCallback, useEffect, useState } from 'react';
 import { ScheduleItem } from '@/types/schedule';
-import { scheduleApi } from '@/lib/api';
+import { scheduleApi } from '@/features/schedule/api';
 
 interface ScheduleContextType {
   scheduleItems: ScheduleItem[];
   scheduleLoading: boolean;
   scheduleError: string | null;
   refetchSchedule: () => Promise<void>;
-  addScheduleItem: (item: Omit<ScheduleItem, 'id'>) => void;
+  addScheduleItem: (item: Omit<ScheduleItem, 'id'>) => Promise<void>;
   addScheduleItems: (items: Omit<ScheduleItem, 'id'>[]) => void;
-  updateScheduleItem: (id: string, item: Partial<ScheduleItem>) => void;
+  updateScheduleItem: (id: string, item: Partial<ScheduleItem>) => Promise<void>;
   deleteScheduleItem: (id: string) => void;
   getScheduleItemById: (id: string) => ScheduleItem | undefined;
 }
 
 export const ScheduleContext = createContext<ScheduleContextType | undefined>(undefined);
 
-function apiToItem(a: { id: string; title: string; startTime: string; endTime: string; category: string; emoji?: string; order: number; isActive: boolean; groupId?: string }): ScheduleItem {
-  return {
-    id: a.id,
-    title: a.title,
-    startTime: a.startTime,
-    endTime: a.endTime,
-    category: a.category,
-    emoji: a.emoji,
-    order: a.order,
-    isActive: a.isActive,
-    groupId: a.groupId,
-  };
-}
+import { apiScheduleItemToScheduleItem } from '@/features/schedule/mappers';
 
 export function ScheduleProvider({ children }: { children: React.ReactNode }) {
   const [scheduleItems, setScheduleItems] = useState<ScheduleItem[]>([]);
@@ -40,7 +28,7 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
     setScheduleError(null);
     try {
       const list = await scheduleApi.list();
-      setScheduleItems(list.map(apiToItem));
+      setScheduleItems(list.map(apiScheduleItemToScheduleItem));
     } catch (e) {
       setScheduleError(e instanceof Error ? e.message : 'Failed to load schedule');
       setScheduleItems([]);
@@ -53,9 +41,9 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
     refetchSchedule();
   }, [refetchSchedule]);
 
-  const addScheduleItem = useCallback((item: Omit<ScheduleItem, 'id'>) => {
+  const addScheduleItem = useCallback((item: Omit<ScheduleItem, 'id'>): Promise<void> => {
     setScheduleError(null);
-    scheduleApi.add({
+    return scheduleApi.add({
       title: item.title,
       startTime: item.startTime,
       endTime: item.endTime,
@@ -64,10 +52,12 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
       order: item.order,
       isActive: item.isActive,
       groupId: item.groupId,
+      recurrence: item.recurrence,
     }).then(created => {
-      setScheduleItems(prev => [...prev, apiToItem(created)]);
+      setScheduleItems(prev => [...prev, apiScheduleItemToScheduleItem(created)]);
     }).catch(e => {
       setScheduleError(e instanceof Error ? e.message : 'Failed to add schedule item');
+      throw e;
     });
   }, []);
 
@@ -81,21 +71,23 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
       category: it.category,
       emoji: it.emoji,
       groupId: it.groupId,
+      recurrence: it.recurrence,
     }))).then(created => {
-      setScheduleItems(prev => [...prev, ...created.map(apiToItem)]);
+      setScheduleItems(prev => [...prev, ...created.map(apiScheduleItemToScheduleItem)]);
     }).catch(e => {
       setScheduleError(e instanceof Error ? e.message : 'Failed to add schedule items');
     });
   }, []);
 
-  const updateScheduleItem = useCallback((id: string, updates: Partial<ScheduleItem>) => {
+  const updateScheduleItem = useCallback((id: string, updates: Partial<ScheduleItem>): Promise<void> => {
     setScheduleError(null);
-    scheduleApi.update(id, updates).then(updated => {
+    return scheduleApi.update(id, updates).then(updated => {
       setScheduleItems(prev =>
-        prev.map(s => s.id === id ? apiToItem(updated) : s)
+        prev.map(s => s.id === id ? apiScheduleItemToScheduleItem(updated) : s)
       );
     }).catch(e => {
       setScheduleError(e instanceof Error ? e.message : 'Failed to update schedule item');
+      throw e;
     });
   }, []);
 

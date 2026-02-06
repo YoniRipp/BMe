@@ -18,7 +18,6 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { validateTransactionAmount } from '@/lib/validation';
 
 interface GoalModalProps {
   open: boolean;

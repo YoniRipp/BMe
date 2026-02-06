@@ -1,11 +1,15 @@
 import React, { createContext, useCallback, useEffect, useState } from 'react';
 import { User } from '@/types/user';
-import { authApi, setToken, getToken } from '@/lib/api';
+import { authApi, setToken, getToken } from '@/features/auth/api';
+
+type AuthProviderName = 'google' | 'facebook' | 'twitter';
 
 interface AuthContextType {
   user: User | null;
   authLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
+  loginWithProvider: (provider: AuthProviderName, token: string) => Promise<void>;
+  loadUser: () => Promise<void>;
   logout: () => void;
   register: (email: string, password: string, name: string) => Promise<void>;
 }
@@ -59,14 +63,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
   }, []);
 
+  useEffect(() => {
+    const onLogout = () => logout();
+    window.addEventListener('auth:logout', onLogout);
+    return () => window.removeEventListener('auth:logout', onLogout);
+  }, [logout]);
+
   const register = useCallback(async (email: string, password: string, name: string) => {
     const res = await authApi.register(email, password, name);
     setToken(res.token);
     setUser(apiUserToUser(res.user));
   }, []);
 
+  const loginWithProvider = useCallback(async (provider: AuthProviderName, token: string) => {
+    const res =
+      provider === 'google'
+        ? await authApi.loginWithGoogle(token)
+        : provider === 'facebook'
+          ? await authApi.loginWithFacebook(token)
+          : await authApi.loginWithTwitter(token);
+    setToken(res.token);
+    setUser(apiUserToUser(res.user));
+  }, []);
+
   return (
-    <AuthContext.Provider value={{ user, authLoading, login, logout, register }}>
+    <AuthContext.Provider value={{ user, authLoading, login, loginWithProvider, loadUser, logout, register }}>
       {children}
     </AuthContext.Provider>
   );

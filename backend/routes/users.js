@@ -1,4 +1,4 @@
-import { getPool } from '../db.js';
+import { getPool } from '../src/db/index.js';
 import bcrypt from 'bcrypt';
 import { requireAdmin } from '../middleware/auth.js';
 

@@ -21,7 +21,7 @@ const mockUpdate = vi.fn().mockImplementation((id: string, updates: Partial<Sche
 );
 const mockDelete = vi.fn().mockResolvedValue(undefined);
 
-vi.mock('@/lib/api', () => ({
+vi.mock('@/features/schedule/api', () => ({
   scheduleApi: {
     list: () => mockList(),
     add: (item: unknown) => mockAdd(item),

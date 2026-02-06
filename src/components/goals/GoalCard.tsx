@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Flame, Dumbbell, DollarSign, Pencil, Trash2, CheckCircle2 } from 'lucide-react';
 import { useGoals } from '@/hooks/useGoals';
+import { useGoalProgress } from '@/features/goals/useGoalProgress';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { ConfirmationDialog } from '@/components/shared/ConfirmationDialog';
@@ -15,9 +16,9 @@ interface GoalCardProps {
 }
 
 export function GoalCard({ goal, onEdit }: GoalCardProps) {
-  const { deleteGoal, getGoalProgress } = useGoals();
+  const { deleteGoal } = useGoals();
+  const progress = useGoalProgress(goal.id);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const progress = getGoalProgress(goal.id);
 
   const getIcon = () => {
     switch (goal.type) {
@@ -28,13 +29,6 @@ export function GoalCard({ goal, onEdit }: GoalCardProps) {
       case 'savings':
         return <DollarSign className="w-5 h-5 text-green-600" />;
     }
-  };
-
-  const getProgressColor = () => {
-    if (progress.percentage >= 100) return 'bg-green-600';
-    if (progress.percentage >= 80) return 'bg-green-500';
-    if (progress.percentage >= 50) return 'bg-yellow-500';
-    return 'bg-red-500';
   };
 
   const getLabel = () => {

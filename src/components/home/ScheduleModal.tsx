@@ -68,7 +68,7 @@ export function ScheduleModal({ open, onOpenChange, onSave, item }: ScheduleModa
       order: formData.order,
       isActive: formData.isActive,
     });
-    onOpenChange(false);
+    // Parent closes modal after successful save (add or update)
   };
 
   return (

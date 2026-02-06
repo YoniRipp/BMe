@@ -18,10 +18,7 @@ import {
   endOfMonth, 
   startOfYear, 
   endOfYear,
-  isWithinInterval,
-  subWeeks,
-  subMonths,
-  subYears
+  isWithinInterval
 } from 'date-fns';
 
 export function Energy() {
@@ -32,10 +29,10 @@ export function Energy() {
   const [caloriePeriod, setCaloriePeriod] = useState<'daily' | 'weekly' | 'monthly' | 'yearly'>('daily');
   const [sleepPeriod, setSleepPeriod] = useState<'daily' | 'weekly' | 'monthly' | 'yearly'>('daily');
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filtersOpen, setFiltersOpen] = useState(false);
-  const [dateRange, setDateRange] = useState<{ start: string; end: string }>({ start: '', end: '' });
-  const [calorieRange, setCalorieRange] = useState<{ min: string; max: string }>({ min: '', max: '' });
+  const [searchQuery, _setSearchQuery] = useState('');
+  const [_filtersOpen, _setFiltersOpen] = useState(false);
+  const [dateRange, _setDateRange] = useState<{ start: string; end: string }>({ start: '', end: '' });
+  const [calorieRange, _setCalorieRange] = useState<{ min: string; max: string }>({ min: '', max: '' });
 
   const now = new Date();
   

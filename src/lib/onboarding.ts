@@ -1,4 +1,4 @@
-import { storage, STORAGE_KEYS } from './storage';
+import { storage } from './storage';
 
 const ONBOARDING_KEY = 'beme_onboarding_completed';
 

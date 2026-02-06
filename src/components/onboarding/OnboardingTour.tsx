@@ -1,9 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { X, ChevronRight, ChevronLeft } from 'lucide-react';
-import { ONBOARDING_STEPS, OnboardingStep, completeOnboarding, isOnboardingCompleted } from '@/lib/onboarding';
-import { cn } from '@/lib/utils';
+import { ONBOARDING_STEPS, completeOnboarding, isOnboardingCompleted } from '@/lib/onboarding';
 
 interface OnboardingTourProps {
   onComplete?: () => void;

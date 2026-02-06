@@ -16,6 +16,14 @@ vi.mock('sonner', () => ({
   },
 }));
 
+// useGoalProgress: return 100% for achieved-goal so "displays checkmark" test passes
+vi.mock('@/features/goals/useGoalProgress', () => ({
+  useGoalProgress: (goalId: string) =>
+    goalId === 'achieved-goal'
+      ? { current: 2000, target: 2000, percentage: 100 }
+      : { current: 0, target: 2000, percentage: 0 },
+}));
+
 const mockGoal: Goal = {
   id: 'test-goal',
   type: 'calories',
@@ -83,21 +91,8 @@ describe('GoalCard', () => {
       ...mockGoal,
       id: 'achieved-goal',
     };
-
-    // Mock getGoalProgress to return 100%
-    vi.mock('@/hooks/useGoals', () => ({
-      useGoals: () => ({
-        deleteGoal: vi.fn(),
-        getGoalProgress: () => ({
-          current: 2000,
-          target: 2000,
-          percentage: 100,
-        }),
-      }),
-    }));
-
     render(<GoalCard goal={achievedGoal} />, { wrapper });
-    // The component should show achieved status
     expect(screen.getByText(/calories goal/i)).toBeInTheDocument();
+    expect(screen.getByText(/Achieved!/i)).toBeInTheDocument();
   });
 });

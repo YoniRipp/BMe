@@ -1,69 +1,250 @@
+import { getToken } from './api';
+
 const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
+
+function getAuthHeaders(): Record<string, string> {
+  const token = getToken();
+  if (token) return { Authorization: `Bearer ${token}` };
+  return {};
+}
 
 export interface VoiceScheduleItem {
   title: string;
   startTime: string;
   endTime: string;
   category: string;
+  recurrence?: string;
 }
 
-export type VoiceUnderstandResult =
+/** A single action from the voice API. Discriminated by intent. */
+export type VoiceAction =
   | { intent: 'add_schedule'; items: VoiceScheduleItem[] }
+  | { intent: 'edit_schedule'; itemTitle?: string; itemId?: string; startTime?: string; endTime?: string; title?: string; category?: string }
   | { intent: 'delete_schedule'; itemTitle?: string; itemId?: string }
-  | {
-      intent: 'add_transaction';
-      type: 'income' | 'expense';
-      amount: number;
-      category: string;
-      description?: string;
-      date?: string;
-    }
-  | {
-      intent: 'add_food';
-      name: string;
-      calories: number;
-      protein?: number;
-      carbs?: number;
-      fats?: number;
-      date?: string;
-    }
+  | { intent: 'add_transaction'; type: 'income' | 'expense'; amount: number; category: string; description?: string; date?: string; isRecurring?: boolean }
+  | { intent: 'edit_transaction'; description?: string; transactionId?: string; date?: string; type?: string; amount?: number; category?: string }
+  | { intent: 'delete_transaction'; description?: string; transactionId?: string; date?: string }
+  | { intent: 'add_workout'; date?: string; title: string; type: string; durationMinutes: number; notes?: string }
+  | { intent: 'edit_workout'; workoutTitle?: string; workoutId?: string; date?: string; title?: string; type?: string; durationMinutes?: number; notes?: string }
+  | { intent: 'delete_workout'; workoutTitle?: string; workoutId?: string; date?: string }
+  | { intent: 'add_food'; name?: string; calories?: number; protein?: number; carbs?: number; fats?: number; food?: string; amount?: number; unit?: string; date?: string }
+  | { intent: 'edit_food_entry'; foodName?: string; entryId?: string; date?: string; name?: string; calories?: number; protein?: number; carbs?: number; fats?: number }
+  | { intent: 'delete_food_entry'; foodName?: string; entryId?: string; date?: string }
   | { intent: 'log_sleep'; sleepHours: number; date?: string }
+  | { intent: 'edit_check_in'; date?: string; sleepHours?: number }
+  | { intent: 'delete_check_in'; date?: string }
+  | { intent: 'add_goal'; type: string; target: number; period: string }
+  | { intent: 'edit_goal'; goalType?: string; goalId?: string; target?: number; period?: string }
+  | { intent: 'delete_goal'; goalType?: string; goalId?: string }
   | { intent: 'unknown' };
 
-function normalizeItem(raw: {
-  title?: unknown;
-  startTime?: unknown;
-  endTime?: unknown;
-  category?: unknown;
-}): VoiceScheduleItem {
+export interface VoiceUnderstandResult {
+  actions: VoiceAction[];
+}
+
+function normalizeItem(raw: Record<string, unknown>): VoiceScheduleItem {
   return {
     title: typeof raw.title === 'string' ? raw.title : '',
     startTime: typeof raw.startTime === 'string' ? raw.startTime : '09:00',
     endTime: typeof raw.endTime === 'string' ? raw.endTime : '10:00',
     category: typeof raw.category === 'string' ? raw.category : 'Other',
+    recurrence: typeof raw.recurrence === 'string' ? raw.recurrence : undefined,
   };
 }
 
-type BackendVoicePayload = {
-  intent?: string;
-  items?: unknown[];
-  title?: string;
-  startTime?: string;
-  endTime?: string;
-  category?: string;
-  itemTitle?: string;
-  itemId?: string;
-  type?: string;
-  amount?: number;
-  description?: string;
-  date?: string;
-  name?: string;
-  calories?: number;
-  protein?: number;
-  carbs?: number;
-  fats?: number;
-  sleepHours?: number;
-};
+function parseAction(raw: Record<string, unknown>): VoiceAction | null {
+  const intent = typeof raw.intent === 'string' ? raw.intent : 'unknown';
+  if (intent === 'unknown') return { intent: 'unknown' };
+
+  if (intent === 'add_schedule') {
+    const items = Array.isArray(raw.items)
+      ? (raw.items as Record<string, unknown>[])
+          .filter((it) => it && typeof (it as { title?: unknown }).title === 'string')
+          .map((it) => normalizeItem(it as Record<string, unknown>))
+      : [];
+    if (items.length === 0) return null;
+    return { intent: 'add_schedule', items };
+  }
+
+  if (intent === 'edit_schedule') {
+    return {
+      intent: 'edit_schedule',
+      itemTitle: typeof raw.itemTitle === 'string' ? raw.itemTitle : undefined,
+      itemId: typeof raw.itemId === 'string' ? raw.itemId : undefined,
+      startTime: typeof raw.startTime === 'string' ? raw.startTime : undefined,
+      endTime: typeof raw.endTime === 'string' ? raw.endTime : undefined,
+      title: typeof raw.title === 'string' ? raw.title : undefined,
+      category: typeof raw.category === 'string' ? raw.category : undefined,
+    };
+  }
+
+  if (intent === 'delete_schedule') {
+    return {
+      intent: 'delete_schedule',
+      itemTitle: typeof raw.itemTitle === 'string' ? raw.itemTitle : undefined,
+      itemId: typeof raw.itemId === 'string' ? raw.itemId : undefined,
+    };
+  }
+
+  if (intent === 'add_transaction') {
+    const type = raw.type === 'income' || raw.type === 'expense' ? raw.type : 'expense';
+    const amount = typeof raw.amount === 'number' && raw.amount >= 0 ? raw.amount : 0;
+    return {
+      intent: 'add_transaction',
+      type,
+      amount,
+      category: typeof raw.category === 'string' ? raw.category : 'Other',
+      description: typeof raw.description === 'string' ? raw.description : undefined,
+      date: typeof raw.date === 'string' ? raw.date : undefined,
+      isRecurring: !!raw.isRecurring,
+    };
+  }
+
+  if (intent === 'edit_transaction') {
+    return {
+      intent: 'edit_transaction',
+      description: typeof raw.description === 'string' ? raw.description : undefined,
+      transactionId: typeof raw.transactionId === 'string' ? raw.transactionId : undefined,
+      date: typeof raw.date === 'string' ? raw.date : undefined,
+      type: typeof raw.type === 'string' ? raw.type : undefined,
+      amount: typeof raw.amount === 'number' ? raw.amount : undefined,
+      category: typeof raw.category === 'string' ? raw.category : undefined,
+    };
+  }
+
+  if (intent === 'delete_transaction') {
+    return {
+      intent: 'delete_transaction',
+      description: typeof raw.description === 'string' ? raw.description : undefined,
+      transactionId: typeof raw.transactionId === 'string' ? raw.transactionId : undefined,
+      date: typeof raw.date === 'string' ? raw.date : undefined,
+    };
+  }
+
+  if (intent === 'add_workout') {
+    return {
+      intent: 'add_workout',
+      date: typeof raw.date === 'string' ? raw.date : undefined,
+      title: typeof raw.title === 'string' ? raw.title : 'Workout',
+      type: typeof raw.type === 'string' ? raw.type : 'cardio',
+      durationMinutes: typeof raw.durationMinutes === 'number' ? raw.durationMinutes : 30,
+      notes: typeof raw.notes === 'string' ? raw.notes : undefined,
+    };
+  }
+
+  if (intent === 'edit_workout') {
+    return {
+      intent: 'edit_workout',
+      workoutTitle: typeof raw.workoutTitle === 'string' ? raw.workoutTitle : undefined,
+      workoutId: typeof raw.workoutId === 'string' ? raw.workoutId : undefined,
+      date: typeof raw.date === 'string' ? raw.date : undefined,
+      title: typeof raw.title === 'string' ? raw.title : undefined,
+      type: typeof raw.type === 'string' ? raw.type : undefined,
+      durationMinutes: typeof raw.durationMinutes === 'number' ? raw.durationMinutes : undefined,
+      notes: raw.notes !== undefined ? String(raw.notes) : undefined,
+    };
+  }
+
+  if (intent === 'delete_workout') {
+    return {
+      intent: 'delete_workout',
+      workoutTitle: typeof raw.workoutTitle === 'string' ? raw.workoutTitle : undefined,
+      workoutId: typeof raw.workoutId === 'string' ? raw.workoutId : undefined,
+      date: typeof raw.date === 'string' ? raw.date : undefined,
+    };
+  }
+
+  if (intent === 'add_food') {
+    return {
+      intent: 'add_food',
+      name: typeof raw.name === 'string' ? raw.name : undefined,
+      calories: typeof raw.calories === 'number' ? raw.calories : undefined,
+      protein: typeof raw.protein === 'number' ? raw.protein : undefined,
+      carbs: typeof raw.carbs === 'number' ? raw.carbs : undefined,
+      fats: typeof raw.fats === 'number' ? raw.fats : undefined,
+      food: typeof raw.food === 'string' ? raw.food : undefined,
+      amount: typeof raw.amount === 'number' ? raw.amount : undefined,
+      unit: typeof raw.unit === 'string' ? raw.unit : undefined,
+      date: typeof raw.date === 'string' ? raw.date : undefined,
+    };
+  }
+
+  if (intent === 'edit_food_entry') {
+    return {
+      intent: 'edit_food_entry',
+      foodName: typeof raw.foodName === 'string' ? raw.foodName : undefined,
+      entryId: typeof raw.entryId === 'string' ? raw.entryId : undefined,
+      date: typeof raw.date === 'string' ? raw.date : undefined,
+      name: typeof raw.name === 'string' ? raw.name : undefined,
+      calories: typeof raw.calories === 'number' ? raw.calories : undefined,
+      protein: typeof raw.protein === 'number' ? raw.protein : undefined,
+      carbs: typeof raw.carbs === 'number' ? raw.carbs : undefined,
+      fats: typeof raw.fats === 'number' ? raw.fats : undefined,
+    };
+  }
+
+  if (intent === 'delete_food_entry') {
+    return {
+      intent: 'delete_food_entry',
+      foodName: typeof raw.foodName === 'string' ? raw.foodName : undefined,
+      entryId: typeof raw.entryId === 'string' ? raw.entryId : undefined,
+      date: typeof raw.date === 'string' ? raw.date : undefined,
+    };
+  }
+
+  if (intent === 'log_sleep') {
+    const sleepHours = typeof raw.sleepHours === 'number' && raw.sleepHours >= 0 ? raw.sleepHours : 0;
+    return {
+      intent: 'log_sleep',
+      sleepHours,
+      date: typeof raw.date === 'string' ? raw.date : undefined,
+    };
+  }
+
+  if (intent === 'edit_check_in') {
+    return {
+      intent: 'edit_check_in',
+      date: typeof raw.date === 'string' ? raw.date : undefined,
+      sleepHours: typeof raw.sleepHours === 'number' ? raw.sleepHours : undefined,
+    };
+  }
+
+  if (intent === 'delete_check_in') {
+    return {
+      intent: 'delete_check_in',
+      date: typeof raw.date === 'string' ? raw.date : undefined,
+    };
+  }
+
+  if (intent === 'add_goal') {
+    return {
+      intent: 'add_goal',
+      type: typeof raw.type === 'string' ? raw.type : 'workouts',
+      target: typeof raw.target === 'number' ? raw.target : 0,
+      period: typeof raw.period === 'string' ? raw.period : 'weekly',
+    };
+  }
+
+  if (intent === 'edit_goal') {
+    return {
+      intent: 'edit_goal',
+      goalType: typeof raw.goalType === 'string' ? raw.goalType : undefined,
+      goalId: typeof raw.goalId === 'string' ? raw.goalId : undefined,
+      target: typeof raw.target === 'number' ? raw.target : undefined,
+      period: typeof raw.period === 'string' ? raw.period : undefined,
+    };
+  }
+
+  if (intent === 'delete_goal') {
+    return {
+      intent: 'delete_goal',
+      goalType: typeof raw.goalType === 'string' ? raw.goalType : undefined,
+      goalId: typeof raw.goalId === 'string' ? raw.goalId : undefined,
+    };
+  }
+
+  return { intent: 'unknown' };
+}
 
 export async function understandTranscript(
   transcript: string,
@@ -73,7 +254,7 @@ export async function understandTranscript(
   try {
     res = await fetch(`${API_BASE}/api/voice/understand`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
       body: JSON.stringify({ transcript: transcript.trim(), lang }),
     });
   } catch (e) {
@@ -88,71 +269,17 @@ export async function understandTranscript(
     const msg = (body as { error?: string })?.error ?? res.statusText;
     throw new Error(msg || `Request failed: ${res.status}`);
   }
-  const data = (await res.json()) as BackendVoicePayload;
-  const intent = data.intent ?? 'unknown';
-  // #region agent log
-  fetch('http://127.0.0.1:7246/ingest/e2e403c5-3c70-4f1e-adfb-38e8c147c460', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'voiceApi.ts:data', message: 'Backend response received', data: { intent, keys: Object.keys(data), data }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H4' }) }).catch(() => {});
-  // #endregion
-
-  if (intent === 'add_schedule') {
-    let items: VoiceScheduleItem[] = [];
-    if (Array.isArray(data.items) && data.items.length > 0) {
-      items = data.items
-        .filter((it) => it && typeof (it as { title?: unknown }).title === 'string' && ((it as { title: string }).title).trim())
-        .map((it) => normalizeItem(it as { title?: unknown; startTime?: unknown; endTime?: unknown; category?: unknown }));
-    } else if (typeof data.title === 'string' && data.title.trim()) {
-      items = [normalizeItem(data)];
+  const data = (await res.json()) as { actions?: unknown[] };
+  const rawActions = Array.isArray(data.actions) ? data.actions : [];
+  const actions: VoiceAction[] = [];
+  for (const raw of rawActions) {
+    if (raw && typeof raw === 'object') {
+      const action = parseAction(raw as Record<string, unknown>);
+      if (action) actions.push(action);
     }
-    return { intent: 'add_schedule', items };
   }
-
-  if (intent === 'delete_schedule') {
-    return {
-      intent: 'delete_schedule',
-      itemTitle: typeof data.itemTitle === 'string' ? data.itemTitle : undefined,
-      itemId: typeof data.itemId === 'string' ? data.itemId : undefined,
-    };
+  if (actions.length === 0) {
+    actions.push({ intent: 'unknown' });
   }
-
-  if (intent === 'add_transaction') {
-    const type = data.type === 'income' || data.type === 'expense' ? data.type : 'expense';
-    const amount = typeof data.amount === 'number' && data.amount >= 0 ? data.amount : 0;
-    const category = typeof data.category === 'string' ? data.category : 'Other';
-    return {
-      intent: 'add_transaction',
-      type,
-      amount,
-      category,
-      description: typeof data.description === 'string' ? data.description : undefined,
-      date: typeof data.date === 'string' ? data.date : undefined,
-    };
-  }
-
-  if (intent === 'add_food') {
-    const name = typeof data.name === 'string' ? data.name : '';
-    const calories = typeof data.calories === 'number' && data.calories >= 0 ? data.calories : 0;
-    return {
-      intent: 'add_food',
-      name,
-      calories,
-      protein: typeof data.protein === 'number' && data.protein >= 0 ? data.protein : 0,
-      carbs: typeof data.carbs === 'number' && data.carbs >= 0 ? data.carbs : 0,
-      fats: typeof data.fats === 'number' && data.fats >= 0 ? data.fats : 0,
-      date: typeof data.date === 'string' ? data.date : undefined,
-    };
-  }
-
-  if (intent === 'log_sleep') {
-    const sleepHours = typeof data.sleepHours === 'number' && data.sleepHours >= 0 ? data.sleepHours : 0;
-    const ret = { intent: 'log_sleep' as const, sleepHours, date: typeof data.date === 'string' ? data.date : undefined };
-    // #region agent log
-    fetch('http://127.0.0.1:7246/ingest/e2e403c5-3c70-4f1e-adfb-38e8c147c460', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'voiceApi.ts:return', message: 'Returning result', data: { intent: ret.intent, result: ret }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H4' }) }).catch(() => {});
-    // #endregion
-    return ret;
-  }
-
-  // #region agent log
-  fetch('http://127.0.0.1:7246/ingest/e2e403c5-3c70-4f1e-adfb-38e8c147c460', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'voiceApi.ts:unknown', message: 'Fell through to unknown', data: { intent }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H4' }) }).catch(() => {});
-  // #endregion
-  return { intent: 'unknown' };
+  return { actions };
 }

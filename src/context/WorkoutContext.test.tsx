@@ -1,8 +1,9 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
-import { WorkoutProvider, useWorkouts } from './WorkoutContext';
+import { WorkoutProvider } from './WorkoutContext';
+import { useWorkouts } from '@/hooks/useWorkouts';
 import { Workout } from '@/types/workout';
-import { storage, STORAGE_KEYS } from '@/lib/storage';
+import { storage } from '@/lib/storage';
 
 vi.mock('@/lib/storage');
 vi.mock('@/lib/utils', () => ({
@@ -61,7 +62,7 @@ describe('WorkoutContext', () => {
       result.current.updateWorkout('1', { title: 'Updated Title' });
     });
 
-    const updated = result.current.workouts.find(w => w.id === '1');
+    const updated = result.current.workouts.find((w: Workout) => w.id === '1');
     expect(updated?.title).toBe('Updated Title');
   });
 

@@ -1,4 +1,4 @@
-import { Home, DollarSign, Dumbbell, Zap, Users, Settings, TrendingUp } from 'lucide-react';
+import { Home, DollarSign, Dumbbell, Zap, Settings, TrendingUp } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 

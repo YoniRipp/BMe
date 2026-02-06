@@ -4,9 +4,11 @@ import { Button } from '@/components/ui/button';
 import { useSchedule } from '@/hooks/useSchedule';
 import { useTransactions } from '@/hooks/useTransactions';
 import { useEnergy } from '@/hooks/useEnergy';
+import { useWorkouts } from '@/hooks/useWorkouts';
+import { useGoals } from '@/hooks/useGoals';
 import { CATEGORY_EMOJIS, SCHEDULE_CATEGORIES } from '@/types/schedule';
 import { TRANSACTION_CATEGORIES } from '@/types/transaction';
-import { understandTranscript } from '@/lib/voiceApi';
+import { understandTranscript, type VoiceAction } from '@/lib/voiceApi';
 import { toast } from '@/components/shared/ToastProvider';
 import { cn } from '@/lib/utils';
 
@@ -33,16 +35,18 @@ function getSpeechRecognition(): typeof window.SpeechRecognition | null {
 type State = 'idle' | 'listening' | 'processing';
 
 export function VoiceAgentButton() {
-  const { scheduleItems, addScheduleItems, deleteScheduleItem, getScheduleItemById } = useSchedule();
-  const { addTransaction } = useTransactions();
-  const { addFoodEntry, addCheckIn, updateCheckIn, getCheckInByDate } = useEnergy();
+  const { scheduleItems, addScheduleItems, updateScheduleItem, deleteScheduleItem, getScheduleItemById } = useSchedule();
+  const { transactions, addTransaction, updateTransaction, deleteTransaction } = useTransactions();
+  const { foodEntries, addFoodEntry, updateFoodEntry, deleteFoodEntry, updateCheckIn, addCheckIn, deleteCheckIn, getCheckInByDate } = useEnergy();
+  const { workouts, addWorkout, updateWorkout, deleteWorkout } = useWorkouts();
+  const { goals, addGoal, updateGoal, deleteGoal } = useGoals();
+
   const [state, setState] = useState<State>('idle');
   const [transcript, setTranscript] = useState('');
-  const recognitionRef = useRef<InstanceType<NonNullable<ReturnType<typeof getSpeechRecognition>>>>(null);
+  const recognitionRef = useRef<SpeechRecognition | null>(null);
   const committedRef = useRef('');
 
   const SpeechRecognitionClass = getSpeechRecognition();
-  const isSupported = !!SpeechRecognitionClass;
   const lang = 'he-IL';
 
   const stopListening = useCallback(() => {
@@ -55,14 +59,11 @@ export function VoiceAgentButton() {
       }
       recognitionRef.current = null;
     }
-    // Do not set state here; onend will set idle, or we're already processing
   }, []);
 
   const startListening = useCallback(() => {
     if (!SpeechRecognitionClass) {
-      toast.error('Voice not supported', {
-        description: 'Please use Chrome or Edge.',
-      });
+      toast.error('Voice not supported', { description: 'Please use Chrome or Edge.' });
       return;
     }
     setState('listening');
@@ -72,7 +73,7 @@ export function VoiceAgentButton() {
     rec.continuous = true;
     rec.interimResults = true;
     rec.lang = lang;
-    rec.onresult = (event: globalThis.SpeechRecognitionEvent) => {
+    rec.onresult = (event: SpeechRecognitionEvent) => {
       let interim = '';
       for (let i = event.resultIndex; i < event.results.length; i++) {
         const result = event.results[i];
@@ -85,7 +86,7 @@ export function VoiceAgentButton() {
       }
       setTranscript(committedRef.current + interim);
     };
-    rec.onerror = (event: globalThis.SpeechRecognitionErrorEvent) => {
+    rec.onerror = (event: SpeechRecognitionErrorEvent) => {
       if (event.error === 'no-speech') {
         toast.error('No speech detected. Try again.');
       } else if (event.error === 'not-allowed') {
@@ -109,6 +110,249 @@ export function VoiceAgentButton() {
     }
   }, [SpeechRecognitionClass]);
 
+  const executeAction = useCallback((action: VoiceAction): { success: boolean; message?: string } => {
+    try {
+      switch (action.intent) {
+        case 'add_schedule': {
+          if (!action.items?.length) return { success: false, message: 'No schedule items' };
+          let order = scheduleItems.length;
+          const validRecurrence = ['daily', 'weekdays', 'weekends'] as const;
+          const itemsToAdd = action.items.map((item) => {
+            const category = VALID_SCHEDULE_CATEGORIES.has(item.category as (typeof SCHEDULE_CATEGORIES)[number]) ? item.category : 'Other';
+            const recurrence = item.recurrence && validRecurrence.includes(item.recurrence as typeof validRecurrence[number]) ? (item.recurrence as 'daily' | 'weekdays' | 'weekends') : undefined;
+            return {
+              title: item.title,
+              startTime: item.startTime ?? '09:00',
+              endTime: item.endTime ?? '10:00',
+              category,
+              emoji: CATEGORY_EMOJIS[category],
+              order: order++,
+              isActive: true,
+              recurrence,
+            };
+          });
+          addScheduleItems(itemsToAdd);
+          return { success: true, message: `Added ${itemsToAdd.length} to schedule` };
+        }
+        case 'edit_schedule': {
+          let targetId = action.itemId ? getScheduleItemById(action.itemId)?.id : undefined;
+          if (!targetId && action.itemTitle) {
+            const m = scheduleItems.find((s) => s.title.toLowerCase().includes(action.itemTitle!.toLowerCase()));
+            targetId = m?.id;
+          }
+          if (!targetId) return { success: false, message: 'Schedule item not found' };
+          const updates: Record<string, unknown> = {};
+          if (action.startTime) updates.startTime = action.startTime;
+          if (action.endTime) updates.endTime = action.endTime;
+          if (action.title) updates.title = action.title;
+          if (action.category) updates.category = action.category;
+          if (Object.keys(updates).length === 0) return { success: false, message: 'No updates' };
+          void updateScheduleItem(targetId, updates);
+          return { success: true, message: 'Updated schedule' };
+        }
+        case 'delete_schedule': {
+          let targetId = action.itemId ? getScheduleItemById(action.itemId)?.id : undefined;
+          if (!targetId && action.itemTitle) {
+            const m = scheduleItems.find((s) => s.title.toLowerCase().includes(action.itemTitle!.toLowerCase()));
+            targetId = m?.id;
+          }
+          if (!targetId) return { success: false, message: 'Schedule item not found' };
+          deleteScheduleItem(targetId);
+          return { success: true, message: 'Removed from schedule' };
+        }
+        case 'add_transaction': {
+          const category: string = action.type === 'income'
+            ? (VALID_INCOME.has(action.category as (typeof TRANSACTION_CATEGORIES.income)[number]) ? action.category : 'Other')
+            : (VALID_EXPENSE.has(action.category as (typeof TRANSACTION_CATEGORIES.expense)[number]) ? action.category : 'Other');
+          addTransaction({
+            type: action.type,
+            amount: action.amount >= 0 ? action.amount : 0,
+            category,
+            description: action.description,
+            date: parseDateOrToday(action.date),
+            isRecurring: action.isRecurring ?? false,
+          });
+          return { success: true, message: 'Added transaction' };
+        }
+        case 'edit_transaction': {
+          let target = action.transactionId ? transactions.find((t) => t.id === action.transactionId) : undefined;
+          if (!target && action.description) {
+            const desc = action.description.toLowerCase();
+            target = transactions.find((t) => t.description?.toLowerCase().includes(desc));
+            if (!target && action.date) {
+              const d = parseDateOrToday(action.date).toISOString().slice(0, 10);
+              target = transactions.find((t) => t.date.toISOString().slice(0, 10) === d && t.description?.toLowerCase().includes(desc));
+            }
+          }
+          if (!target) return { success: false, message: 'Transaction not found' };
+          const updates: Record<string, unknown> = {};
+          if (action.type) updates.type = action.type;
+          if (action.amount != null) updates.amount = action.amount;
+          if (action.category) updates.category = action.category;
+          if (action.description !== undefined) updates.description = action.description;
+          if (action.date) updates.date = parseDateOrToday(action.date);
+          if (Object.keys(updates).length === 0) return { success: false, message: 'No updates' };
+          updateTransaction(target.id, updates);
+          return { success: true, message: 'Updated transaction' };
+        }
+        case 'delete_transaction': {
+          let target = action.transactionId ? transactions.find((t) => t.id === action.transactionId) : undefined;
+          if (!target && action.description) {
+            const desc = action.description.toLowerCase();
+            target = transactions.find((t) => t.description?.toLowerCase().includes(desc));
+          }
+          if (!target) return { success: false, message: 'Transaction not found' };
+          deleteTransaction(target.id);
+          return { success: true, message: 'Removed transaction' };
+        }
+        case 'add_workout': {
+          addWorkout({
+            date: parseDateOrToday(action.date),
+            title: action.title ?? 'Workout',
+            type: (['strength', 'cardio', 'flexibility', 'sports'].includes(action.type) ? action.type : 'cardio') as 'strength' | 'cardio' | 'flexibility' | 'sports',
+            durationMinutes: action.durationMinutes ?? 30,
+            exercises: [],
+            notes: action.notes,
+          });
+          return { success: true, message: 'Added workout' };
+        }
+        case 'edit_workout': {
+          let target = action.workoutId ? workouts.find((w) => w.id === action.workoutId) : undefined;
+          if (!target && action.workoutTitle) {
+            const tl = action.workoutTitle.toLowerCase();
+            target = workouts.find((w) => w.title.toLowerCase().includes(tl));
+          }
+          if (!target) return { success: false, message: 'Workout not found' };
+          const updates: Record<string, unknown> = {};
+          if (action.title) updates.title = action.title;
+          if (action.type) updates.type = action.type;
+          if (action.durationMinutes != null) updates.durationMinutes = action.durationMinutes;
+          if (action.notes !== undefined) updates.notes = action.notes;
+          if (action.date) updates.date = parseDateOrToday(action.date);
+          if (Object.keys(updates).length === 0) return { success: false, message: 'No updates' };
+          updateWorkout(target.id, updates);
+          return { success: true, message: 'Updated workout' };
+        }
+        case 'delete_workout': {
+          let target = action.workoutId ? workouts.find((w) => w.id === action.workoutId) : undefined;
+          if (!target && action.workoutTitle) {
+            const tl = action.workoutTitle.toLowerCase();
+            target = workouts.find((w) => w.title.toLowerCase().includes(tl));
+          }
+          if (!target) return { success: false, message: 'Workout not found' };
+          deleteWorkout(target.id);
+          return { success: true, message: 'Removed workout' };
+        }
+        case 'add_food': {
+          if (!action.name && !action.calories) return { success: false, message: 'Food not found in database' };
+          addFoodEntry({
+            date: parseDateOrToday(action.date),
+            name: action.name ?? 'Unknown',
+            calories: action.calories ?? 0,
+            protein: action.protein ?? 0,
+            carbs: action.carbs ?? 0,
+            fats: action.fats ?? 0,
+          });
+          return { success: true, message: 'Logged food' };
+        }
+        case 'edit_food_entry': {
+          let target = action.entryId ? foodEntries.find((e) => e.id === action.entryId) : undefined;
+          if (!target && action.foodName) {
+            const fn = action.foodName.toLowerCase();
+            target = foodEntries.find((e) => e.name.toLowerCase().includes(fn));
+          }
+          if (!target) return { success: false, message: 'Food entry not found' };
+          const updates: Record<string, unknown> = {};
+          if (action.name) updates.name = action.name;
+          if (action.calories != null) updates.calories = action.calories;
+          if (action.protein != null) updates.protein = action.protein;
+          if (action.carbs != null) updates.carbs = action.carbs;
+          if (action.fats != null) updates.fats = action.fats;
+          if (action.date) updates.date = parseDateOrToday(action.date);
+          if (Object.keys(updates).length === 0) return { success: false, message: 'No updates' };
+          updateFoodEntry(target.id, updates);
+          return { success: true, message: 'Updated food entry' };
+        }
+        case 'delete_food_entry': {
+          let target = action.entryId ? foodEntries.find((e) => e.id === action.entryId) : undefined;
+          if (!target && action.foodName) {
+            const fn = action.foodName.toLowerCase();
+            target = foodEntries.find((e) => e.name.toLowerCase().includes(fn));
+          }
+          if (!target) return { success: false, message: 'Food entry not found' };
+          deleteFoodEntry(target.id);
+          return { success: true, message: 'Removed food entry' };
+        }
+        case 'log_sleep': {
+          const date = parseDateOrToday(action.date);
+          const existing = getCheckInByDate(date);
+          if (existing) {
+            updateCheckIn(existing.id, { sleepHours: action.sleepHours });
+          } else {
+            addCheckIn({ date, sleepHours: action.sleepHours });
+          }
+          return { success: true, message: 'Logged sleep' };
+        }
+        case 'edit_check_in': {
+          if (!action.date) return { success: false, message: 'Date required' };
+          const date = parseDateOrToday(action.date);
+          const existing = getCheckInByDate(date);
+          if (!existing) return { success: false, message: 'Check-in not found' };
+          updateCheckIn(existing.id, { sleepHours: action.sleepHours });
+          return { success: true, message: 'Updated sleep' };
+        }
+        case 'delete_check_in': {
+          if (!action.date) return { success: false, message: 'Date required' };
+          const date = parseDateOrToday(action.date);
+          const existing = getCheckInByDate(date);
+          if (!existing) return { success: false, message: 'Check-in not found' };
+          deleteFoodEntry(existing.id);
+          return { success: true, message: 'Removed sleep log' };
+        }
+        case 'add_goal': {
+          addGoal({
+            type: action.type as 'calories' | 'workouts' | 'savings',
+            target: action.target,
+            period: action.period as 'weekly' | 'monthly' | 'yearly',
+          });
+          return { success: true, message: 'Added goal' };
+        }
+        case 'edit_goal': {
+          let target = action.goalId ? goals.find((g) => g.id === action.goalId) : undefined;
+          if (!target && action.goalType) {
+            target = goals.find((g) => g.type === action.goalType);
+          }
+          if (!target) return { success: false, message: 'Goal not found' };
+          const updates: Record<string, unknown> = {};
+          if (action.target != null) updates.target = action.target;
+          if (action.period) updates.period = action.period;
+          if (Object.keys(updates).length === 0) return { success: false, message: 'No updates' };
+          updateGoal(target.id, updates);
+          return { success: true, message: 'Updated goal' };
+        }
+        case 'delete_goal': {
+          let target = action.goalId ? goals.find((g) => g.id === action.goalId) : undefined;
+          if (!target && action.goalType) {
+            target = goals.find((g) => g.type === action.goalType);
+          }
+          if (!target) return { success: false, message: 'Goal not found' };
+          deleteGoal(target.id);
+          return { success: true, message: 'Removed goal' };
+        }
+        default:
+          return { success: false, message: 'Could not understand' };
+      }
+    } catch (e) {
+      return { success: false, message: e instanceof Error ? e.message : 'Unknown error' };
+    }
+  }, [
+    scheduleItems, addScheduleItems, updateScheduleItem, deleteScheduleItem, getScheduleItemById,
+    transactions, addTransaction, updateTransaction, deleteTransaction,
+    foodEntries, addFoodEntry, updateFoodEntry, deleteFoodEntry, updateCheckIn, addCheckIn, deleteCheckIn, getCheckInByDate,
+    workouts, addWorkout, updateWorkout, deleteWorkout,
+    goals, addGoal, updateGoal, deleteGoal,
+  ]);
+
   const handleClick = async () => {
     if (state === 'listening') {
       const text = transcript.trim();
@@ -121,111 +365,29 @@ export function VoiceAgentButton() {
       stopListening();
       try {
         const result = await understandTranscript(text, lang);
-        // #region agent log
-        fetch('http://127.0.0.1:7246/ingest/e2e403c5-3c70-4f1e-adfb-38e8c147c460', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'VoiceAgentButton.tsx:result', message: 'Voice result', data: { intent: result.intent, transcript: text.slice(0, 60) }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H5' }) }).catch(() => {});
-        // #endregion
+        const succeeded: string[] = [];
+        const failed: { action: string; reason: string }[] = [];
 
-        switch (result.intent) {
-          case 'add_schedule': {
-            if (result.items?.length > 0) {
-              let order = scheduleItems.length;
-              const itemsToAdd = result.items.map((item) => {
-                const category = VALID_SCHEDULE_CATEGORIES.has(item.category as (typeof SCHEDULE_CATEGORIES)[number])
-                  ? item.category
-                  : 'Other';
-                return {
-                  title: item.title,
-                  startTime: item.startTime,
-                  endTime: item.endTime,
-                  category,
-                  emoji: CATEGORY_EMOJIS[category],
-                  order: order++,
-                  isActive: true,
-                };
-              });
-              addScheduleItems(itemsToAdd);
-              const n = result.items.length;
-              const titlesPreview = result.items.map((i) => i.title).join(', ');
-              toast.success(
-                n === 1 ? `Added to schedule: ${result.items[0].title}` : `Added ${n} items to schedule`,
-                { description: titlesPreview.length > 60 ? titlesPreview.slice(0, 57) + '...' : titlesPreview }
-              );
-            } else {
-              toast.error('Could not add to schedule', { description: 'Say something like "Add workout at 9" or "הוסף אימון ב-9".' });
-            }
-            break;
+        for (const action of result.actions) {
+          if (action.intent === 'unknown') {
+            failed.push({ action: 'unknown', reason: 'Could not understand' });
+            continue;
           }
-          case 'delete_schedule': {
-            let targetId: string | undefined;
-            if (result.itemId) {
-              const byId = getScheduleItemById(result.itemId);
-              if (byId) targetId = byId.id;
-            }
-            if (!targetId && result.itemTitle) {
-              const titleLower = result.itemTitle.toLowerCase();
-              const match = scheduleItems.find((s) => s.title.toLowerCase().includes(titleLower));
-              if (match) targetId = match.id;
-            }
-            if (targetId) {
-              deleteScheduleItem(targetId);
-              toast.success('Removed from schedule');
-            } else {
-              toast.error('No matching schedule item');
-            }
-            break;
+          const r = executeAction(action);
+          if (r.success) {
+            succeeded.push(r.message ?? action.intent);
+          } else {
+            failed.push({ action: action.intent, reason: r.message ?? 'Failed' });
           }
-          case 'add_transaction': {
-            const category =
-              result.type === 'income'
-                ? (VALID_INCOME.has(result.category) ? result.category : 'Other')
-                : (VALID_EXPENSE.has(result.category) ? result.category : 'Other');
-            const date = parseDateOrToday(result.date);
-            addTransaction({
-              type: result.type,
-              amount: result.amount >= 0 ? result.amount : 0,
-              category,
-              description: result.description,
-              date,
-              isRecurring: false,
-            });
-            toast.success('Added transaction');
-            break;
-          }
-          case 'add_food': {
-            // #region agent log
-            fetch('http://127.0.0.1:7246/ingest/e2e403c5-3c70-4f1e-adfb-38e8c147c460', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'VoiceAgentButton:add_food', message: 'Entered add_food', data: { result }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H5' }) }).catch(() => {});
-            // #endregion
-            const date = parseDateOrToday(result.date);
-            addFoodEntry({
-              name: result.name,
-              calories: result.calories,
-              protein: result.protein ?? 0,
-              carbs: result.carbs ?? 0,
-              fats: result.fats ?? 0,
-              date,
-            });
-            toast.success('Logged food');
-            break;
-          }
-          case 'log_sleep': {
-            const date = parseDateOrToday(result.date);
-            const existing = getCheckInByDate(date);
-            if (existing) {
-              updateCheckIn(existing.id, { sleepHours: result.sleepHours });
-            } else {
-              addCheckIn({ date, sleepHours: result.sleepHours });
-            }
-            toast.success('Logged sleep');
-            break;
-          }
-          default: {
-            // #region agent log
-            fetch('http://127.0.0.1:7246/ingest/e2e403c5-3c70-4f1e-adfb-38e8c147c460', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'VoiceAgentButton:default', message: 'Unknown intent', data: { intent: result.intent }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H5' }) }).catch(() => {});
-            // #endregion
-            toast.error('Could not understand', {
-              description: 'Try: add workout, remove workout, add expense 50, log food salad 200 calories, slept 7 hours.',
-            });
-          }
+        }
+
+        if (succeeded.length > 0 && failed.length === 0) {
+          toast.success(succeeded.length === 1 ? succeeded[0] : `Done: ${succeeded.join(', ')}`);
+        } else if (succeeded.length > 0 && failed.length > 0) {
+          toast.success(`Added ${succeeded.length} item(s). ${failed.length} failed: ${failed.map((f) => f.reason).join('; ')}`);
+        } else if (failed.length > 0) {
+          const msg = failed[0].reason;
+          toast.error('Could not complete', { description: msg });
         }
       } catch (e) {
         const msg = e instanceof Error ? e.message : 'Network or server error';

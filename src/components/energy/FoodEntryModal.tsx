@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { FoodEntry } from '@/types/energy';
 import { validateFoodName, validateCalories, validateProtein, validateCarbs, validateFats, ValidationResult } from '@/lib/validation';
 import { useDebounce } from '@/hooks/useDebounce';
-import { searchFoods, type FoodSearchResult } from '@/lib/api';
+import { searchFoods, type FoodSearchResult } from '@/features/energy/api';
 import {
   Dialog,
   DialogContent,
@@ -120,9 +120,6 @@ export function FoodEntryModal({ open, onOpenChange, onSave, entry }: FoodEntryM
   }, [debouncedSearchQuery]);
 
   const handleSelectFood = useCallback((item: FoodSearchResult) => {
-    // #region agent log
-    fetch('http://127.0.0.1:7246/ingest/e2e403c5-3c70-4f1e-adfb-38e8c147c460', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'FoodEntryModal.tsx:handleSelectFood', message: 'Selected food item from API', data: { name: item.name, calories: item.calories, protein: item.protein, carbs: item.carbs, fats: item.fats, referenceGrams: item.referenceGrams }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H4' }) }).catch(() => {});
-    // #endregion
     const refGrams = item.referenceGrams ?? DEFAULT_REFERENCE_GRAMS;
     const factor = DEFAULT_REFERENCE_GRAMS / refGrams;
     const base: Per100g = {

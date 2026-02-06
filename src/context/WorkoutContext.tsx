@@ -1,6 +1,6 @@
 import React, { createContext, useCallback, useEffect, useState } from 'react';
 import { Workout } from '@/types/workout';
-import { workoutsApi } from '@/lib/api';
+import { workoutsApi } from '@/features/body/api';
 
 interface WorkoutContextType {
   workouts: Workout[];
@@ -15,17 +15,7 @@ interface WorkoutContextType {
 
 export const WorkoutContext = createContext<WorkoutContextType | undefined>(undefined);
 
-function apiToWorkout(a: { id: string; date: string; title: string; type: string; durationMinutes: number; exercises: { name: string; sets: number; reps: number; weight?: number; notes?: string }[]; notes?: string }): Workout {
-  return {
-    id: a.id,
-    date: new Date(a.date),
-    title: a.title,
-    type: a.type as Workout['type'],
-    durationMinutes: a.durationMinutes,
-    exercises: a.exercises ?? [],
-    notes: a.notes,
-  };
-}
+import { apiWorkoutToWorkout } from '@/features/body/mappers';
 
 export function WorkoutProvider({ children }: { children: React.ReactNode }) {
   const [workouts, setWorkouts] = useState<Workout[]>([]);
@@ -37,7 +27,7 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
     setWorkoutsError(null);
     try {
       const list = await workoutsApi.list();
-      setWorkouts(list.map(apiToWorkout));
+      setWorkouts(list.map(apiWorkoutToWorkout));
     } catch (e) {
       setWorkoutsError(e instanceof Error ? e.message : 'Failed to load workouts');
       setWorkouts([]);
@@ -60,7 +50,7 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
       exercises: workout.exercises,
       notes: workout.notes,
     }).then(created => {
-      setWorkouts(prev => [...prev, apiToWorkout(created)]);
+      setWorkouts(prev => [...prev, apiWorkoutToWorkout(created)]);
     }).catch(e => {
       setWorkoutsError(e instanceof Error ? e.message : 'Failed to add workout');
     });
@@ -76,7 +66,7 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
     if (updates.exercises !== undefined) body.exercises = updates.exercises;
     if (updates.notes !== undefined) body.notes = updates.notes;
     workoutsApi.update(id, body).then(updated => {
-      setWorkouts(prev => prev.map(w => w.id === id ? apiToWorkout(updated) : w));
+      setWorkouts(prev => prev.map(w => w.id === id ? apiWorkoutToWorkout(updated) : w));
     }).catch(e => {
       setWorkoutsError(e instanceof Error ? e.message : 'Failed to update workout');
     });

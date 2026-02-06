@@ -44,6 +44,15 @@ export function formatTime(time: string): string {
   return `${displayHour}:${minutes} ${ampm}`;
 }
 
+/** True if the given end time (HH:MM) has already passed today. */
+export function isScheduleItemPast(endTime: string): boolean {
+  const now = new Date();
+  const [h, m] = endTime.split(':').map(Number);
+  const endMinutes = (h ?? 0) * 60 + (m ?? 0);
+  const nowMinutes = now.getHours() * 60 + now.getMinutes();
+  return nowMinutes > endMinutes;
+}
+
 export function getMonthName(date: Date): string {
   return new Intl.DateTimeFormat('en-US', { month: 'long' }).format(date);
 }

@@ -1,7 +1,8 @@
+import React from 'react';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { AppProvider, useApp } from './AppContext';
-import { DEFAULT_SETTINGS } from '@/types/settings';
+import { DEFAULT_SETTINGS } from '../types/settings';
 
 // Mock useLocalStorage
 const mockSetSettings = vi.fn();

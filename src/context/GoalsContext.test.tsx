@@ -11,25 +11,13 @@ const mockAdd = vi.fn().mockImplementation((goal: { type: string; target: number
 const mockUpdate = vi.fn().mockResolvedValue({ id: 'test-id', type: 'calories', target: 3000, period: 'weekly', createdAt: new Date().toISOString() });
 const mockDelete = vi.fn().mockResolvedValue(undefined);
 
-vi.mock('@/lib/api', () => ({
+vi.mock('@/features/goals/api', () => ({
   goalsApi: {
     list: () => mockList(),
     add: (goal: unknown) => mockAdd(goal),
     update: (id: string, updates: unknown) => mockUpdate(id, updates),
     delete: (id: string) => mockDelete(id),
   },
-}));
-
-vi.mock('@/hooks/useTransactions', () => ({
-  useTransactions: () => ({ transactions: [] }),
-}));
-
-vi.mock('@/hooks/useWorkouts', () => ({
-  useWorkouts: () => ({ workouts: [] }),
-}));
-
-vi.mock('@/hooks/useEnergy', () => ({
-  useEnergy: () => ({ foodEntries: [] }),
 }));
 
 const wrapper = ({ children }: { children: React.ReactNode }) => (
@@ -91,20 +79,6 @@ describe('GoalsContext', () => {
     });
 
     await waitFor(() => expect(mockDelete).toHaveBeenCalledWith('test-id'));
-  });
-
-  it('gets goal progress', async () => {
-    mockList.mockResolvedValue([
-      { id: 'test-id', type: 'calories', target: 2000, period: 'weekly', createdAt: new Date().toISOString() },
-    ]);
-    const { result } = renderHook(() => useGoals(), { wrapper });
-    await waitFor(() => expect(result.current.goalsLoading).toBe(false));
-
-    const progress = result.current.getGoalProgress('test-id');
-    expect(progress).toBeDefined();
-    expect(progress.current).toBe(0);
-    expect(progress.target).toBe(2000);
-    expect(progress.percentage).toBe(0);
   });
 
   it('throws error when used outside provider', () => {

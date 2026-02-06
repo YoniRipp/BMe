@@ -15,7 +15,7 @@ import {
   Legend,
   ResponsiveContainer,
 } from 'recharts';
-import { format, startOfWeek, endOfWeek, eachDayOfInterval, isWithinInterval } from 'date-fns';
+import { format, startOfWeek, endOfWeek, isWithinInterval } from 'date-fns';
 
 interface WorkoutFrequencyChartProps {
   workouts: Workout[];

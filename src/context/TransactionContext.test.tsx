@@ -9,7 +9,7 @@ const mockTransactionsApi = [
 ];
 
 const mockList = vi.fn().mockResolvedValue(mockTransactionsApi);
-const mockAdd = vi.fn().mockImplementation((tx: { type: string; amount: number }) =>
+const mockAdd = vi.fn().mockImplementation((tx: { type: string; amount: number; category?: string }) =>
   Promise.resolve({ id: '2', date: '2025-01-16', type: tx.type, amount: tx.amount, category: tx.category ?? 'Other', description: null, isRecurring: false })
 );
 const mockUpdate = vi.fn().mockImplementation((id: string, updates: { amount?: number }) =>
@@ -17,7 +17,7 @@ const mockUpdate = vi.fn().mockImplementation((id: string, updates: { amount?: n
 );
 const mockDelete = vi.fn().mockResolvedValue(undefined);
 
-vi.mock('@/lib/api', () => ({
+vi.mock('@/features/money/api', () => ({
   transactionsApi: {
     list: () => mockList(),
     add: (tx: unknown) => mockAdd(tx),

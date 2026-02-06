@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { SocialLoginButtons } from '@/components/auth/SocialLoginButtons';
 
 export function Signup() {
   const { register } = useAuth();
@@ -36,7 +37,8 @@ export function Signup() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md">
-        <CardHeader>
+        <CardHeader className="text-center space-y-4">
+          <img src="/logo.png" alt="BeMê" className="mx-auto max-w-[160px] w-auto h-16 object-contain" />
           <CardTitle>Create an account</CardTitle>
           <CardDescription>Enter your details to get started.</CardDescription>
         </CardHeader>
@@ -86,6 +88,15 @@ export function Signup() {
             </div>
           </CardContent>
           <CardFooter className="flex flex-col gap-4">
+            <SocialLoginButtons />
+            <div className="relative my-2">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-card px-2 text-muted-foreground">Or sign up with email</span>
+              </div>
+            </div>
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? 'Creating account...' : 'Sign up'}
             </Button>

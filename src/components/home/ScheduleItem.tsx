@@ -1,18 +1,25 @@
 import { ScheduleItem as ScheduleItemType } from '@/types/schedule';
 import { formatTime } from '@/lib/utils';
-import { Pencil, Trash2 } from 'lucide-react';
+import { Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
 interface ScheduleItemProps {
   item: ScheduleItemType;
+  isPast?: boolean;
   onEdit?: (item: ScheduleItemType) => void;
   onDelete?: (id: string) => void;
 }
 
-export function ScheduleItem({ item, onEdit, onDelete }: ScheduleItemProps) {
+export function ScheduleItem({ item, isPast, onEdit, onDelete }: ScheduleItemProps) {
   return (
     <div 
-      className="flex items-center justify-between p-3 bg-muted rounded-lg cursor-pointer hover:bg-muted/80 transition-colors"
+      className={cn(
+        'flex items-center justify-between p-3 rounded-lg cursor-pointer transition-colors',
+        isPast
+          ? 'bg-muted/50 text-muted-foreground opacity-75 hover:bg-muted/70'
+          : 'bg-muted hover:bg-muted/80'
+      )}
       onClick={() => onEdit && onEdit(item)}
       role="button"
       tabIndex={0}

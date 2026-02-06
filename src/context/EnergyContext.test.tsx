@@ -1,13 +1,8 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
-import { EnergyProvider, useEnergy } from './EnergyContext';
+import { EnergyProvider } from './EnergyContext';
+import { useEnergy } from '@/hooks/useEnergy';
 import { DailyCheckIn, FoodEntry } from '@/types/energy';
-import { storage, STORAGE_KEYS } from '@/lib/storage';
-
-vi.mock('@/lib/storage');
-vi.mock('@/lib/utils', () => ({
-  generateId: () => 'test-id-123',
-}));
 
 const mockCheckIns: DailyCheckIn[] = [
   {
@@ -29,14 +24,31 @@ const mockFoodEntries: FoodEntry[] = [
   },
 ];
 
+const apiCheckIn = { id: '1', date: '2025-01-16', sleepHours: 7.5 };
+const apiFoodEntry = { id: '1', date: '2025-01-16', name: 'Chicken Breast', calories: 200, protein: 30, carbs: 0, fats: 5 };
+
+vi.mock('@/features/energy/api', () => ({
+  foodEntriesApi: {
+    list: vi.fn().mockResolvedValue([apiFoodEntry]),
+    add: vi.fn().mockImplementation((e: { name: string; calories: number; protein: number; carbs: number; fats: number }) =>
+      Promise.resolve({ id: 'new-id', date: new Date().toISOString().slice(0, 10), ...e })
+    ),
+    update: vi.fn().mockResolvedValue(apiFoodEntry),
+    delete: vi.fn().mockResolvedValue(undefined),
+  },
+  dailyCheckInsApi: {
+    list: vi.fn().mockResolvedValue([apiCheckIn]),
+    add: vi.fn().mockImplementation((c: { sleepHours?: number }) =>
+      Promise.resolve({ id: 'new-id', date: new Date().toISOString().slice(0, 10), sleepHours: c.sleepHours })
+    ),
+    update: vi.fn().mockResolvedValue(apiCheckIn),
+    delete: vi.fn().mockResolvedValue(undefined),
+  },
+}));
+
 describe('EnergyContext', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    (storage.get as any).mockImplementation((key: string) => {
-      if (key === STORAGE_KEYS.ENERGY) return mockCheckIns;
-      if (key === STORAGE_KEYS.FOOD_ENTRIES) return mockFoodEntries;
-      return null;
-    });
   });
 
   const wrapper = ({ children }: { children: React.ReactNode }) => (
@@ -86,7 +98,7 @@ describe('EnergyContext', () => {
       result.current.updateCheckIn('1', { sleepHours: 8 });
     });
 
-    const updated = result.current.checkIns.find(c => c.id === '1');
+    const updated = result.current.checkIns.find((c: DailyCheckIn) => c.id === '1');
     expect(updated?.sleepHours).toBe(8);
   });
 

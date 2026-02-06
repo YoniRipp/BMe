@@ -1,6 +1,6 @@
 import React, { createContext, useCallback, useEffect, useState } from 'react';
 import { DailyCheckIn, FoodEntry } from '@/types/energy';
-import { foodEntriesApi, dailyCheckInsApi } from '@/lib/api';
+import { foodEntriesApi, dailyCheckInsApi } from '@/features/energy/api';
 
 interface EnergyContextType {
   checkIns: DailyCheckIn[];
@@ -21,25 +21,10 @@ interface EnergyContextType {
 
 export const EnergyContext = createContext<EnergyContextType | undefined>(undefined);
 
-function apiToCheckIn(a: { id: string; date: string; sleepHours?: number }): DailyCheckIn {
-  return {
-    id: a.id,
-    date: new Date(a.date),
-    sleepHours: a.sleepHours != null ? a.sleepHours : undefined,
-  };
-}
-
-function apiToFoodEntry(a: { id: string; date: string; name: string; calories: number; protein: number; carbs: number; fats: number }): FoodEntry {
-  return {
-    id: a.id,
-    date: new Date(a.date),
-    name: a.name,
-    calories: a.calories,
-    protein: a.protein,
-    carbs: a.carbs,
-    fats: a.fats,
-  };
-}
+import {
+  apiCheckInToDailyCheckIn,
+  apiFoodEntryToFoodEntry,
+} from '@/features/energy/mappers';
 
 export function EnergyProvider({ children }: { children: React.ReactNode }) {
   const [checkIns, setCheckIns] = useState<DailyCheckIn[]>([]);
@@ -55,8 +40,8 @@ export function EnergyProvider({ children }: { children: React.ReactNode }) {
         dailyCheckInsApi.list(),
         foodEntriesApi.list(),
       ]);
-      setCheckIns(checkInsList.map(apiToCheckIn));
-      setFoodEntries(foodList.map(apiToFoodEntry));
+      setCheckIns(checkInsList.map(apiCheckInToDailyCheckIn));
+      setFoodEntries(foodList.map(apiFoodEntryToFoodEntry));
     } catch (e) {
       setEnergyError(e instanceof Error ? e.message : 'Failed to load energy data');
       setCheckIns([]);
@@ -76,7 +61,7 @@ export function EnergyProvider({ children }: { children: React.ReactNode }) {
       date: checkIn.date.toISOString().slice(0, 10),
       sleepHours: checkIn.sleepHours,
     }).then(created => {
-      setCheckIns(prev => [...prev, apiToCheckIn(created)]);
+      setCheckIns(prev => [...prev, apiCheckInToDailyCheckIn(created)]);
     }).catch(e => {
       setEnergyError(e instanceof Error ? e.message : 'Failed to add check-in');
     });
@@ -88,7 +73,7 @@ export function EnergyProvider({ children }: { children: React.ReactNode }) {
     if (updates.date !== undefined) body.date = updates.date.toISOString().slice(0, 10);
     if (updates.sleepHours !== undefined) body.sleepHours = updates.sleepHours;
     dailyCheckInsApi.update(id, body).then(updated => {
-      setCheckIns(prev => prev.map(c => c.id === id ? apiToCheckIn(updated) : c));
+      setCheckIns(prev => prev.map(c => c.id === id ? apiCheckInToDailyCheckIn(updated) : c));
     }).catch(e => {
       setEnergyError(e instanceof Error ? e.message : 'Failed to update check-in');
     });
@@ -118,7 +103,7 @@ export function EnergyProvider({ children }: { children: React.ReactNode }) {
       carbs: entry.carbs,
       fats: entry.fats,
     }).then(created => {
-      setFoodEntries(prev => [...prev, apiToFoodEntry(created)]);
+      setFoodEntries(prev => [...prev, apiFoodEntryToFoodEntry(created)]);
     }).catch(e => {
       setEnergyError(e instanceof Error ? e.message : 'Failed to add food entry');
     });
@@ -134,7 +119,7 @@ export function EnergyProvider({ children }: { children: React.ReactNode }) {
     if (updates.carbs !== undefined) body.carbs = updates.carbs;
     if (updates.fats !== undefined) body.fats = updates.fats;
     foodEntriesApi.update(id, body).then(updated => {
-      setFoodEntries(prev => prev.map(e => e.id === id ? apiToFoodEntry(updated) : e));
+      setFoodEntries(prev => prev.map(e => e.id === id ? apiFoodEntryToFoodEntry(updated) : e));
     }).catch(e => {
       setEnergyError(e instanceof Error ? e.message : 'Failed to update food entry');
     });

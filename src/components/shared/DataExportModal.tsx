@@ -179,13 +179,15 @@ export function DataExportModal({ open, onOpenChange }: DataExportModalProps) {
                   className="hidden"
                 />
                 <Button
-                  as="span"
+                  asChild
                   variant="outline"
                   disabled={importing}
                   className="w-full"
                 >
-                  <Upload className="w-4 h-4 mr-2" />
-                  {importing ? 'Importing...' : 'Import JSON File'}
+                  <span>
+                    <Upload className="w-4 h-4 mr-2" />
+                    {importing ? 'Importing...' : 'Import JSON File'}
+                  </span>
                 </Button>
               </label>
             </div>

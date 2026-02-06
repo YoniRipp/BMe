@@ -8,6 +8,7 @@ export interface ScheduleItem {
   order: number;
   isActive: boolean;
   groupId?: string;
+  recurrence?: 'daily' | 'weekdays' | 'weekends';
 }
 
 export const SCHEDULE_CATEGORIES = [

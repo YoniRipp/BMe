@@ -96,7 +96,7 @@ export function WorkoutModal({ open, onOpenChange, onSave, workout }: WorkoutMod
   };
 
   const validateField = (field: 'title' | 'duration', value: string) => {
-    let result;
+    let result: { isValid: boolean; error?: string };
     switch (field) {
       case 'title':
         result = validateTitle(value);
@@ -120,7 +120,7 @@ export function WorkoutModal({ open, onOpenChange, onSave, workout }: WorkoutMod
   };
 
   const validateExercise = (index: number, field: 'name' | 'sets' | 'reps' | 'weight', value: string | number | undefined) => {
-    let result;
+    let result: { isValid: boolean; error?: string };
     const exerciseErrors = errors.exercises || [];
     const currentErrors = exerciseErrors[index] || {};
 
@@ -179,7 +179,7 @@ export function WorkoutModal({ open, onOpenChange, onSave, workout }: WorkoutMod
     const titleValid = validateTitle(formData.title).isValid;
     const durationValid = !formData.durationMinutes || validateWorkoutDuration(parseInt(formData.durationMinutes) || 0).isValid;
     
-    const exercisesValid = formData.exercises.every((ex, idx) => {
+    const exercisesValid = formData.exercises.every((ex) => {
       const nameValid = validateExerciseName(ex.name).isValid;
       const setsValid = validateExerciseSets(ex.sets).isValid;
       const repsValid = validateExerciseReps(ex.reps).isValid;

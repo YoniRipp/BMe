@@ -23,7 +23,7 @@ function getStorageSize(): number {
 }
 
 // Check if storage quota might be exceeded (5MB limit, warn at 4.5MB)
-function checkStorageQuota(key: string, valueSize: number): { canStore: boolean; error?: string } {
+function checkStorageQuota(_key: string, valueSize: number): { canStore: boolean; error?: string } {
   if (!isLocalStorageAvailable()) {
     return { canStore: false, error: 'LocalStorage is not available in this browser.' };
   }

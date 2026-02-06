@@ -1,4 +1,4 @@
-import React, { Component, ErrorInfo, ReactNode } from 'react';
+import { Component, ErrorInfo, ReactNode } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { AlertCircle, RefreshCw, Home } from 'lucide-react';
@@ -29,8 +29,7 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    // Log error to console in development
-    if (process.env.NODE_ENV === 'development') {
+    if (import.meta.env.DEV) {
       console.error('ErrorBoundary caught an error:', error, errorInfo);
     }
 
@@ -80,7 +79,7 @@ export class ErrorBoundary extends Component<Props, State> {
               </div>
             </div>
 
-            {process.env.NODE_ENV === 'development' && this.state.error && (
+            {import.meta.env.DEV && this.state.error && (
               <div className="mb-4 p-4 bg-muted rounded-lg">
                 <p className="text-sm font-semibold mb-2">Error Details:</p>
                 <pre className="text-xs overflow-auto">
@@ -104,7 +103,7 @@ export class ErrorBoundary extends Component<Props, State> {
               </Button>
             </div>
 
-            {process.env.NODE_ENV === 'development' && (
+            {import.meta.env.DEV && (
               <div className="mt-4 p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800">
                 <p className="text-xs text-yellow-800 dark:text-yellow-200">
                   <strong>Development Mode:</strong> Error details are shown above. 

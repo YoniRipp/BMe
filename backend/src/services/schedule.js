@@ -1,0 +1,74 @@
+/**
+ * Schedule service — validation and business logic.
+ * @module services/schedule
+ */
+import { ValidationError } from '../errors.js';
+import { SCHEDULE_CATEGORIES, VALID_RECURRENCE } from '../config/constants.js';
+import { normTime, normTimeRequired } from '../utils/validation.js';
+import { requireNonEmptyString } from '../utils/validation.js';
+import { requireId, requireFound, normOneOf, buildUpdates, trim } from '../utils/serviceHelpers.js';
+import * as scheduleModel from '../models/schedule.js';
+
+export async function list(userId) {
+  return scheduleModel.findByUserId(userId);
+}
+
+export async function create(userId, body) {
+  const { title, startTime, endTime, category, emoji, order, isActive, groupId, recurrence } = body ?? {};
+  const cat = normOneOf(category, SCHEDULE_CATEGORIES, { default: 'Other' });
+  const rec = normOneOf(recurrence, VALID_RECURRENCE, { default: null });
+  return scheduleModel.create({
+    userId,
+    title: requireNonEmptyString(title, 'title'),
+    startTime: startTime ?? '09:00',
+    endTime: endTime ?? '10:00',
+    category: cat,
+    emoji,
+    order,
+    isActive,
+    groupId,
+    recurrence: rec,
+  });
+}
+
+export async function createBatch(userId, items) {
+  if (!Array.isArray(items) || items.length === 0) {
+    throw new ValidationError('items array is required');
+  }
+  const normalized = items
+    .filter((it) => it?.title && typeof it.title === 'string' && it.title.trim())
+    .map((it) => ({
+      ...it,
+      title: String(it.title).trim(),
+      category: normOneOf(it?.category, SCHEDULE_CATEGORIES, { default: 'Other' }),
+      recurrence: normOneOf(it?.recurrence, VALID_RECURRENCE, { default: null }),
+    }));
+  if (normalized.length === 0) {
+    throw new ValidationError('At least one valid item with title is required');
+  }
+  return scheduleModel.createBatch(userId, normalized);
+}
+
+export async function update(userId, id, body) {
+  requireId(id);
+  const updates = buildUpdates(body ?? {}, {
+    title: (v) => (typeof v === 'string' ? v.trim() : v),
+    startTime: (v) => normTimeRequired(v, 'startTime'),
+    endTime: (v) => normTimeRequired(v, 'endTime'),
+    category: (v) => normOneOf(v, SCHEDULE_CATEGORIES, { default: 'Other' }),
+    emoji: (v) => v,
+    order: (v) => Number(v),
+    isActive: (v) => !!v,
+    groupId: (v) => v ?? null,
+    recurrence: (v) => normOneOf(v, VALID_RECURRENCE, { default: null }),
+  });
+  const updated = await scheduleModel.update(id, userId, updates);
+  requireFound(updated, 'Schedule item');
+  return updated;
+}
+
+export async function remove(userId, id) {
+  requireId(id);
+  const deleted = await scheduleModel.deleteById(id, userId);
+  requireFound(deleted, 'Schedule item');
+}

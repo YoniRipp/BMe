@@ -137,12 +137,18 @@ The app comes pre-loaded with sample data including:
 
 ### Backend (optional)
 
-To run the backend (voice agent, food search, data API), set in `backend/.env`:
+To run the backend (voice agent, food search, data API, auth), set in `backend/.env`:
 
-- `GEMINI_API_KEY` – for voice intent parsing
-- `API_NINJAS_KEY` – for food search and voice food nutrition (API Ninjas; 100k requests/month free)
+- `DATABASE_URL` – PostgreSQL connection string (e.g. Supabase). Required for data API, food search, voice add_food, and auth.
+- `GEMINI_API_KEY` – for voice intent parsing.
+- `JWT_SECRET` – secret for signing JWTs (defaults to a dev value; set in production).
 
-Voice “add food” uses Gemini to parse speech (e.g. “300g chicken breast”) ; for add food, text is sent to API Ninjas for nutrition, then saved.
+**Social login (Google, Facebook, Twitter):**
+
+- **Backend** (`backend/.env`): `GOOGLE_CLIENT_ID` (required for Google; use the same value as in the frontend), `FACEBOOK_APP_ID`, `TWITTER_CLIENT_ID`; for Twitter redirect flow also `TWITTER_CLIENT_SECRET`, `TWITTER_REDIRECT_URI` (e.g. `http://localhost:3000/api/auth/twitter/callback`), and `FRONTEND_ORIGIN` (e.g. `http://localhost:5173`). If `GOOGLE_CLIENT_ID` is missing, the backend returns 503 for `POST /api/auth/google`.
+- **Frontend** (project root `.env`): `VITE_GOOGLE_CLIENT_ID`, `VITE_FACEBOOK_APP_ID` (same values as in backend). Restart the dev server after changing these.
+
+Food search and voice “add food” use the USDA Foundation Foods database stored in Supabase. One-time import: place `FoodData_Central_foundation_food_json_2025-12-18.json` in the project root and run `npm run import:foods` from the `backend` directory (or `node backend/scripts/importFoundationFoods.js` from the repo root).
 
 ## Future Enhancements
 
