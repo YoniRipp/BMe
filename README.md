@@ -135,6 +135,15 @@ The app comes pre-loaded with sample data including:
 - Sample energy check-ins
 - Sample schedule items
 
+### Backend (optional)
+
+To run the backend (voice agent, food search, data API), set in `backend/.env`:
+
+- `GEMINI_API_KEY` – for voice intent parsing
+- `API_NINJAS_KEY` – for food search and voice food nutrition (API Ninjas; 100k requests/month free)
+
+Voice “add food” uses Gemini to parse speech (e.g. “300g chicken breast”) ; for add food, text is sent to API Ninjas for nutrition, then saved.
+
 ## Future Enhancements
 
 - Real authentication system

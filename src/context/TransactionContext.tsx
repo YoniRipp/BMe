@@ -1,12 +1,12 @@
-import React, { createContext, useCallback } from 'react';
+import React, { createContext, useCallback, useEffect, useState } from 'react';
 import { Transaction } from '@/types/transaction';
-import { useLocalStorage } from '@/hooks/useLocalStorage';
-import { STORAGE_KEYS, storage } from '@/lib/storage';
-import { SAMPLE_TRANSACTIONS } from '@/lib/constants';
-import { generateId } from '@/lib/utils';
+import { transactionsApi } from '@/lib/api';
 
 interface TransactionContextType {
   transactions: Transaction[];
+  transactionsLoading: boolean;
+  transactionsError: string | null;
+  refetchTransactions: () => Promise<void>;
   addTransaction: (transaction: Omit<Transaction, 'id'>) => void;
   updateTransaction: (id: string, transaction: Partial<Transaction>) => void;
   deleteTransaction: (id: string) => void;
@@ -15,35 +15,83 @@ interface TransactionContextType {
 
 export const TransactionContext = createContext<TransactionContextType | undefined>(undefined);
 
-export function TransactionProvider({ children }: { children: React.ReactNode }) {
-  // Initialize with sample data if no data exists
-  const initializeTransactions = () => {
-    const existing = storage.get<Transaction[]>(STORAGE_KEYS.TRANSACTIONS);
-    return existing || SAMPLE_TRANSACTIONS;
+function apiToTransaction(a: { id: string; date: string; type: 'income' | 'expense'; amount: number; category: string; description?: string; isRecurring: boolean; groupId?: string }): Transaction {
+  return {
+    id: a.id,
+    date: new Date(a.date),
+    type: a.type,
+    amount: a.amount,
+    category: a.category,
+    description: a.description,
+    isRecurring: a.isRecurring,
+    groupId: a.groupId,
   };
+}
 
-  const [transactions, setTransactions] = useLocalStorage<Transaction[]>(
-    STORAGE_KEYS.TRANSACTIONS,
-    initializeTransactions()
-  );
+export function TransactionProvider({ children }: { children: React.ReactNode }) {
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [transactionsLoading, setTransactionsLoading] = useState(true);
+  const [transactionsError, setTransactionsError] = useState<string | null>(null);
+
+  const refetchTransactions = useCallback(async () => {
+    setTransactionsLoading(true);
+    setTransactionsError(null);
+    try {
+      const list = await transactionsApi.list();
+      setTransactions(list.map(apiToTransaction));
+    } catch (e) {
+      setTransactionsError(e instanceof Error ? e.message : 'Failed to load transactions');
+      setTransactions([]);
+    } finally {
+      setTransactionsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    refetchTransactions();
+  }, [refetchTransactions]);
 
   const addTransaction = useCallback((transaction: Omit<Transaction, 'id'>) => {
-    const newTransaction: Transaction = {
-      ...transaction,
-      id: generateId(),
+    setTransactionsError(null);
+    const body = {
+      date: transaction.date instanceof Date ? transaction.date.toISOString().slice(0, 10) : transaction.date,
+      type: transaction.type,
+      amount: transaction.amount,
+      category: transaction.category,
+      description: transaction.description,
+      isRecurring: transaction.isRecurring,
+      groupId: transaction.groupId,
     };
-    setTransactions(prev => [...prev, newTransaction]);
-  }, [setTransactions]);
+    transactionsApi.add(body).then(created => {
+      setTransactions(prev => [...prev, apiToTransaction(created)]);
+    }).catch(e => {
+      setTransactionsError(e instanceof Error ? e.message : 'Failed to add transaction');
+    });
+  }, []);
 
   const updateTransaction = useCallback((id: string, updates: Partial<Transaction>) => {
-    setTransactions(prev =>
-      prev.map(t => t.id === id ? { ...t, ...updates } : t)
-    );
-  }, [setTransactions]);
+    setTransactionsError(null);
+    const body: Record<string, unknown> = { ...updates };
+    if (updates.date !== undefined) {
+      body.date = updates.date instanceof Date ? updates.date.toISOString().slice(0, 10) : updates.date;
+    }
+    transactionsApi.update(id, body as Parameters<typeof transactionsApi.update>[1]).then(updated => {
+      setTransactions(prev =>
+        prev.map(t => t.id === id ? apiToTransaction(updated) : t)
+      );
+    }).catch(e => {
+      setTransactionsError(e instanceof Error ? e.message : 'Failed to update transaction');
+    });
+  }, []);
 
   const deleteTransaction = useCallback((id: string) => {
-    setTransactions(prev => prev.filter(t => t.id !== id));
-  }, [setTransactions]);
+    setTransactionsError(null);
+    transactionsApi.delete(id).then(() => {
+      setTransactions(prev => prev.filter(t => t.id !== id));
+    }).catch(e => {
+      setTransactionsError(e instanceof Error ? e.message : 'Failed to delete transaction');
+    });
+  }, []);
 
   const getTransactionById = useCallback((id: string) => {
     return transactions.find(t => t.id === id);
@@ -52,6 +100,9 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
   return (
     <TransactionContext.Provider value={{
       transactions,
+      transactionsLoading,
+      transactionsError,
+      refetchTransactions,
       addTransaction,
       updateTransaction,
       deleteTransaction,

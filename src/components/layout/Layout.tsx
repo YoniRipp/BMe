@@ -1,6 +1,7 @@
 import { Outlet } from 'react-router-dom';
 import { TopBar } from './TopBar';
 import { BottomNav } from './BottomNav';
+import { VoiceAgentButton } from '../voice/VoiceAgentButton';
 
 export function Layout() {
   return (
@@ -10,6 +11,7 @@ export function Layout() {
         <Outlet />
       </main>
       <BottomNav />
+      <VoiceAgentButton />
     </div>
   );
 }

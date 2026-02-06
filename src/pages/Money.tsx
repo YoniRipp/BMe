@@ -21,6 +21,7 @@ import {
 import { DollarSign, Plus, TrendingUp, TrendingDown, Filter, X } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
+import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { 
   startOfMonth, 
   endOfMonth, 
@@ -34,7 +35,7 @@ import {
 } from 'date-fns';
 
 export function Money() {
-  const { transactions, addTransaction, updateTransaction, deleteTransaction } = useTransactions();
+  const { transactions, transactionsLoading, transactionsError, addTransaction, updateTransaction, deleteTransaction } = useTransactions();
   const [modalOpen, setModalOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | undefined>(undefined);
   const [filter, setFilter] = useState<'all' | 'income' | 'expense'>('all');
@@ -219,6 +220,11 @@ export function Money() {
 
       {/* Transactions - moved to top */}
       <div>
+        {transactionsError && <p className="text-sm text-destructive mb-2">{transactionsError}</p>}
+        {transactionsLoading ? (
+          <LoadingSpinner text="Loading transactions..." />
+        ) : (
+        <>
         <div className="flex items-center gap-3 mb-4">
           <div className="flex-1">
             <SearchBar
@@ -318,6 +324,8 @@ export function Money() {
             />
           </TabsContent>
         </Tabs>
+        </>
+        )}
       </div>
 
       {/* Balance Cards Grid */}

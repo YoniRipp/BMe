@@ -1,9 +1,9 @@
 import React, { createContext, useContext, useCallback } from 'react';
 import { User } from '@/types/user';
 import { AppSettings, DEFAULT_SETTINGS } from '@/types/settings';
-import { MOCK_USER } from '@/lib/constants';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { STORAGE_KEYS } from '@/lib/storage';
+import { useAuth } from './AuthContext';
 
 interface AppContextType {
   user: User;
@@ -14,6 +14,7 @@ interface AppContextType {
 export const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
   const [settings, setSettings] = useLocalStorage<AppSettings>(
     STORAGE_KEYS.SETTINGS,
     DEFAULT_SETTINGS
@@ -23,8 +24,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setSettings(prev => ({ ...prev, ...updates }));
   }, [setSettings]);
 
+  if (!user) {
+    return null;
+  }
+
   return (
-    <AppContext.Provider value={{ user: MOCK_USER, settings, updateSettings }}>
+    <AppContext.Provider value={{ user, settings, updateSettings }}>
       {children}
     </AppContext.Provider>
   );

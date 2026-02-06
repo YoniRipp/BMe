@@ -1,44 +1,52 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
-import { TransactionProvider, useTransactions } from './TransactionContext';
+import { renderHook, act, waitFor } from '@testing-library/react';
+import { TransactionProvider } from './TransactionContext';
+import { useTransactions } from '@/hooks/useTransactions';
 import { Transaction } from '@/types/transaction';
-import { storage, STORAGE_KEYS } from '@/lib/storage';
 
-vi.mock('@/lib/storage');
-vi.mock('@/lib/utils', () => ({
-  generateId: () => 'test-id-123',
+const mockTransactionsApi = [
+  { id: '1', date: '2025-01-15', type: 'income' as const, amount: 1000, category: 'Salary', description: 'Monthly salary', isRecurring: true },
+];
+
+const mockList = vi.fn().mockResolvedValue(mockTransactionsApi);
+const mockAdd = vi.fn().mockImplementation((tx: { type: string; amount: number }) =>
+  Promise.resolve({ id: '2', date: '2025-01-16', type: tx.type, amount: tx.amount, category: tx.category ?? 'Other', description: null, isRecurring: false })
+);
+const mockUpdate = vi.fn().mockImplementation((id: string, updates: { amount?: number }) =>
+  Promise.resolve({ ...mockTransactionsApi[0], id, amount: updates.amount ?? 1000 })
+);
+const mockDelete = vi.fn().mockResolvedValue(undefined);
+
+vi.mock('@/lib/api', () => ({
+  transactionsApi: {
+    list: () => mockList(),
+    add: (tx: unknown) => mockAdd(tx),
+    update: (id: string, updates: unknown) => mockUpdate(id, updates),
+    delete: (id: string) => mockDelete(id),
+  },
 }));
 
-const mockTransactions: Transaction[] = [
-  {
-    id: '1',
-    date: new Date(2025, 0, 15),
-    type: 'income',
-    amount: 1000,
-    category: 'Salary',
-    description: 'Monthly salary',
-    isRecurring: true,
-  },
-];
+const wrapper = ({ children }: { children: React.ReactNode }) => (
+  <TransactionProvider>{children}</TransactionProvider>
+);
 
 describe('TransactionContext', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    (storage.get as any).mockReturnValue(mockTransactions);
+    mockList.mockResolvedValue(mockTransactionsApi);
   });
 
-  const wrapper = ({ children }: { children: React.ReactNode }) => (
-    <TransactionProvider>{children}</TransactionProvider>
-  );
-
-  it('provides transactions from storage', () => {
+  it('provides transactions from API', async () => {
     const { result } = renderHook(() => useTransactions(), { wrapper });
-    expect(result.current.transactions).toEqual(mockTransactions);
+    await waitFor(() => expect(result.current.transactionsLoading).toBe(false));
+    expect(result.current.transactions).toHaveLength(1);
+    expect(result.current.transactions[0].amount).toBe(1000);
   });
 
-  it('adds new transaction', () => {
+  it('adds new transaction via API', async () => {
     const { result } = renderHook(() => useTransactions(), { wrapper });
-    
+    await waitFor(() => expect(result.current.transactionsLoading).toBe(false));
+
     act(() => {
       result.current.addTransaction({
         date: new Date(2025, 0, 16),
@@ -50,36 +58,39 @@ describe('TransactionContext', () => {
       });
     });
 
-    expect(result.current.transactions).toHaveLength(2);
-    expect(storage.set).toHaveBeenCalled();
+    await waitFor(() => {
+      expect(mockAdd).toHaveBeenCalled();
+      expect(result.current.transactions.length).toBe(2);
+    });
   });
 
-  it('updates existing transaction', () => {
+  it('updates existing transaction via API', async () => {
     const { result } = renderHook(() => useTransactions(), { wrapper });
-    
+    await waitFor(() => expect(result.current.transactionsLoading).toBe(false));
+
     act(() => {
       result.current.updateTransaction('1', { amount: 1500 });
     });
 
-    const updated = result.current.transactions.find(t => t.id === '1');
-    expect(updated?.amount).toBe(1500);
-    expect(storage.set).toHaveBeenCalled();
+    await waitFor(() => expect(mockUpdate).toHaveBeenCalledWith('1', expect.objectContaining({ amount: 1500 })));
   });
 
-  it('deletes transaction', () => {
+  it('deletes transaction via API', async () => {
     const { result } = renderHook(() => useTransactions(), { wrapper });
-    
+    await waitFor(() => expect(result.current.transactionsLoading).toBe(false));
+
     act(() => {
       result.current.deleteTransaction('1');
     });
 
-    expect(result.current.transactions).toHaveLength(0);
-    expect(storage.set).toHaveBeenCalled();
+    await waitFor(() => expect(mockDelete).toHaveBeenCalledWith('1'));
   });
 
-  it('gets transaction by id', () => {
+  it('gets transaction by id', async () => {
     const { result } = renderHook(() => useTransactions(), { wrapper });
+    await waitFor(() => expect(result.current.transactionsLoading).toBe(false));
     const transaction = result.current.getTransactionById('1');
-    expect(transaction).toEqual(mockTransactions[0]);
+    expect(transaction).toBeDefined();
+    expect(transaction?.amount).toBe(1000);
   });
 });

@@ -180,6 +180,7 @@ function reviveDates<T>(obj: T): Revivable<T> {
 
 // Storage keys
 export const STORAGE_KEYS = {
+  TOKEN: 'beme_token',
   TRANSACTIONS: 'beme_transactions',
   WORKOUTS: 'beme_workouts',
   WORKOUT_TEMPLATES: 'beme_workout_templates',

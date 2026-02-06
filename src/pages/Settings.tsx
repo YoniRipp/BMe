@@ -1,9 +1,12 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useSettings } from '@/hooks/useSettings';
 import { useApp } from '@/context/AppContext';
+import { useAuth } from '@/context/AuthContext';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Settings as SettingsIcon, DollarSign, Calendar, Ruler, Palette, Database, Trash2, Download, RefreshCw, Bell } from 'lucide-react';
 import {
@@ -19,10 +22,13 @@ import { storage, STORAGE_KEYS } from '@/lib/storage';
 import { toast } from 'sonner';
 import { ConfirmationDialog } from '@/components/shared/ConfirmationDialog';
 import { useNotifications } from '@/context/NotificationContext';
+import { AdminUsersSection } from '@/components/settings/AdminUsersSection';
 
 export function Settings() {
+  const navigate = useNavigate();
   const { settings, updateSettings } = useSettings();
   const { user } = useApp();
+  const { logout } = useAuth();
   const { preferences, updatePreferences, permission, requestPermission, testNotification } = useNotifications();
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
@@ -113,6 +119,11 @@ export function Settings() {
     }
   };
 
+  const handleSignOut = () => {
+    logout();
+    navigate('/login', { replace: true });
+  };
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -121,6 +132,21 @@ export function Settings() {
         icon={SettingsIcon}
         iconColor="text-gray-600"
       />
+
+      {/* Account Section */}
+      <Card className="p-6">
+        <div className="flex items-center gap-3 mb-4">
+          <SettingsIcon className="w-5 h-5 text-muted-foreground" />
+          <h3 className="text-lg font-semibold">Account</h3>
+        </div>
+        <p className="text-sm text-muted-foreground mb-2">{user.email}</p>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" onClick={handleSignOut}>
+            Sign out
+          </Button>
+          {user.role === 'admin' && <AdminUsersSection />}
+        </div>
+      </Card>
 
       {/* Currency Section */}
       <Card className="p-6">

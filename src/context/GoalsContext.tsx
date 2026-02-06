@@ -1,8 +1,6 @@
-import React, { createContext, useCallback, useMemo } from 'react';
+import React, { createContext, useCallback, useEffect, useState } from 'react';
 import { Goal, GoalType, GoalPeriod } from '@/types/goals';
-import { useLocalStorage } from '@/hooks/useLocalStorage';
-import { STORAGE_KEYS } from '@/lib/storage';
-import { generateId } from '@/lib/utils';
+import { goalsApi } from '@/lib/api';
 import { useTransactions } from '@/hooks/useTransactions';
 import { useWorkouts } from '@/hooks/useWorkouts';
 import { useEnergy } from '@/hooks/useEnergy';
@@ -24,6 +22,9 @@ interface GoalProgress {
 
 interface GoalsContextType {
   goals: Goal[];
+  goalsLoading: boolean;
+  goalsError: string | null;
+  refetchGoals: () => Promise<void>;
   addGoal: (goal: Omit<Goal, 'id' | 'createdAt'>) => void;
   updateGoal: (id: string, updates: Partial<Goal>) => void;
   deleteGoal: (id: string) => void;
@@ -33,30 +34,74 @@ interface GoalsContextType {
 
 export const GoalsContext = createContext<GoalsContextType | undefined>(undefined);
 
+function apiToGoal(a: { id: string; type: string; target: number; period: string; createdAt: string }): Goal {
+  return {
+    id: a.id,
+    type: a.type as GoalType,
+    target: a.target,
+    period: a.period as GoalPeriod,
+    createdAt: new Date(a.createdAt),
+  };
+}
+
 export function GoalsProvider({ children }: { children: React.ReactNode }) {
-  const [goals, setGoals] = useLocalStorage<Goal[]>(STORAGE_KEYS.GOALS, []);
+  const [goals, setGoals] = useState<Goal[]>([]);
+  const [goalsLoading, setGoalsLoading] = useState(true);
+  const [goalsError, setGoalsError] = useState<string | null>(null);
   const { transactions } = useTransactions();
   const { workouts } = useWorkouts();
   const { foodEntries } = useEnergy();
 
+  const refetchGoals = useCallback(async () => {
+    setGoalsLoading(true);
+    setGoalsError(null);
+    try {
+      const list = await goalsApi.list();
+      setGoals(list.map(apiToGoal));
+    } catch (e) {
+      setGoalsError(e instanceof Error ? e.message : 'Failed to load goals');
+      setGoals([]);
+    } finally {
+      setGoalsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    refetchGoals();
+  }, [refetchGoals]);
+
   const addGoal = useCallback((goal: Omit<Goal, 'id' | 'createdAt'>) => {
-    const newGoal: Goal = {
-      ...goal,
-      id: generateId(),
-      createdAt: new Date(),
-    };
-    setGoals(prev => [...prev, newGoal]);
-  }, [setGoals]);
+    setGoalsError(null);
+    goalsApi.add({ type: goal.type, target: goal.target, period: goal.period }).then(created => {
+      setGoals(prev => [...prev, apiToGoal(created)]);
+    }).catch(e => {
+      setGoalsError(e instanceof Error ? e.message : 'Failed to add goal');
+    });
+  }, []);
 
   const updateGoal = useCallback((id: string, updates: Partial<Goal>) => {
-    setGoals(prev =>
-      prev.map(g => g.id === id ? { ...g, ...updates } : g)
-    );
-  }, [setGoals]);
+    setGoalsError(null);
+    const body: { type?: string; target?: number; period?: string } = {};
+    if (updates.type !== undefined) body.type = updates.type;
+    if (updates.target !== undefined) body.target = updates.target;
+    if (updates.period !== undefined) body.period = updates.period;
+    goalsApi.update(id, body).then(updated => {
+      setGoals(prev =>
+        prev.map(g => g.id === id ? apiToGoal(updated) : g)
+      );
+    }).catch(e => {
+      setGoalsError(e instanceof Error ? e.message : 'Failed to update goal');
+    });
+  }, []);
 
   const deleteGoal = useCallback((id: string) => {
-    setGoals(prev => prev.filter(g => g.id !== id));
-  }, [setGoals]);
+    setGoalsError(null);
+    goalsApi.delete(id).then(() => {
+      setGoals(prev => prev.filter(g => g.id !== id));
+    }).catch(e => {
+      setGoalsError(e instanceof Error ? e.message : 'Failed to delete goal');
+    });
+  }, []);
 
   const getGoalById = useCallback((id: string) => {
     return goals.find(g => g.id === id);
@@ -107,7 +152,6 @@ export function GoalsProvider({ children }: { children: React.ReactNode }) {
           .filter(t => t.type === 'expense')
           .reduce((sum, t) => sum + t.amount, 0);
         const balance = income - expenses;
-        // For savings goal, target is percentage, current is actual savings rate
         current = income > 0 ? Math.round((balance / income) * 100) : 0;
         break;
     }
@@ -120,6 +164,9 @@ export function GoalsProvider({ children }: { children: React.ReactNode }) {
   return (
     <GoalsContext.Provider value={{
       goals,
+      goalsLoading,
+      goalsError,
+      refetchGoals,
       addGoal,
       updateGoal,
       deleteGoal,

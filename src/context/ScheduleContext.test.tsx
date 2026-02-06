@@ -1,23 +1,34 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
-import { ScheduleProvider, useSchedule } from './ScheduleContext';
+import { renderHook, act, waitFor } from '@testing-library/react';
+import { ScheduleProvider } from './ScheduleContext';
+import { useSchedule } from '@/hooks/useSchedule';
 import { ScheduleItem } from '@/types/schedule';
 
-// Mock storage
-vi.mock('@/lib/storage', () => ({
-  storage: {
-    get: vi.fn(() => null),
-    set: vi.fn(),
-  },
-  STORAGE_KEYS: {
-    SCHEDULE: 'beme_schedule',
-  },
-}));
+const mockList = vi.fn().mockResolvedValue([]);
+const mockAdd = vi.fn().mockImplementation((item: { title: string }) =>
+  Promise.resolve({
+    id: 'new-id',
+    title: item.title,
+    startTime: '09:00',
+    endTime: '10:00',
+    category: 'Other',
+    order: 0,
+    isActive: true,
+  })
+);
+const mockUpdate = vi.fn().mockImplementation((id: string, updates: Partial<ScheduleItem>) =>
+  Promise.resolve({ id, title: 'Updated', startTime: '09:00', endTime: '10:00', category: 'Other', order: 0, isActive: true, ...updates })
+);
+const mockDelete = vi.fn().mockResolvedValue(undefined);
 
-// Mock useLocalStorage
-const mockSetScheduleItems = vi.fn();
-vi.mock('@/hooks/useLocalStorage', () => ({
-  useLocalStorage: vi.fn(() => [[], mockSetScheduleItems]),
+vi.mock('@/lib/api', () => ({
+  scheduleApi: {
+    list: () => mockList(),
+    add: (item: unknown) => mockAdd(item),
+    addBatch: vi.fn().mockResolvedValue([]),
+    update: (id: string, updates: unknown) => mockUpdate(id, updates),
+    delete: (id: string) => mockDelete(id),
+  },
 }));
 
 const wrapper = ({ children }: { children: React.ReactNode }) => (
@@ -27,17 +38,24 @@ const wrapper = ({ children }: { children: React.ReactNode }) => (
 describe('ScheduleContext', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockList.mockResolvedValue([]);
   });
 
-  it('provides schedule items', () => {
+  it('provides schedule items and loading state', async () => {
     const { result } = renderHook(() => useSchedule(), { wrapper });
     expect(result.current.scheduleItems).toBeDefined();
     expect(Array.isArray(result.current.scheduleItems)).toBe(true);
+    await waitFor(() => {
+      expect(result.current.scheduleLoading).toBe(false);
+    });
   });
 
-  it('adds schedule item', () => {
+  it('adds schedule item via API', async () => {
+    mockList.mockResolvedValue([]);
     const { result } = renderHook(() => useSchedule(), { wrapper });
-    
+
+    await waitFor(() => expect(result.current.scheduleLoading).toBe(false));
+
     const newItem: Omit<ScheduleItem, 'id'> = {
       title: 'Test Schedule',
       startTime: '09:00',
@@ -51,62 +69,63 @@ describe('ScheduleContext', () => {
       result.current.addScheduleItem(newItem);
     });
 
-    expect(mockSetScheduleItems).toHaveBeenCalled();
+    await waitFor(() => {
+      expect(mockAdd).toHaveBeenCalledWith(expect.objectContaining({ title: 'Test Schedule' }));
+      expect(result.current.scheduleItems.length).toBe(1);
+      expect(result.current.scheduleItems[0].title).toBe('Test Schedule');
+    });
   });
 
-  it('updates schedule item', () => {
+  it('updates schedule item via API', async () => {
+    mockList.mockResolvedValue([{ id: 'test-id', title: 'Test', startTime: '09:00', endTime: '10:00', category: 'Work', order: 0, isActive: true }]);
     const { result } = renderHook(() => useSchedule(), { wrapper });
-    
+
+    await waitFor(() => expect(result.current.scheduleLoading).toBe(false));
+
     act(() => {
       result.current.updateScheduleItem('test-id', { title: 'Updated Title' });
     });
 
-    expect(mockSetScheduleItems).toHaveBeenCalled();
+    await waitFor(() => {
+      expect(mockUpdate).toHaveBeenCalledWith('test-id', { title: 'Updated Title' });
+    });
   });
 
-  it('deletes schedule item', () => {
+  it('deletes schedule item via API', async () => {
+    mockList.mockResolvedValue([{ id: 'test-id', title: 'Test', startTime: '09:00', endTime: '10:00', category: 'Work', order: 0, isActive: true }]);
     const { result } = renderHook(() => useSchedule(), { wrapper });
-    
+
+    await waitFor(() => expect(result.current.scheduleLoading).toBe(false));
+
     act(() => {
       result.current.deleteScheduleItem('test-id');
     });
 
-    expect(mockSetScheduleItems).toHaveBeenCalled();
+    await waitFor(() => {
+      expect(mockDelete).toHaveBeenCalledWith('test-id');
+    });
   });
 
-  it('gets schedule item by id', () => {
-    const mockItems: ScheduleItem[] = [
-      {
-        id: 'test-id',
-        title: 'Test Schedule',
-        startTime: '09:00',
-        endTime: '10:00',
-        category: 'Work',
-        isActive: true,
-        order: 0,
-      },
-    ];
-
-    vi.mocked(require('@/hooks/useLocalStorage').useLocalStorage).mockReturnValue([
-      mockItems,
-      mockSetScheduleItems,
+  it('gets schedule item by id', async () => {
+    mockList.mockResolvedValue([
+      { id: 'test-id', title: 'Test Schedule', startTime: '09:00', endTime: '10:00', category: 'Work', order: 0, isActive: true },
     ]);
-
     const { result } = renderHook(() => useSchedule(), { wrapper });
-    
+
+    await waitFor(() => expect(result.current.scheduleLoading).toBe(false));
+
     const item = result.current.getScheduleItemById('test-id');
     expect(item).toBeDefined();
     expect(item?.title).toBe('Test Schedule');
   });
 
   it('throws error when used outside provider', () => {
-    // Suppress console.error for this test
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-    
+
     expect(() => {
       renderHook(() => useSchedule());
     }).toThrow('useSchedule must be used within ScheduleProvider');
-    
+
     consoleSpy.mockRestore();
   });
 });

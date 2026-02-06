@@ -12,6 +12,7 @@ import { ScheduleModal } from '@/components/home/ScheduleModal';
 import { GoalCard } from '@/components/goals/GoalCard';
 import { GoalModal } from '@/components/goals/GoalModal';
 import { OnboardingTour } from '@/components/onboarding/OnboardingTour';
+import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { Card } from '@/components/ui/card';
 import { Home as HomeIcon, Plus } from 'lucide-react';
 import { startOfMonth, endOfMonth, subDays, isAfter } from 'date-fns';
@@ -22,8 +23,8 @@ export function Home() {
   const { transactions } = useTransactions();
   const { workouts } = useWorkouts();
   const { checkIns } = useEnergy();
-  const { scheduleItems, addScheduleItem, updateScheduleItem, deleteScheduleItem } = useSchedule();
-  const { goals, addGoal, updateGoal } = useGoals();
+  const { scheduleItems, scheduleLoading, scheduleError, addScheduleItem, updateScheduleItem, deleteScheduleItem } = useSchedule();
+  const { goals, goalsLoading, goalsError, addGoal, updateGoal } = useGoals();
 
   const [scheduleModalOpen, setScheduleModalOpen] = useState(false);
   const [editingSchedule, setEditingSchedule] = useState<ScheduleItemType | undefined>(undefined);
@@ -106,8 +107,11 @@ export function Home() {
       {/* Daily Schedule - moved to top */}
       <div>
         <h2 className="text-xl font-semibold mb-4">Daily Schedule</h2>
+        {scheduleError && <p className="text-sm text-destructive mb-2">{scheduleError}</p>}
         <div className="space-y-2">
-          {activeSchedule.length === 0 ? (
+          {scheduleLoading ? (
+            <LoadingSpinner text="Loading schedule..." />
+          ) : activeSchedule.length === 0 ? (
             <Card 
               className="p-8 border-2 border-dashed cursor-pointer hover:border-primary transition-colors text-center"
               data-onboarding="add-schedule"
@@ -162,8 +166,11 @@ export function Home() {
       {/* Goals Section */}
       <div>
         <h2 className="text-xl font-semibold mb-4">Goals</h2>
+        {goalsError && <p className="text-sm text-destructive mb-2">{goalsError}</p>}
         <div className="space-y-3">
-          {goals.length === 0 ? (
+          {goalsLoading ? (
+            <LoadingSpinner text="Loading goals..." />
+          ) : goals.length === 0 ? (
             <Card 
               className="p-8 border-2 border-dashed cursor-pointer hover:border-primary transition-colors text-center"
               onClick={() => {

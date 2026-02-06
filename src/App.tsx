@@ -1,7 +1,8 @@
 import { Suspense, lazy, useEffect } from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ErrorBoundary } from './components/shared/ErrorBoundary';
 import { ToastProvider } from './components/shared/ToastProvider';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import { AppProvider } from './context/AppContext';
 import { TransactionProvider } from './context/TransactionContext';
 import { WorkoutProvider } from './context/WorkoutContext';
@@ -22,14 +23,70 @@ const Energy = lazy(() => import('./pages/Energy').then(m => ({ default: m.Energ
 const Groups = lazy(() => import('./pages/Groups').then(m => ({ default: m.Groups })));
 const Settings = lazy(() => import('./pages/Settings').then(m => ({ default: m.Settings })));
 const Insights = lazy(() => import('./pages/Insights').then(m => ({ default: m.Insights })));
+const Login = lazy(() => import('./pages/Login').then(m => ({ default: m.Login })));
+const Signup = lazy(() => import('./pages/Signup').then(m => ({ default: m.Signup })));
 
 function AppContent() {
+  return (
+    <BrowserRouter future={{ v7_relativeSplatPath: true }}>
+      <Routes>
+        <Route path="/login" element={
+          <Suspense fallback={<LoadingSpinner text="Loading..." />}>
+            <Login />
+          </Suspense>
+        } />
+        <Route path="/signup" element={
+          <Suspense fallback={<LoadingSpinner text="Loading..." />}>
+            <Signup />
+          </Suspense>
+        } />
+        <Route path="/*" element={<ProtectedRoutes />} />
+      </Routes>
+    </BrowserRouter>
+  );
+}
+
+function ProtectedRoutes() {
+  const { user, authLoading } = useAuth();
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <LoadingSpinner text="Loading..." />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  return (
+    <AppProvider>
+      <TransactionProvider>
+        <WorkoutProvider>
+          <EnergyProvider>
+            <ScheduleProvider>
+              <GroupProvider>
+                <GoalsProvider>
+                  <NotificationProvider>
+                    <ProtectedAppRoutes />
+                  </NotificationProvider>
+                </GoalsProvider>
+              </GroupProvider>
+            </ScheduleProvider>
+          </EnergyProvider>
+        </WorkoutProvider>
+      </TransactionProvider>
+    </AppProvider>
+  );
+}
+
+function ProtectedAppRoutes() {
   const { settings } = useSettings();
 
-  // Apply theme on mount and when settings change
   useEffect(() => {
     const root = document.documentElement;
-    
     const applyTheme = () => {
       if (settings.theme === 'system') {
         const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -38,10 +95,7 @@ function AppContent() {
         root.classList.toggle('dark', settings.theme === 'dark');
       }
     };
-
     applyTheme();
-
-    // Listen to system theme changes if theme is 'system'
     if (settings.theme === 'system') {
       const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
       const handleChange = () => applyTheme();
@@ -51,47 +105,45 @@ function AppContent() {
   }, [settings.theme]);
 
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<Layout />}>
-          <Route index element={
-            <Suspense fallback={<LoadingSpinner text="Loading dashboard..." />}>
-              <Home />
-            </Suspense>
-          } />
-          <Route path="money" element={
-            <Suspense fallback={<LoadingSpinner text="Loading money page..." />}>
-              <Money />
-            </Suspense>
-          } />
-          <Route path="body" element={
-            <Suspense fallback={<LoadingSpinner text="Loading body page..." />}>
-              <Body />
-            </Suspense>
-          } />
-          <Route path="energy" element={
-            <Suspense fallback={<LoadingSpinner text="Loading energy page..." />}>
-              <Energy />
-            </Suspense>
-          } />
-          <Route path="groups" element={
-            <Suspense fallback={<LoadingSpinner text="Loading groups page..." />}>
-              <Groups />
-            </Suspense>
-          } />
-          <Route path="insights" element={
-            <Suspense fallback={<LoadingSpinner text="Loading insights..." />}>
-              <Insights />
-            </Suspense>
-          } />
-          <Route path="settings" element={
-            <Suspense fallback={<LoadingSpinner text="Loading settings..." />}>
-              <Settings />
-            </Suspense>
-          } />
-        </Route>
-      </Routes>
-    </BrowserRouter>
+    <Routes>
+      <Route path="/" element={<Layout />}>
+        <Route index element={
+          <Suspense fallback={<LoadingSpinner text="Loading dashboard..." />}>
+            <Home />
+          </Suspense>
+        } />
+        <Route path="money" element={
+          <Suspense fallback={<LoadingSpinner text="Loading money page..." />}>
+            <Money />
+          </Suspense>
+        } />
+        <Route path="body" element={
+          <Suspense fallback={<LoadingSpinner text="Loading body page..." />}>
+            <Body />
+          </Suspense>
+        } />
+        <Route path="energy" element={
+          <Suspense fallback={<LoadingSpinner text="Loading energy page..." />}>
+            <Energy />
+          </Suspense>
+        } />
+        <Route path="groups" element={
+          <Suspense fallback={<LoadingSpinner text="Loading groups page..." />}>
+            <Groups />
+          </Suspense>
+        } />
+        <Route path="insights" element={
+          <Suspense fallback={<LoadingSpinner text="Loading insights..." />}>
+            <Insights />
+          </Suspense>
+        } />
+        <Route path="settings" element={
+          <Suspense fallback={<LoadingSpinner text="Loading settings..." />}>
+            <Settings />
+          </Suspense>
+        } />
+      </Route>
+    </Routes>
   );
 }
 
@@ -99,23 +151,9 @@ function App() {
   return (
     <ErrorBoundary>
       <ToastProvider />
-      <AppProvider>
-        <TransactionProvider>
-          <WorkoutProvider>
-            <EnergyProvider>
-              <ScheduleProvider>
-                <GroupProvider>
-                  <GoalsProvider>
-                    <NotificationProvider>
-                      <AppContent />
-                    </NotificationProvider>
-                  </GoalsProvider>
-                </GroupProvider>
-              </ScheduleProvider>
-            </EnergyProvider>
-          </WorkoutProvider>
-        </TransactionProvider>
-      </AppProvider>
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
     </ErrorBoundary>
   );
 }

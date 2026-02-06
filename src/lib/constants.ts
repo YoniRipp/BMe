@@ -4,11 +4,12 @@ import { Workout } from '@/types/workout';
 import { DailyCheckIn } from '@/types/energy';
 import { ScheduleItem } from '@/types/schedule';
 
-// Mock User
+// Mock User (fallback for tests or when auth is not required)
 export const MOCK_USER: User = {
   id: 'user-001',
   name: 'Jonathan',
-  email: 'jonathan@example.com'
+  email: 'jonathan@example.com',
+  role: 'user',
 };
 
 // Sample Transactions
