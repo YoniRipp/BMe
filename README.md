@@ -58,63 +58,80 @@ A comprehensive lifestyle management application built with React, TypeScript, a
 
 - Node.js 18+ and npm/yarn/pnpm
 
-### Installation
+### Installation and run
 
-1. Clone the repository:
+**Frontend**
+
+1. Clone the repository and go to the frontend:
 ```bash
 cd BMe
-```
-
-2. Install dependencies:
-```bash
+cd frontend
 npm install
-```
-
-3. Start the development server:
-```bash
 npm run dev
 ```
 
-4. Open your browser and navigate to `http://localhost:5173`
+Or from the repo root: `npm run dev` (runs the frontend dev server).
+
+2. Open your browser at `http://localhost:5173`.
+
+**Backend (optional)**
+
+From the repo root:
+```bash
+cd backend
+npm install
+npm start
+```
+
+Or from repo root: `npm run start:backend`. For dev with auto-reload: `npm run dev:backend`.
 
 ### Building for Production
 
+From the frontend folder:
 ```bash
+cd frontend
 npm run build
 ```
 
-The built files will be in the `dist` directory.
+Or from repo root: `npm run build`. The built files will be in `frontend/dist`.
 
 ### Preview Production Build
 
 ```bash
-npm run preview
+cd frontend && npm run preview
 ```
+
+Or from repo root: `npm run preview`.
 
 ## Project Structure
 
 ```
 BMe/
-├── src/
-│   ├── components/          # Reusable UI components
-│   │   ├── layout/         # Layout components (TopBar, BottomNav, Layout)
-│   │   ├── shared/         # Shared components (PageHeader, EmptyState, etc.)
-│   │   ├── ui/             # Shadcn UI components
-│   │   ├── money/          # Money feature components
-│   │   ├── body/           # Body/fitness feature components
-│   │   ├── energy/         # Energy/wellness feature components
-│   │   ├── home/           # Home dashboard components
-│   │   └── groups/         # Groups feature components
-│   ├── context/            # React Context providers
-│   ├── hooks/              # Custom React hooks
-│   ├── lib/                # Utility functions and constants
-│   ├── pages/              # Page components (Home, Money, Body, Energy, Groups)
-│   ├── types/              # TypeScript type definitions
-│   ├── App.tsx             # Main app component with routing
-│   ├── main.tsx            # App entry point
-│   └── index.css           # Global styles
-├── public/                 # Static assets
-└── package.json
+├── backend/                 # Node/Express API, auth, DB, voice, MCP
+│   ├── src/                 # Controllers, services, models, routes, db
+│   ├── routes/             # Auth and user routes
+│   ├── scripts/             # e.g. importFoundationFoods.js
+│   └── package.json
+├── frontend/                # React/Vite app
+│   ├── src/
+│   │   ├── components/     # Reusable UI (layout, shared, ui, money, body, energy, home, groups)
+│   │   ├── context/        # React Context providers
+│   │   ├── hooks/          # Custom React hooks
+│   │   ├── lib/            # Utilities and constants
+│   │   ├── pages/          # Page components (Home, Money, Body, Energy, Groups, etc.)
+│   │   ├── types/          # TypeScript type definitions
+│   │   ├── core/           # API client and feature APIs
+│   │   ├── features/       # Feature-specific modules
+│   │   ├── App.tsx         # Main app and routing
+│   │   ├── main.tsx        # Entry point
+│   │   └── index.css       # Global styles
+│   ├── public/             # Static assets
+│   ├── index.html
+│   ├── vite.config.ts
+│   └── package.json
+├── README.md
+├── .gitignore
+└── FoodData_Central_foundation_food_json_2025-12-18.json   # For backend import script
 ```
 
 ## Features in Detail
@@ -146,9 +163,9 @@ To run the backend (voice agent, food search, data API, auth), set in `backend/.
 **Social login (Google, Facebook, Twitter):**
 
 - **Backend** (`backend/.env`): `GOOGLE_CLIENT_ID` (required for Google; use the same value as in the frontend), `FACEBOOK_APP_ID`, `TWITTER_CLIENT_ID`; for Twitter redirect flow also `TWITTER_CLIENT_SECRET`, `TWITTER_REDIRECT_URI` (e.g. `http://localhost:3000/api/auth/twitter/callback`), and `FRONTEND_ORIGIN` (e.g. `http://localhost:5173`). If `GOOGLE_CLIENT_ID` is missing, the backend returns 503 for `POST /api/auth/google`.
-- **Frontend** (project root `.env`): `VITE_GOOGLE_CLIENT_ID`, `VITE_FACEBOOK_APP_ID` (same values as in backend). Restart the dev server after changing these.
+- **Frontend** (`frontend/.env`): `VITE_API_URL` (backend URL, e.g. `https://your-backend.up.railway.app` or `http://localhost:3000`), `VITE_GOOGLE_CLIENT_ID`, `VITE_FACEBOOK_APP_ID` (same values as in backend). Restart the frontend dev server after changing these.
 
-Food search and voice “add food” use the USDA Foundation Foods database stored in Supabase. One-time import: place `FoodData_Central_foundation_food_json_2025-12-18.json` in the project root and run `npm run import:foods` from the `backend` directory (or `node backend/scripts/importFoundationFoods.js` from the repo root).
+Food search and voice “add food” use the USDA Foundation Foods database stored in Supabase. One-time import: place `FoodData_Central_foundation_food_json_2025-12-18.json` in the **project root** and run `npm run import:foods` from the `backend` directory (or `node backend/scripts/importFoundationFoods.js` from the repo root).
 
 ## Future Enhancements
 
