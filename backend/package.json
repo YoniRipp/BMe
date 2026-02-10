@@ -7,7 +7,8 @@
     "start": "node index.js",
     "dev": "node --watch index.js",
     "import:foods": "node scripts/importFoundationFoods.js",
-    "remove:non-foundation-foods": "node scripts/removeNonFoundationFoods.js"
+    "remove:non-foundation-foods": "node scripts/removeNonFoundationFoods.js",
+    "seed:popular-foods": "node scripts/seedPopularFoods.js"
   },
   "dependencies": {
     "@google/generative-ai": "^0.21.0",

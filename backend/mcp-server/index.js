@@ -11,9 +11,11 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 
 const BEME_API_URL = process.env.BEME_API_URL || 'http://localhost:3000';
+const BEME_MCP_TOKEN = process.env.BEME_MCP_TOKEN;
+const authHeaders = BEME_MCP_TOKEN ? { Authorization: `Bearer ${BEME_MCP_TOKEN}` } : {};
 
 async function apiGet(path) {
-  const res = await fetch(`${BEME_API_URL}${path}`);
+  const res = await fetch(`${BEME_API_URL}${path}`, { headers: authHeaders });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.error || res.statusText || `Request failed: ${res.status}`);
@@ -24,7 +26,7 @@ async function apiGet(path) {
 async function apiPost(path, body) {
   const res = await fetch(`${BEME_API_URL}${path}`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...authHeaders },
     body: JSON.stringify(body),
   });
   if (!res.ok) {
@@ -36,7 +38,7 @@ async function apiPost(path, body) {
 }
 
 async function apiDelete(path) {
-  const res = await fetch(`${BEME_API_URL}${path}`, { method: 'DELETE' });
+  const res = await fetch(`${BEME_API_URL}${path}`, { method: 'DELETE', headers: authHeaders });
   if (!res.ok && res.status !== 204) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.error || res.statusText || `Request failed: ${res.status}`);

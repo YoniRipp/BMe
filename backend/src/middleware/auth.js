@@ -11,6 +11,13 @@ export function requireAuth(req, res, next) {
     return res.status(401).json({ error: 'Missing or invalid Authorization header' });
   }
   const token = authHeader.slice(7);
+
+  // MCP server: accept shared secret and impersonate a user (for Cursor MCP integration)
+  if (config.mcpSecret && config.mcpUserId && token === config.mcpSecret) {
+    req.user = { id: config.mcpUserId, email: 'mcp@local', role: 'user' };
+    return next();
+  }
+
   try {
     const payload = jwt.verify(token, config.jwtSecret);
     req.user = {

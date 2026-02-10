@@ -34,6 +34,8 @@ const configSchema = z.object({
   twitterClientId: z.string().optional(),
   twitterClientSecret: z.string().optional(),
   twitterRedirectUri: z.string(),
+  mcpSecret: z.string().optional(),
+  mcpUserId: z.string().optional(),
 });
 
 const PORT = process.env.PORT ?? 3000;
@@ -61,6 +63,8 @@ const rawConfig = {
   twitterClientId: process.env.TWITTER_CLIENT_ID,
   twitterClientSecret: process.env.TWITTER_CLIENT_SECRET,
   twitterRedirectUri: process.env.TWITTER_REDIRECT_URI || 'http://localhost:3000/api/auth/twitter/callback',
+  mcpSecret: process.env.BEME_MCP_SECRET,
+  mcpUserId: process.env.BEME_MCP_USER_ID,
 };
 
 const parsed = configSchema.safeParse(rawConfig);

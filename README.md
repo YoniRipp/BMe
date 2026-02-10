@@ -278,7 +278,7 @@ Optional: To remove foods that are no longer in the Foundation Foods JSON (e.g. 
 
 ## MCP Server
 
-The backend includes an MCP server that exposes BeMe schedule, transactions, and goals as tools and resources. It talks only to the backend API (no direct DB). See **[backend/mcp-server/README.md](backend/mcp-server/README.md)** for setup and Cursor MCP configuration.
+The backend includes an MCP server that exposes BeMe schedule, transactions, and goals as tools and resources. It talks only to the backend API (no direct DB). See **[backend/mcp-server/README.md](backend/mcp-server/README.md)** for setup and Cursor MCP configuration. For authenticated access (schedule, transactions, goals), configure `BEME_MCP_SECRET` and `BEME_MCP_USER_ID` on the backend and `BEME_MCP_TOKEN` in the MCP env as described there.
 
 ## Building for Production
 

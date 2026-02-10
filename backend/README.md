@@ -89,6 +89,8 @@ From `backend/`:
 | `npm start` | `node index.js` – start server |
 | `npm run dev` | `node --watch index.js` – start with auto-reload |
 | `npm run import:foods` | Run `scripts/importFoundationFoods.js` (requires `DATABASE_URL` and Foundation Foods JSON path) |
+| `npm run seed:popular-foods` | Replace all foods with ~100 popular foods (see [Food import](#food-import)) |
+| `npm run remove:non-foundation-foods` | Remove foods not in Foundation JSON (run from `backend/`) |
 
 From repo root: `npm run start:backend` or `npm run dev:backend`.
 
@@ -269,6 +271,8 @@ The [scripts/importFoundationFoods.js](scripts/importFoundationFoods.js) script 
 - From repo root: `node backend/scripts/importFoundationFoods.js`
 
 After pulling changes that affect the import script or schema, run the import again to refresh `foods` with the latest logic. To remove foods that were added outside the Foundation list (e.g. Gemini-created or incomplete entries) so they can be re-looked up with full nutrition, run `npm run remove:non-foundation-foods` from `backend/`. See the [root README](../README.md) for the expected file name and placement.
+
+**Alternative: popular foods only** — To wipe the `foods` table and seed it with ~100 common foods (per-100g nutrition, no external JSON), run from `backend/`: `npm run seed:popular-foods`. This replaces all existing foods with a fixed list (chicken, rice, vegetables, fruits, dairy, common prepared foods, etc.).
 
 ## MCP Server
 
