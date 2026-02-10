@@ -20,12 +20,14 @@ WORKDIR /app
 RUN npm install -g serve
 
 COPY --from=build /app/dist ./dist
+COPY entrypoint.sh /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
 
 # PORT is set by Railway at runtime; default for local runs.
 ENV PORT=3000
 EXPOSE 3000
 
-# Must pass a value to -l: when PORT is unset, serve gets undefined and throws
-# "Unknown --listen endpoint scheme (protocol): undefined". Use default 3000.
-# Bind to 0.0.0.0 so the server is reachable from outside the container.
-CMD ["sh", "-c", "npx serve dist -s -l tcp://0.0.0.0:${PORT:-3000}"]
+# Entrypoint always sets PORT and passes a single listen token to serve so -l
+# is never undefined (avoids "Unknown --listen endpoint scheme" crash).
+# In Railway: do not set a custom Start Command, or use: /app/entrypoint.sh
+ENTRYPOINT ["/app/entrypoint.sh"]
