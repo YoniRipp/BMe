@@ -54,14 +54,18 @@ export const VOICE_TOOLS = [
       },
       {
         name: 'add_transaction',
-        description: 'Record an income or expense. User may say spent 10 on coke, bought X for Y, earned 100, etc.',
+        description: 'Record an income or expense. When the user says they bought or spent money on food or drink (e.g. Coke, coffee, lunch), use category "Food" and set description to the item name. You MUST also call add_food with that item name so both the expense and the food log are recorded. For other expenses use the appropriate category; for income use Salary, Freelance, Investment, Gift, Other. Never use "Other" for food or drink purchases—use "Food".',
         parameters: {
           type: 'object',
           properties: {
             type: { type: 'string', enum: ['income', 'expense'] },
             amount: { type: 'number', description: 'Amount in currency units' },
-            category: { type: 'string', description: 'From expense/income categories' },
-            description: { type: 'string', description: 'Optional description' },
+            category: {
+              type: 'string',
+              enum: ['Food', 'Housing', 'Transportation', 'Entertainment', 'Shopping', 'Healthcare', 'Education', 'Other', 'Salary', 'Freelance', 'Investment', 'Gift'],
+              description: 'Expense: Food, Housing, Transportation, Entertainment, Shopping, Healthcare, Education, Other. Income: Salary, Freelance, Investment, Gift, Other. Use Food for any food or drink purchase.',
+            },
+            description: { type: 'string', description: 'Optional description; for food/drink purchases use the item name (e.g. Coke)' },
             date: { type: 'string', description: 'YYYY-MM-DD, default today' },
             isRecurring: { type: 'boolean', description: 'Recurring expense/income' },
           },
@@ -140,7 +144,7 @@ export const VOICE_TOOLS = [
       },
       {
         name: 'add_food',
-        description: 'Log food consumed. User may say ate salad 200g, had 1 cup coffee, etc. Output English food name.',
+        description: 'Log food or drink consumed. When the user says they bought or spent money on food/drink (e.g. got a Coke for 9, bought coffee for 5), call BOTH add_transaction (expense, category Food, description item name) AND add_food (food: item name in English). For "ate X" without purchase, call only add_food. Output food name in English.',
         parameters: {
           type: 'object',
           properties: {

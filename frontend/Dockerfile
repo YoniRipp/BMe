@@ -2,10 +2,9 @@
 # Build context: frontend/ (e.g. docker build -t beme-frontend --build-arg VITE_API_URL=http://localhost:3000 ./frontend)
 
 # Stage 1: build
+FROM node:20-alpine AS build
 ARG VITE_API_URL
 ENV VITE_API_URL=$VITE_API_URL
-
-FROM node:20-alpine AS build
 WORKDIR /app
 
 COPY package.json package-lock.json ./

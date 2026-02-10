@@ -11,7 +11,10 @@ import { getNutritionForFoodName } from '../models/foodSearch.js';
 
 const VOICE_PROMPT = `You are a voice assistant for a life management app. The user speaks in Hebrew or English.
 Parse their message and call the appropriate function(s) for each action they want to take.
-Examples: "work 8-18, eat 18-22" → add_schedule twice. "bought coke for 10, slept 8 hours" → add_transaction + log_sleep.
+
+When the user says they bought or spent money on food or drink (e.g. "got a Coke for 9", "bought coffee for 5", "paid 9 for a Coke"), you MUST call BOTH: (1) add_transaction with type expense, amount, category "Food" (not "Other"), description = the item name; (2) add_food with food = the item name in English. One utterance about buying food/drink must produce two function calls.
+
+Examples: "work 8-18, eat 18-22" → add_schedule twice. "bought coke for 10, slept 8 hours" → add_transaction (expense, 10, Food, Coke) + add_food (Coke) + log_sleep. "got a Coke for 9" → add_transaction (expense, 9, Food, Coke) + add_food (Coke).
 Call all relevant functions; the user may combine multiple actions in one message.`;
 
 const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
@@ -119,11 +122,18 @@ function buildAddTransaction(args, ctx) {
   const type = args.type === 'income' || args.type === 'expense' ? args.type : 'expense';
   const amount = Number(args.amount);
   const numAmount = Number.isFinite(amount) && amount >= 0 ? amount : 0;
+  const allowed = type === 'income' ? TRANSACTION_CATEGORIES.income : TRANSACTION_CATEGORIES.expense;
+  let category = normCat(args.category, allowed);
+  const description = args.description ? trim(args.description) : undefined;
+  // Fallback: if expense ended up Other but description is a short item name (e.g. "Coke"), treat as food purchase
+  if (type === 'expense' && category === 'Other' && description && description.length <= 30 && !description.includes(' ')) {
+    category = 'Food';
+  }
   return {
     type,
     amount: numAmount,
-    category: normCat(args.category, type === 'income' ? TRANSACTION_CATEGORIES.income : TRANSACTION_CATEGORIES.expense),
-    description: args.description ? trim(args.description) : undefined,
+    category,
+    description,
     date: parseDate(args.date, ctx.todayStr),
     isRecurring: !!args.isRecurring,
   };
