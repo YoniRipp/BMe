@@ -1,4 +1,5 @@
 import { Workout } from '@/types/workout';
+import { parseLocalDateString } from '@/lib/dateRanges';
 
 export function apiWorkoutToWorkout(a: {
   id: string;
@@ -11,7 +12,7 @@ export function apiWorkoutToWorkout(a: {
 }): Workout {
   return {
     id: a.id,
-    date: new Date(a.date),
+    date: parseLocalDateString(a.date),
     title: a.title,
     type: a.type as Workout['type'],
     durationMinutes: a.durationMinutes,

@@ -1,18 +1,17 @@
+/**
+ * Auth routes: register, login, OAuth, me.
+ */
 import crypto from 'crypto';
-import { getPool } from '../src/db/index.js';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { OAuth2Client } from 'google-auth-library';
+import { Router } from 'express';
+import { config } from '../config/index.js';
+import { getPool } from '../db/index.js';
+import { requireAuth } from '../middleware/auth.js';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-in-production';
 const SALT_ROUNDS = 10;
 const TOKEN_EXPIRY = '7d';
-const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
-const FACEBOOK_APP_ID = process.env.FACEBOOK_APP_ID;
-const TWITTER_CLIENT_ID = process.env.TWITTER_CLIENT_ID;
-const TWITTER_CLIENT_SECRET = process.env.TWITTER_CLIENT_SECRET;
-const TWITTER_REDIRECT_URI = process.env.TWITTER_REDIRECT_URI || 'http://localhost:3000/api/auth/twitter/callback';
-const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN || process.env.CORS_ORIGIN || 'http://localhost:5173';
 const twitterPKCEStore = new Map();
 
 function rowToUser(row) {
@@ -25,7 +24,7 @@ function rowToUser(row) {
   };
 }
 
-export async function register(req, res) {
+async function register(req, res) {
   try {
     const { email, password, name } = req.body ?? {};
     if (!email || typeof email !== 'string' || !email.trim()) {
@@ -48,7 +47,7 @@ export async function register(req, res) {
     const user = rowToUser(result.rows[0]);
     const token = jwt.sign(
       { sub: user.id, email: user.email, role: user.role },
-      JWT_SECRET,
+      config.jwtSecret,
       { expiresIn: TOKEN_EXPIRY }
     );
     res.status(201).json({ user, token });
@@ -61,7 +60,7 @@ export async function register(req, res) {
   }
 }
 
-export async function login(req, res) {
+async function login(req, res) {
   try {
     const { email, password } = req.body ?? {};
     if (!email || typeof email !== 'string' || !password) {
@@ -86,7 +85,7 @@ export async function login(req, res) {
     const user = rowToUser(row);
     const token = jwt.sign(
       { sub: user.id, email: user.email, role: user.role },
-      JWT_SECRET,
+      config.jwtSecret,
       { expiresIn: TOKEN_EXPIRY }
     );
     res.json({ user, token });
@@ -96,7 +95,7 @@ export async function login(req, res) {
   }
 }
 
-export async function me(req, res) {
+async function me(req, res) {
   try {
     const pool = getPool();
     const result = await pool.query(
@@ -113,7 +112,6 @@ export async function me(req, res) {
   }
 }
 
-/** Find user by provider or email; create if not found. Returns { user, token }. */
 async function findOrCreateProviderUser(pool, { authProvider, providerId, email, name }) {
   const emailNorm = email ? email.trim().toLowerCase() : '';
   const nameTrim = name ? name.trim() : 'Unknown';
@@ -129,7 +127,7 @@ async function findOrCreateProviderUser(pool, { authProvider, providerId, email,
     const user = rowToUser(row);
     const token = jwt.sign(
       { sub: user.id, email: user.email, role: user.role },
-      JWT_SECRET,
+      config.jwtSecret,
       { expiresIn: TOKEN_EXPIRY }
     );
     return { user, token };
@@ -148,7 +146,7 @@ async function findOrCreateProviderUser(pool, { authProvider, providerId, email,
       const user = rowToUser(row);
       const token = jwt.sign(
         { sub: user.id, email: user.email, role: user.role },
-        JWT_SECRET,
+        config.jwtSecret,
         { expiresIn: TOKEN_EXPIRY }
       );
       return { user, token };
@@ -164,14 +162,14 @@ async function findOrCreateProviderUser(pool, { authProvider, providerId, email,
   const user = rowToUser(result.rows[0]);
   const token = jwt.sign(
     { sub: user.id, email: user.email, role: user.role },
-    JWT_SECRET,
+    config.jwtSecret,
     { expiresIn: TOKEN_EXPIRY }
   );
   return { user, token };
 }
 
-export async function loginGoogle(req, res) {
-  if (!GOOGLE_CLIENT_ID) {
+async function loginGoogle(req, res) {
+  if (!config.googleClientId) {
     return res.status(503).json({ error: 'Google sign-in is not configured (missing GOOGLE_CLIENT_ID)' });
   }
   try {
@@ -184,8 +182,8 @@ export async function loginGoogle(req, res) {
     let name = 'User';
     const isJwt = token.split('.').length === 3;
     if (isJwt) {
-      const client = new OAuth2Client(GOOGLE_CLIENT_ID);
-      const ticket = await client.verifyIdToken({ idToken: token, audience: GOOGLE_CLIENT_ID });
+      const client = new OAuth2Client(config.googleClientId);
+      const ticket = await client.verifyIdToken({ idToken: token, audience: config.googleClientId });
       const payload = ticket.getPayload();
       sub = payload?.sub;
       email = payload?.email || '';
@@ -221,8 +219,8 @@ export async function loginGoogle(req, res) {
   }
 }
 
-export async function loginFacebook(req, res) {
-  if (!FACEBOOK_APP_ID) {
+async function loginFacebook(req, res) {
+  if (!config.facebookAppId) {
     return res.status(503).json({ error: 'Facebook sign-in is not configured (missing FACEBOOK_APP_ID)' });
   }
   try {
@@ -258,8 +256,8 @@ export async function loginFacebook(req, res) {
   }
 }
 
-export async function loginTwitter(req, res) {
-  if (!TWITTER_CLIENT_ID) {
+async function loginTwitter(req, res) {
+  if (!config.twitterClientId) {
     return res.status(503).json({ error: 'Twitter sign-in is not configured (missing TWITTER_CLIENT_ID)' });
   }
   try {
@@ -279,7 +277,7 @@ export async function loginTwitter(req, res) {
     const userData = data?.data;
     const providerId = userData?.id;
     const name = userData?.name || userData?.username || 'User';
-    const email = ''; // Twitter OAuth 2.0 userinfo may not include email; use placeholder if needed
+    const email = '';
     if (!providerId) {
       return res.status(401).json({ error: 'Invalid Twitter token' });
     }
@@ -301,8 +299,8 @@ function base64UrlEncode(buf) {
   return buf.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
-export function twitterRedirect(req, res) {
-  if (!TWITTER_CLIENT_ID) {
+function twitterRedirect(req, res) {
+  if (!config.twitterClientId) {
     return res.status(503).send('Twitter sign-in is not configured');
   }
   const state = crypto.randomBytes(16).toString('hex');
@@ -313,8 +311,8 @@ export function twitterRedirect(req, res) {
   twitterPKCEStore.set(state, { codeVerifier });
   const params = new URLSearchParams({
     response_type: 'code',
-    client_id: TWITTER_CLIENT_ID,
-    redirect_uri: TWITTER_REDIRECT_URI,
+    client_id: config.twitterClientId,
+    redirect_uri: config.twitterRedirectUri,
     scope: 'tweet.read users.read offline.access',
     state,
     code_challenge: codeChallenge,
@@ -323,11 +321,11 @@ export function twitterRedirect(req, res) {
   res.redirect(`https://twitter.com/i/oauth2/authorize?${params.toString()}`);
 }
 
-export async function twitterCallback(req, res) {
+async function twitterCallback(req, res) {
   const { code, state } = req.query ?? {};
   const stored = state && twitterPKCEStore.get(state);
   if (!code || typeof code !== 'string' || !stored) {
-    return res.redirect(`${FRONTEND_ORIGIN}/login?error=twitter_callback_failed`);
+    return res.redirect(`${config.frontendOrigin}/login?error=twitter_callback_failed`);
   }
   twitterPKCEStore.delete(state);
   try {
@@ -336,38 +334,38 @@ export async function twitterCallback(req, res) {
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
         Authorization: `Basic ${Buffer.from(
-          `${encodeURIComponent(TWITTER_CLIENT_ID)}:${encodeURIComponent(TWITTER_CLIENT_SECRET || '')}`
+          `${encodeURIComponent(config.twitterClientId)}:${encodeURIComponent(config.twitterClientSecret || '')}`
         ).toString('base64')}`,
       },
       body: new URLSearchParams({
         code,
         grant_type: 'authorization_code',
-        redirect_uri: TWITTER_REDIRECT_URI,
+        redirect_uri: config.twitterRedirectUri,
         code_verifier: stored.codeVerifier,
       }).toString(),
     });
     if (!tokenRes.ok) {
       const text = await tokenRes.text();
       console.error('Twitter token exchange error:', tokenRes.status, text);
-      return res.redirect(`${FRONTEND_ORIGIN}/login?error=twitter_token_failed`);
+      return res.redirect(`${config.frontendOrigin}/login?error=twitter_token_failed`);
     }
     const tokenData = await tokenRes.json();
     const accessToken = tokenData.access_token;
     if (!accessToken) {
-      return res.redirect(`${FRONTEND_ORIGIN}/login?error=twitter_token_failed`);
+      return res.redirect(`${config.frontendOrigin}/login?error=twitter_token_failed`);
     }
     const userRes = await fetch('https://api.twitter.com/2/users/me?user.fields=id,name,username', {
       headers: { Authorization: `Bearer ${accessToken}` },
     });
     if (!userRes.ok) {
-      return res.redirect(`${FRONTEND_ORIGIN}/login?error=twitter_user_failed`);
+      return res.redirect(`${config.frontendOrigin}/login?error=twitter_user_failed`);
     }
     const userData = (await userRes.json())?.data;
     const providerId = userData?.id;
     const name = userData?.name || userData?.username || 'User';
     const email = '';
     if (!providerId) {
-      return res.redirect(`${FRONTEND_ORIGIN}/login?error=twitter_user_failed`);
+      return res.redirect(`${config.frontendOrigin}/login?error=twitter_user_failed`);
     }
     const pool = getPool();
     const { user, token: jwtToken } = await findOrCreateProviderUser(pool, {
@@ -376,10 +374,22 @@ export async function twitterCallback(req, res) {
       email,
       name,
     });
-    const redirectUrl = `${FRONTEND_ORIGIN}/auth/callback?token=${encodeURIComponent(jwtToken)}`;
+    const redirectUrl = `${config.frontendOrigin}/auth/callback?token=${encodeURIComponent(jwtToken)}`;
     res.redirect(redirectUrl);
   } catch (e) {
     console.error('twitterCallback error:', e?.message ?? e);
-    res.redirect(`${FRONTEND_ORIGIN}/login?error=twitter_callback_failed`);
+    res.redirect(`${config.frontendOrigin}/login?error=twitter_callback_failed`);
   }
 }
+
+const router = Router();
+router.post('/api/auth/register', register);
+router.post('/api/auth/login', login);
+router.post('/api/auth/google', loginGoogle);
+router.post('/api/auth/facebook', loginFacebook);
+router.post('/api/auth/twitter', loginTwitter);
+router.get('/api/auth/twitter/redirect', twitterRedirect);
+router.get('/api/auth/twitter/callback', twitterCallback);
+router.get('/api/auth/me', requireAuth, me);
+
+export default router;

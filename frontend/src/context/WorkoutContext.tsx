@@ -4,6 +4,7 @@ import { Workout } from '@/types/workout';
 import { workoutsApi } from '@/features/body/api';
 import { apiWorkoutToWorkout } from '@/features/body/mappers';
 import { queryKeys } from '@/lib/queryClient';
+import { toLocalDateString } from '@/lib/dateRanges';
 
 interface WorkoutContextType {
   workouts: Workout[];
@@ -45,7 +46,7 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
   const addMutation = useMutation({
     mutationFn: (workout: Omit<Workout, 'id'>) =>
       workoutsApi.add({
-        date: workout.date.toISOString().slice(0, 10),
+        date: toLocalDateString(workout.date),
         title: workout.title,
         type: workout.type,
         durationMinutes: workout.durationMinutes,
@@ -62,7 +63,7 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
   const updateMutation = useMutation({
     mutationFn: ({ id, updates }: { id: string; updates: Partial<Workout> }) => {
       const body: Record<string, unknown> = {};
-      if (updates.date !== undefined) body.date = updates.date.toISOString().slice(0, 10);
+      if (updates.date !== undefined) body.date = toLocalDateString(updates.date);
       if (updates.title !== undefined) body.title = updates.title;
       if (updates.type !== undefined) body.type = updates.type;
       if (updates.durationMinutes !== undefined) body.durationMinutes = updates.durationMinutes;

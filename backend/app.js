@@ -5,9 +5,6 @@ import express from 'express';
 import cors from 'cors';
 import rateLimit from 'express-rate-limit';
 import { config } from './src/config/index.js';
-import * as authRoutes from './routes/auth.js';
-import { requireAuth, requireAdmin } from './middleware/auth.js';
-import * as userRoutes from './routes/users.js';
 import apiRouter from './src/routes/index.js';
 import { errorHandler } from './src/middleware/errorHandler.js';
 
@@ -28,26 +25,11 @@ const app = express();
 app.use(cors({ origin: config.corsOrigin }));
 app.use(express.json());
 
-// Auth and API routes
+// All API routes (auth, users, schedule, transactions, workouts, food, voice, etc.)
 if (config.isDbConfigured) {
-  app.post('/api/auth/register', authRoutes.register);
-  app.post('/api/auth/login', authRoutes.login);
-  app.post('/api/auth/google', authRoutes.loginGoogle);
-  app.post('/api/auth/facebook', authRoutes.loginFacebook);
-  app.post('/api/auth/twitter', authRoutes.loginTwitter);
-  app.get('/api/auth/twitter/redirect', authRoutes.twitterRedirect);
-  app.get('/api/auth/twitter/callback', authRoutes.twitterCallback);
-  app.get('/api/auth/me', requireAuth, authRoutes.me);
-
-  app.get('/api/users', requireAuth, requireAdmin, userRoutes.listUsers);
-  app.post('/api/users', requireAuth, requireAdmin, userRoutes.createUser);
-  app.patch('/api/users/:id', requireAuth, requireAdmin, userRoutes.updateUser);
-  app.delete('/api/users/:id', requireAuth, requireAdmin, userRoutes.deleteUser);
+  app.use('/api', apiLimiter);
+  app.use(apiRouter);
 }
-
-// MVC routes (schedule, transactions, workouts, food-entries, daily-check-ins, goals, food/search, voice)
-app.use('/api', apiLimiter);
-app.use(apiRouter);
 
 app.use(errorHandler);
 

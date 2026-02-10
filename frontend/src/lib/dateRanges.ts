@@ -1,4 +1,5 @@
 import {
+  format,
   startOfDay,
   endOfDay,
   startOfWeek,
@@ -12,6 +13,21 @@ import {
   subYears,
 } from 'date-fns';
 
+/** Local calendar date YYYY-MM-DD for API/forms (avoids UTC shift). */
+export function toLocalDateString(d: Date): string {
+  return format(d, 'yyyy-MM-dd');
+}
+
+/** Parse API date string YYYY-MM-DD as local date (avoids UTC midnight shifting day). */
+export function parseLocalDateString(dateStr: string): Date {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  if (!Number.isFinite(y) || !Number.isFinite(m) || !Number.isFinite(d)) return new Date(dateStr);
+  return new Date(y, m - 1, d);
+}
+
+/** Week starts Sunday (0), ends Saturday. Use for all weekly ranges. */
+export const WEEK_SUNDAY = { weekStartsOn: 0 } as const;
+
 export type PeriodKey = 'daily' | 'weekly' | 'monthly' | 'yearly';
 
 const PERIOD_GETTERS: Record<
@@ -19,7 +35,7 @@ const PERIOD_GETTERS: Record<
   (ref: Date) => { start: Date; end: Date }
 > = {
   daily: (ref) => ({ start: startOfDay(ref), end: endOfDay(ref) }),
-  weekly: (ref) => ({ start: startOfWeek(ref), end: endOfWeek(ref) }),
+  weekly: (ref) => ({ start: startOfWeek(ref, WEEK_SUNDAY), end: endOfWeek(ref, WEEK_SUNDAY) }),
   monthly: (ref) => ({ start: startOfMonth(ref), end: endOfMonth(ref) }),
   yearly: (ref) => ({ start: startOfYear(ref), end: endOfYear(ref) }),
 };
@@ -45,10 +61,10 @@ const TREND_PERIOD_GETTERS: Record<
   (ref: Date) => TrendPeriodBounds
 > = {
   week: (ref) => ({
-    currentStart: startOfWeek(ref),
-    currentEnd: endOfWeek(ref),
-    previousStart: startOfWeek(subWeeks(ref, 1)),
-    previousEnd: endOfWeek(subWeeks(ref, 1)),
+    currentStart: startOfWeek(ref, WEEK_SUNDAY),
+    currentEnd: endOfWeek(ref, WEEK_SUNDAY),
+    previousStart: startOfWeek(subWeeks(ref, 1), WEEK_SUNDAY),
+    previousEnd: endOfWeek(subWeeks(ref, 1), WEEK_SUNDAY),
   }),
   month: (ref) => ({
     currentStart: startOfMonth(ref),

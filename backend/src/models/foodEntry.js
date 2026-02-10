@@ -12,6 +12,9 @@ function rowToEntry(row) {
     protein: Number(row.protein),
     carbs: Number(row.carbs),
     fats: Number(row.fats),
+    portionAmount: row.portion_amount != null ? Number(row.portion_amount) : undefined,
+    portionUnit: row.portion_unit ?? undefined,
+    servingType: row.serving_type ?? undefined,
   };
 }
 
@@ -26,13 +29,13 @@ export async function findByUserId(userId) {
 
 export async function create(params) {
   const pool = getPool();
-  const { userId, date, name, calories, protein, carbs, fats } = params;
+  const { userId, date, name, calories, protein, carbs, fats, portionAmount, portionUnit, servingType } = params;
   const d = date ? new Date(date) : new Date();
   const result = await pool.query(
-    `INSERT INTO food_entries (user_id, date, name, calories, protein, carbs, fats)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)
+    `INSERT INTO food_entries (user_id, date, name, calories, protein, carbs, fats, portion_amount, portion_unit, serving_type)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
      RETURNING *`,
-    [userId, d.toISOString().slice(0, 10), name.trim(), calories, protein, carbs, fats]
+    [userId, d.toISOString().slice(0, 10), name.trim(), calories, protein, carbs, fats, portionAmount ?? null, portionUnit ?? null, servingType ?? null]
   );
   return rowToEntry(result.rows[0]);
 }
@@ -48,6 +51,9 @@ export async function update(id, userId, updates) {
   if (updates.protein !== undefined) { entries.push(`protein = $${i}`); values.push(updates.protein); i++; }
   if (updates.carbs !== undefined) { entries.push(`carbs = $${i}`); values.push(updates.carbs); i++; }
   if (updates.fats !== undefined) { entries.push(`fats = $${i}`); values.push(updates.fats); i++; }
+  if (updates.portionAmount !== undefined) { entries.push(`portion_amount = $${i}`); values.push(updates.portionAmount); i++; }
+  if (updates.portionUnit !== undefined) { entries.push(`portion_unit = $${i}`); values.push(updates.portionUnit); i++; }
+  if (updates.servingType !== undefined) { entries.push(`serving_type = $${i}`); values.push(updates.servingType); i++; }
   if (entries.length === 0) return null;
   values.push(id, userId);
   const result = await pool.query(

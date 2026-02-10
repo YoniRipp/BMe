@@ -104,6 +104,9 @@ export async function initSchema() {
         created_at timestamptz DEFAULT now()
       );
     `);
+    await client.query(`ALTER TABLE food_entries ADD COLUMN IF NOT EXISTS portion_amount numeric;`).catch(() => {});
+    await client.query(`ALTER TABLE food_entries ADD COLUMN IF NOT EXISTS portion_unit text;`).catch(() => {});
+    await client.query(`ALTER TABLE food_entries ADD COLUMN IF NOT EXISTS serving_type text;`).catch(() => {});
     await client.query(`
       CREATE TABLE IF NOT EXISTS daily_check_ins (
         id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -113,22 +116,25 @@ export async function initSchema() {
         created_at timestamptz DEFAULT now()
       );
     `);
+    await client.query(`DROP TABLE IF EXISTS foundation_foods;`);
     await client.query(`
-      CREATE TABLE IF NOT EXISTS foundation_foods (
+      CREATE TABLE IF NOT EXISTS foods (
         id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-        description text NOT NULL,
+        name text NOT NULL,
         calories numeric NOT NULL,
         protein numeric NOT NULL,
         carbs numeric NOT NULL,
-        fats numeric NOT NULL,
-        food_class text,
+        fat numeric NOT NULL,
         created_at timestamptz DEFAULT now()
       );
     `);
     await client.query(`
-      CREATE INDEX IF NOT EXISTS idx_foundation_foods_description_lower
-      ON foundation_foods (lower(description));
+      CREATE INDEX IF NOT EXISTS idx_foods_name_lower
+      ON foods (lower(name));
     `);
+    await client.query(`ALTER TABLE foods ADD COLUMN IF NOT EXISTS is_liquid boolean DEFAULT false;`).catch(() => {});
+    await client.query(`ALTER TABLE foods ADD COLUMN IF NOT EXISTS serving_sizes_ml jsonb;`).catch(() => {});
+    await client.query(`ALTER TABLE foods ADD COLUMN IF NOT EXISTS preparation text DEFAULT 'cooked';`).catch(() => {});
   } finally {
     client.release();
   }

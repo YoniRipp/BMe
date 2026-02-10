@@ -1,10 +1,11 @@
 import { Transaction } from '@/types/transaction';
 import type { ApiTransaction } from '@/core/api/transactions';
+import { parseLocalDateString } from '@/lib/dateRanges';
 
 export function apiTransactionToTransaction(a: ApiTransaction): Transaction {
   return {
     id: a.id,
-    date: new Date(a.date),
+    date: parseLocalDateString(a.date),
     type: a.type,
     amount: a.amount,
     category: a.category,

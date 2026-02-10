@@ -8,6 +8,9 @@ export interface ApiFoodEntry {
   protein: number;
   carbs: number;
   fats: number;
+  portionAmount?: number;
+  portionUnit?: string;
+  servingType?: string;
 }
 
 export const foodEntriesApi = {
@@ -19,6 +22,9 @@ export const foodEntriesApi = {
     protein: number;
     carbs: number;
     fats: number;
+    portionAmount?: number;
+    portionUnit?: string;
+    servingType?: string;
   }) => request<ApiFoodEntry>('/api/food-entries', { method: 'POST', body: e }),
   update: (id: string, updates: Partial<Omit<ApiFoodEntry, 'id'>>) =>
     request<ApiFoodEntry>(`/api/food-entries/${id}`, { method: 'PATCH', body: updates }),
@@ -45,8 +51,10 @@ export interface FoodSearchResult {
   calories: number;
   protein: number;
   carbs: number;
-  fats: number;
+  fat: number;
   referenceGrams?: number;
+  isLiquid?: boolean;
+  servingSizesMl?: { can?: number; bottle?: number; glass?: number } | null;
 }
 
 export function searchFoods(query: string, limit = 10): Promise<FoodSearchResult[]> {

@@ -12,6 +12,9 @@ export interface FoodEntry {
   protein: number; // in grams
   carbs: number; // in grams
   fats: number; // in grams
+  portionAmount?: number;
+  portionUnit?: 'g' | 'ml';
+  servingType?: 'bottle' | 'can' | 'glass' | 'other';
 }
 
 export const MOOD_OPTIONS = ['Great', 'Good', 'Okay', 'Bad', 'Terrible'] as const;

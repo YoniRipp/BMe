@@ -52,7 +52,7 @@ const rawConfig = {
   dbUrl: DATABASE_URL,
   isDbConfigured: !!DATABASE_URL,
   geminiApiKey: process.env.GEMINI_API_KEY,
-  geminiModel: process.env.GEMINI_MODEL || 'gemini-2.5-flash',
+  geminiModel: process.env.GEMINI_MODEL,
   jwtSecret: JWT_SECRET,
   corsOrigin: CORS_ORIGIN,
   frontendOrigin: FRONTEND_ORIGIN,

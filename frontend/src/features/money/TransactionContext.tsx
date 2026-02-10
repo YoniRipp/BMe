@@ -4,6 +4,7 @@ import { Transaction } from '@/types/transaction';
 import { transactionsApi } from '@/features/money/api';
 import { apiTransactionToTransaction } from '@/features/money/mappers';
 import { queryKeys } from '@/lib/queryClient';
+import { toLocalDateString } from '@/lib/dateRanges';
 
 interface TransactionContextType {
   transactions: Transaction[];
@@ -47,7 +48,7 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
       const body = {
         date:
           transaction.date instanceof Date
-            ? transaction.date.toISOString().slice(0, 10)
+            ? toLocalDateString(transaction.date)
             : transaction.date,
         type: transaction.type,
         amount: transaction.amount,
@@ -70,7 +71,7 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
       const body: Record<string, unknown> = { ...updates };
       if (updates.date !== undefined) {
         body.date =
-          updates.date instanceof Date ? updates.date.toISOString().slice(0, 10) : updates.date;
+          updates.date instanceof Date ? toLocalDateString(updates.date) : updates.date;
       }
       return transactionsApi.update(id, body as Parameters<typeof transactionsApi.update>[1]);
     },

@@ -15,8 +15,9 @@ import { OnboardingTour } from '@/components/onboarding/OnboardingTour';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { Card } from '@/components/ui/card';
 import { Home as HomeIcon, Plus } from 'lucide-react';
-import { startOfMonth, endOfMonth, subDays, isAfter } from 'date-fns';
+import { startOfMonth, endOfMonth, isAfter, isWithinInterval } from 'date-fns';
 import { isScheduleItemPast } from '@/lib/utils';
+import { getPeriodRange } from '@/lib/dateRanges';
 import { ScheduleItem as ScheduleItemType } from '@/types/schedule';
 import { Goal } from '@/types/goals';
 
@@ -51,12 +52,12 @@ export function Home() {
 
   const balance = monthlyIncome - monthlyExpenses;
 
-  // Calculate workout stats
-  const weekAgo = subDays(new Date(), 7);
-  const workoutsThisWeek = workouts.filter(w => isAfter(new Date(w.date), weekAgo)).length;
+  // Calculate workout stats (current week = Sunday–Saturday)
+  const { start: weekStart, end: weekEnd } = getPeriodRange('weekly', new Date());
+  const workoutsThisWeek = workouts.filter(w => isWithinInterval(new Date(w.date), { start: weekStart, end: weekEnd })).length;
 
-  // Calculate avg sleep (replacing energy level)
-  const recentCheckIns = checkIns.filter(c => isAfter(new Date(c.date), weekAgo));
+  // Calculate avg sleep (current week)
+  const recentCheckIns = checkIns.filter(c => isWithinInterval(new Date(c.date), { start: weekStart, end: weekEnd }));
   const avgSleep = recentCheckIns.length > 0
     ? recentCheckIns.reduce((sum, c) => sum + (c.sleepHours || 0), 0) / recentCheckIns.length
     : 0;

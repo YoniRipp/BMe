@@ -21,6 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { toLocalDateString } from '@/lib/dateRanges';
 
 interface TransactionModalProps {
   open: boolean;
@@ -34,7 +35,7 @@ const defaultValues: TransactionFormValues = {
   amount: '',
   category: '',
   description: '',
-  date: new Date().toISOString().split('T')[0],
+  date: toLocalDateString(new Date()),
   isRecurring: false,
 };
 
@@ -69,11 +70,11 @@ export function TransactionModal({
         amount: transaction.amount.toString(),
         category: transaction.category,
         description: transaction.description ?? '',
-        date: new Date(transaction.date).toISOString().split('T')[0],
+        date: toLocalDateString(new Date(transaction.date)),
         isRecurring: transaction.isRecurring,
       });
     } else {
-      reset({ ...defaultValues, date: new Date().toISOString().split('T')[0] });
+      reset({ ...defaultValues, date: toLocalDateString(new Date()) });
     }
   }, [open, transaction, reset]);
 

@@ -3,8 +3,9 @@ import { Workout } from '@/types/workout';
 import { Card } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Check, X, Flame } from 'lucide-react';
-import { format, subDays, isSameDay } from 'date-fns';
+import { format, subDays, isSameDay, eachDayOfInterval } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { getPeriodRange } from '@/lib/dateRanges';
 
 interface WeeklyWorkoutGridProps {
   workouts: Workout[];
@@ -24,7 +25,8 @@ export function WeeklyWorkoutGrid({ workouts }: WeeklyWorkoutGridProps) {
   let totalDays = 0;
 
   if (period === 'weekly') {
-    dates = Array.from({ length: 7 }, (_, i) => subDays(today, 6 - i));
+    const { start: weekStart, end: weekEnd } = getPeriodRange('weekly', today);
+    dates = eachDayOfInterval({ start: weekStart, end: weekEnd });
     totalDays = 7;
   } else if (period === 'monthly') {
     dates = Array.from({ length: 30 }, (_, i) => subDays(today, 29 - i));

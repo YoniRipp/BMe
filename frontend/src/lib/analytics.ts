@@ -2,7 +2,7 @@ import { Transaction } from '@/types/transaction';
 import { Workout } from '@/types/workout';
 import { FoodEntry, DailyCheckIn } from '@/types/energy';
 import { isWithinInterval, format, startOfWeek, endOfWeek, subWeeks, startOfMonth, endOfMonth, subMonths } from 'date-fns';
-import { getTrendPeriodBounds } from '@/lib/dateRanges';
+import { getTrendPeriodBounds, WEEK_SUNDAY } from '@/lib/dateRanges';
 
 export interface TrendData {
   current: number;
@@ -132,8 +132,8 @@ export function getSpendingInsights(transactions: Transaction[]): SpendingInsigh
  */
 export function getFitnessInsights(workouts: Workout[]): FitnessInsight {
   const now = new Date();
-  const weekStart = startOfWeek(now);
-  const weekEnd = endOfWeek(now);
+  const weekStart = startOfWeek(now, WEEK_SUNDAY);
+  const weekEnd = endOfWeek(now, WEEK_SUNDAY);
 
   const recentWorkouts = workouts.filter(w => {
     const date = w.date instanceof Date ? w.date : new Date(w.date);
@@ -310,8 +310,8 @@ export function getWorkoutFrequencyData(
   const data: Array<{ week: string; count: number }> = [];
 
   for (let i = weeks - 1; i >= 0; i--) {
-    const weekStart = startOfWeek(subWeeks(now, i));
-    const weekEnd = endOfWeek(subWeeks(now, i));
+    const weekStart = startOfWeek(subWeeks(now, i), WEEK_SUNDAY);
+    const weekEnd = endOfWeek(subWeeks(now, i), WEEK_SUNDAY);
 
     const weekWorkouts = workouts.filter(w => {
       const date = w.date instanceof Date ? w.date : new Date(w.date);

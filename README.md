@@ -11,46 +11,50 @@ A comprehensive life-management application for tracking money, body, energy, sc
 - Navigation to all areas
 
 ### Money
-- Income and expense tracking
-- Monthly balance and trend charts
-- Transaction categories and recurring support
-- Filter by income / expense / all
+- Income and expense tracking with categories (Food, Housing, Transportation, etc.; income: Salary, Freelance, Investment, Gift).
+- Monthly balance and trend charts; balance by period (daily, weekly, monthly, yearly). Weekly period uses the current calendar week (Sunday–Saturday).
+- Transaction categories and recurring support; filter by income / expense / all.
+- All transaction dates are sent and stored as local calendar date (YYYY-MM-DD) so daily and weekly views match the user’s timezone.
 
 ### Body
-- Workout logging with exercise details (sets, reps, weight)
-- Weekly workout streaks and frequency charts
-- Types: strength, cardio, flexibility, sports
-- Duration and notes
+- Workout logging with exercise details: name, sets, reps, and weight (in kg). Each workout has a title (default “Workout” or a program name like “SS”) and a list of exercises.
+- Form layout: a **Workout** section (title, type, duration, date, notes) and an **Exercises** section with column headers (Exercise name, Sets, Reps, Weight (kg)).
+- Weekly workout streak and frequency charts use the current calendar week (Sunday–Saturday). Types: strength, cardio, flexibility, sports; duration and notes.
 
 ### Energy
-- Daily wellness check-ins
-- Sleep hours tracking
-- Food entries with calories and macros (protein, carbs, fats)
-- Calorie and energy trend charts
+- Daily wellness check-ins and sleep hours tracking.
+- Food entries with calories and macros (protein, carbs, fats); calorie and energy trend charts.
+- Dates for check-ins and food entries are sent as local calendar date (YYYY-MM-DD) so daily and weekly views are correct.
 
 ### Schedule
-- Daily schedule items with start/end time and category
-- Categories: Work, Exercise, Meal, Sleep, Personal, Social, Other
-- Optional recurrence (daily, weekdays, weekends)
+- Daily schedule items with start/end time and category.
+- Categories: Work, Exercise, Meal, Sleep, Personal, Social, Other.
+- Optional recurrence (daily, weekdays, weekends). See backend and frontend READMEs for API details.
 
 ### Goals
-- Goals by type: calories, workouts, savings
-- Periods: weekly, monthly, yearly
-- Progress tracking on dashboard and insights
+- Goals by type: calories, workouts, savings. Periods: weekly, monthly, yearly.
+- Progress tracking on dashboard and insights.
 
 ### Groups
-- Create and manage groups (household, event, project)
-- Member list and settings (invitations placeholder)
+- Create and manage groups (household, event, project); member list and settings (invitations placeholder).
 
 ### Voice Agent
-- Speak in natural language to add or edit schedule, transactions, workouts, food, sleep, and goals
-- Powered by Google Gemini; requires backend with `GEMINI_API_KEY`
-- Supports Hebrew and English
+- Speak in natural language to add or edit schedule, transactions, workouts, food, sleep, and goals. Powered by Google Gemini; requires backend with `GEMINI_API_KEY`. Supports Hebrew and English.
+- **Intents**: add/edit/delete for schedule, transaction, workout, food, sleep (check-in), and goals. When the user says only a food or drink name (e.g. “Diet Coke”) with no price, only **add_food** is called; **add_transaction** is used only when the user explicitly states an amount (e.g. “bought coffee for 5”), so no phantom transactions are created.
+- **Workouts**: You can say e.g. “I did SS training today, 3x3 150kg squat, 3x3 165kg deadlift.” The workout title defaults to “Workout” when no name is given, or uses the program name (e.g. “SS”). Exercise names (Squat, Deadlift) and sets×reps (e.g. 3x3 = 3 sets of 3 reps; “5 sets of 3 reps”) are parsed and stored. Weight is in kg.
+- **Robustness**: If Gemini blocks the request (e.g. safety filter), the backend still returns a single add_food action with the user’s phrase as name and zero nutrition so the user is never blocked from adding an item. Voice and food-lookup calls use relaxed Gemini safety settings to reduce false blocks on benign item names.
+- **Example phrases**: “Diet Coke”; “bought coffee for 5”; “I did SS today, squat 3x3 150kg, deadlift 3x3 165kg”; “slept 7 hours”; “add goal 3 workouts per week.”
 
 ### Authentication
 - Email/password signup and login
 - Social login: Google, Facebook, Twitter (when backend and env are configured)
 - JWT-based sessions; protected routes require login when using the backend
+
+## Conventions
+
+- **Dates**: All API dates are **local calendar date** in `YYYY-MM-DD` format. The frontend uses `toLocalDateString` when sending and `parseLocalDateString` when reading API date strings ([frontend/src/lib/dateRanges.ts](frontend/src/lib/dateRanges.ts)) so that daily and weekly views and filters match the user’s timezone and avoid UTC-midnight shifting the day.
+- **Week**: The first day of the week is **Sunday** and the last is **Saturday**. This is used for weekly workout streak, weekly balance, workout frequency charts, and “workouts this week” on the dashboard. Implemented via `WEEK_SUNDAY` and `getPeriodRange('weekly')` in the same date library and in analytics, balance, and chart code.
+- **Weight**: Workout weights are in **kg** in both the voice agent and the UI (e.g. WorkoutModal column “Weight (kg)”).
 
 ## Architecture
 
@@ -69,9 +73,9 @@ flowchart LR
   MCP -.->|HTTP API| Backend
 ```
 
-- **Frontend**: React SPA; talks to backend when `VITE_API_URL` is set; stores JWT in localStorage and sends it on every API request.
+- **Frontend**: React SPA; talks to backend when `VITE_API_URL` is set; stores JWT in localStorage and sends it on every API request. Uses local date and week (Sun–Sat) conventions for all date-sensitive features.
 - **Backend**: Express API; auth routes (register, login, social), domain APIs (schedule, transactions, workouts, food entries, daily check-ins, goals), food search, and voice `/api/voice/understand`. All domain data is stored in PostgreSQL and scoped by user.
-- **Voice**: Backend sends user text to Gemini with function declarations; Gemini returns intent/parameters; backend executes actions (add/edit/delete schedule, transaction, workout, food, sleep, goal).
+- **Voice**: Backend sends user text to Gemini with function declarations and relaxed safety settings; Gemini returns intent/parameters; backend builds actions (including workout exercises) and returns them. The frontend parses voice responses with Zod (including `exercises` for add_workout) and executes actions (add/edit/delete schedule, transaction, workout, food, sleep, goal). If the voice parse step fails, the backend returns a fallback add_food action so the user is not blocked.
 - **MCP server**: Optional stdio server that exposes schedule, transactions, and goals as tools/resources by calling the backend API (see [backend/mcp-server/README.md](backend/mcp-server/README.md)).
 
 ## Tech Stack
@@ -80,7 +84,7 @@ flowchart LR
 |----------|--------------|
 | Frontend | React 18, TypeScript, Vite, Tailwind CSS, Shadcn UI (Radix), Recharts, React Router v6, TanStack Query (server state), React Context (auth/UI), Zod, React Hook Form, @hookform/resolvers |
 | Backend  | Node.js (ES modules), Express, PostgreSQL (pg), JWT, bcrypt, CORS, express-rate-limit, Zod (config and request validation) |
-| Voice    | Google Gemini (Generative AI), function calling |
+| Voice    | Google Gemini (Generative AI), function calling, relaxed safety settings, fallback on block |
 | Auth     | jsonwebtoken, google-auth-library; optional social (Google, Facebook, Twitter) |
 
 ## Prerequisites
@@ -120,6 +124,7 @@ Create `backend/.env` with at least:
 - `DATABASE_URL` – PostgreSQL connection string (required for data API, auth, food search, voice add_food)
 - `JWT_SECRET` – secret for signing JWTs (required in production)
 - `GEMINI_API_KEY` – for voice intent (optional; without it, `/api/voice/understand` returns an error)
+- `GEMINI_MODEL` – optional; default is `gemini-2.5-flash`. Voice uses relaxed safety settings and a fallback add_food action when the parse step is blocked.
 
 Set `VITE_API_URL=http://localhost:3000` (or your backend URL) in `frontend/.env` or `frontend/.env.development` so the frontend uses the API.
 
@@ -213,7 +218,7 @@ BMe/
 │   │   └── utils/          # Response helpers, validation
 │   ├── voice/              # Gemini tool declarations
 │   ├── mcp-server/         # MCP server (see backend/mcp-server/README.md)
-│   ├── scripts/            # e.g. importFoundationFoods.js
+│   ├── scripts/            # importFoundationFoods.js, removeNonFoundationFoods.js
 │   └── package.json
 ├── frontend/
 │   ├── src/
@@ -223,7 +228,7 @@ BMe/
 │   │   ├── features/       # Feature modules (auth, money, body, energy, goals, schedule, settings, groups)
 │   │   ├── hooks/          # useTransactions, useWorkouts, useSchedule, etc.
 │   │   ├── schemas/        # Zod schemas (transaction, workout, foodEntry, voice)
-│   │   ├── lib/            # Constants, storage, utils, validation, voiceApi, queryClient
+│   │   ├── lib/            # Constants, storage, utils, validation, voiceApi, queryClient, dateRanges (toLocalDateString, WEEK_SUNDAY)
 │   │   ├── pages/          # Home, Money, Body, Energy, Groups, Insights, Settings, Login, Signup, AuthCallback
 │   │   ├── types/          # TypeScript types
 │   │   ├── App.tsx         # App and providers
@@ -257,8 +262,8 @@ From repo root ([package.json](package.json)):
 
 - When using the backend, the user must **log in** (email/password or social). The backend returns a JWT; the frontend stores it (e.g. in localStorage) and sends it in the `Authorization: Bearer <token>` header on every request ([frontend/src/core/api/client.ts](frontend/src/core/api/client.ts)).
 - The backend validates the JWT in [backend/src/middleware/auth.js](backend/src/middleware/auth.js) for protected routes and attaches `req.user`. Domain APIs (schedule, transactions, workouts, food entries, daily check-ins, goals) use the authenticated user ID; data is stored in PostgreSQL.
-- **Server state** on the frontend is fetched and cached via **TanStack Query** (useQuery/useMutation). Feature providers (goals, transactions, schedule, workouts, energy) use queries for lists and mutations for add/update/delete, with cache updates on success. Forms use **React Hook Form** with **Zod** validation (e.g. TransactionModal, WorkoutModal, FoodEntryModal). API and voice responses are parsed with **Zod** where applicable.
-- **Food search** (`GET /api/food/search`) is public (no auth). **Voice** (`POST /api/voice/understand`) requires auth; the backend uses Gemini to parse intent and then executes the corresponding tools (schedule, transaction, workout, food, sleep, goal) in the DB.
+- **Server state** on the frontend is fetched and cached via **TanStack Query** (useQuery/useMutation). Feature providers (goals, transactions, schedule, workouts, energy) use queries for lists and mutations for add/update/delete, with cache updates on success. Forms use **React Hook Form** with **Zod** validation (e.g. TransactionModal, WorkoutModal, FoodEntryModal). API and voice responses are parsed with **Zod**; the voice schema includes `exercises` for add_workout so workout exercises from the backend are preserved. Dates sent to or received from the API use local calendar date (toLocalDateString / parseLocalDateString) so views and filters stay correct in all timezones.
+- **Food search** (`GET /api/food/search`) is public (no auth). **Voice** (`POST /api/voice/understand`) requires auth; the backend uses Gemini to parse intent and returns actions (schedule, transaction, workout with exercises, food, sleep, goal); the frontend executes them via the API.
 
 ## Food Data Import
 
@@ -268,6 +273,8 @@ Food search and voice “add food” use the **USDA Foundation Foods** data in t
 2. Set `DATABASE_URL` in `backend/.env`.
 3. From `backend`: `npm run import:foods`  
    Or from repo root: `node backend/scripts/importFoundationFoods.js`
+
+Optional: To remove foods that are no longer in the Foundation Foods JSON (e.g. after pruning the file), run from `backend`: `npm run remove:non-foundation-foods`. That script deletes from `foods` any row whose name is not in the JSON so those items can be re-looked up with full nutrition.
 
 ## MCP Server
 
@@ -282,6 +289,45 @@ The backend includes an MCP server that exposes BeMe schedule, transactions, and
 ## Responsive Design
 
 The app is responsive and works on desktop and mobile. Theme (light/dark/system) is configurable in Settings.
+
+## Update 7.0
+
+This section records changes added in this revision. The main README body (Features, Conventions, Architecture, Data Flow, etc.) has been updated to reflect the current behavior.
+
+### Voice and food
+
+- When the user says only a food or drink name (no amount), only **add_food** is called; **add_transaction** is used only when the user explicitly states a price. This prevents phantom transactions.
+- If nutrition lookup (DB + Gemini) fails or Gemini blocks, the backend still returns an add_food action with the user’s phrase as name and zero nutrition so the entry is always created.
+- Cooked/uncooked preference is derived from user text; “raw” is normalized to “uncooked” in prompts and UI.
+
+### Dates
+
+- All relevant API calls (money, body, energy) send and interpret dates as **local calendar date** (YYYY-MM-DD). The frontend uses `toLocalDateString` when sending and `parseLocalDateString` when reading API date strings ([frontend/src/lib/dateRanges.ts](frontend/src/lib/dateRanges.ts)) so that daily and weekly views and filters are correct in all timezones. Context and mappers for transactions, workouts, and energy use these helpers.
+
+### Food data and preparation
+
+- A **preparation** column (cooked/uncooked) was added to the foods table. The import script derives it from USDA descriptions; food search and Gemini lookup prefer cooked/uncooked by user intent; naming uses “uncooked” consistently.
+- Script **removeNonFoundationFoods.js** (`npm run remove:non-foundation-foods` in backend): deletes from `foods` any row not in the Foundation Foods JSON so items can be re-looked up with full nutrition.
+
+### Gemini voice robustness
+
+- **Safety settings**: Voice and food-lookup Gemini calls use relaxed safety settings (BLOCK_NONE for adjustable categories) so benign food or item names are less likely to be blocked.
+- **Fallback on block**: If the voice parse step fails (Gemini error or empty response), the backend returns a single add_food action with the user’s transcript as name and zero nutrition so the user is never blocked from adding an item.
+
+### Workouts (voice)
+
+- **add_workout** supports an **exercises** array (name, sets, reps, weight in kg). Example: “SS training, 3x3 150kg squat, 3x3 165kg deadlift” yields one workout with two exercises.
+- **Title**: Default “Workout” when the user does not give a workout name; when they say a program name (e.g. SS), that is used as title. Exercise names are kept as stated (e.g. Squat, Deadlift).
+- **Sets and reps**: Convention is sets×reps; e.g. “3x3” = 3 sets of 3 reps; “3 reps 5 sets” = 5 sets of 3 reps. Prompt and tool descriptions were updated so Gemini fills sets/reps correctly.
+- **Frontend voice schema**: The add_workout schema in [frontend/src/schemas/voice.ts](frontend/src/schemas/voice.ts) now includes **exercises**. Previously Zod stripped that field and the executor always sent an empty list.
+
+### Workouts (UI)
+
+- **WorkoutModal**: Default title “Workout”; form split into a **Workout** section (title, type, duration, date, notes) and an **Exercises** section with column headers (Exercise name, Sets, Reps, Weight (kg)). Weight unit is kg everywhere. Default and reset for a new workout set the title to “Workout”.
+
+### Week convention
+
+- **Sunday as first day, Saturday as last**. All weekly logic (workout streak, weekly balance, workout frequency charts, “workouts this week” on the dashboard) uses this. Implemented via `WEEK_SUNDAY` and `getPeriodRange('weekly')` in [frontend/src/lib/dateRanges.ts](frontend/src/lib/dateRanges.ts) and used in [WeeklyWorkoutGrid](frontend/src/components/body/WeeklyWorkoutGrid.tsx), analytics, useBalanceByPeriod, WorkoutFrequencyChart, MonthlyChart, and Home.
 
 ## Update 6.0
 

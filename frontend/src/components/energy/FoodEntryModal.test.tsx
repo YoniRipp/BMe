@@ -1,8 +1,10 @@
+/// <reference types="@testing-library/jest-dom" />
+import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import type { FoodEntry } from '../../types/energy';
 import { FoodEntryModal } from './FoodEntryModal';
-import { FoodEntry } from '@/types/energy';
 
 const mockEntry: FoodEntry = {
   id: '1',

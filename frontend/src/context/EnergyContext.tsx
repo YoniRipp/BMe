@@ -7,6 +7,7 @@ import {
   apiFoodEntryToFoodEntry,
 } from '@/features/energy/mappers';
 import { queryKeys } from '@/lib/queryClient';
+import { toLocalDateString } from '@/lib/dateRanges';
 
 interface EnergyContextType {
   checkIns: DailyCheckIn[];
@@ -63,7 +64,7 @@ export function EnergyProvider({ children }: { children: React.ReactNode }) {
   const addCheckInMutation = useMutation({
     mutationFn: (checkIn: Omit<DailyCheckIn, 'id'>) =>
       dailyCheckInsApi.add({
-        date: checkIn.date.toISOString().slice(0, 10),
+        date: toLocalDateString(checkIn.date),
         sleepHours: checkIn.sleepHours,
       }),
     onSuccess: (created) => {
@@ -76,7 +77,7 @@ export function EnergyProvider({ children }: { children: React.ReactNode }) {
   const updateCheckInMutation = useMutation({
     mutationFn: ({ id, updates }: { id: string; updates: Partial<DailyCheckIn> }) => {
       const body: Record<string, unknown> = {};
-      if (updates.date !== undefined) body.date = updates.date.toISOString().slice(0, 10);
+      if (updates.date !== undefined) body.date = toLocalDateString(updates.date);
       if (updates.sleepHours !== undefined) body.sleepHours = updates.sleepHours;
       return dailyCheckInsApi.update(id, body);
     },
@@ -99,12 +100,15 @@ export function EnergyProvider({ children }: { children: React.ReactNode }) {
   const addFoodEntryMutation = useMutation({
     mutationFn: (entry: Omit<FoodEntry, 'id'>) =>
       foodEntriesApi.add({
-        date: entry.date.toISOString().slice(0, 10),
+        date: toLocalDateString(entry.date),
         name: entry.name,
         calories: entry.calories,
         protein: entry.protein,
         carbs: entry.carbs,
         fats: entry.fats,
+        ...(entry.portionAmount != null && { portionAmount: entry.portionAmount }),
+        ...(entry.portionUnit && { portionUnit: entry.portionUnit }),
+        ...(entry.servingType && { servingType: entry.servingType }),
       }),
     onSuccess: (created) => {
       queryClient.setQueryData(queryKeys.foodEntries, (prev: FoodEntry[] | undefined) =>
@@ -116,12 +120,15 @@ export function EnergyProvider({ children }: { children: React.ReactNode }) {
   const updateFoodEntryMutation = useMutation({
     mutationFn: ({ id, updates }: { id: string; updates: Partial<FoodEntry> }) => {
       const body: Record<string, unknown> = {};
-      if (updates.date !== undefined) body.date = updates.date.toISOString().slice(0, 10);
+      if (updates.date !== undefined) body.date = toLocalDateString(updates.date);
       if (updates.name !== undefined) body.name = updates.name;
       if (updates.calories !== undefined) body.calories = updates.calories;
       if (updates.protein !== undefined) body.protein = updates.protein;
       if (updates.carbs !== undefined) body.carbs = updates.carbs;
       if (updates.fats !== undefined) body.fats = updates.fats;
+      if (updates.portionAmount !== undefined) body.portionAmount = updates.portionAmount;
+      if (updates.portionUnit !== undefined) body.portionUnit = updates.portionUnit;
+      if (updates.servingType !== undefined) body.servingType = updates.servingType;
       return foodEntriesApi.update(id, body);
     },
     onSuccess: (updated) => {

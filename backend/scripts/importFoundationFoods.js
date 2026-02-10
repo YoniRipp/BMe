@@ -1,27 +1,21 @@
 /**
- * One-time import of USDA FoodData Central Foundation Foods JSON into foundation_foods table.
+ * One-time import of USDA FoodData Central Foundation Foods JSON into foods table.
  * Run from repo root: node backend/scripts/importFoundationFoods.js
  * Or from backend: node scripts/importFoundationFoods.js
  * Requires DATABASE_URL (e.g. in backend/.env).
+ *
+ * Expects JSON shape: { "FoundationFoods": [ { description, foodNutrients, foodClass }, ... ] }
+ * Inserts into foods (name, calories, protein, carbs, fat).
  */
 
 import dotenv from 'dotenv';
-import { createReadStream, existsSync } from 'fs';
-import { createInterface } from 'readline';
+import { readFile } from 'fs/promises';
 import { join, resolve } from 'path';
 import { fileURLToPath } from 'url';
-// #region agent log
-const __dirnamePre = fileURLToPath(new URL('.', import.meta.url));
-const envPath = join(__dirnamePre, '../.env');
-fetch('http://127.0.0.1:7246/ingest/e2e403c5-3c70-4f1e-adfb-38e8c147c460',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'importFoundationFoods.js:before-db-import',message:'Before db.js import',data:{__dirname:__dirnamePre,envPath,envExists:existsSync(envPath),DATABASE_URL_set:!!process.env.DATABASE_URL},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1,H2,H3'})}).catch(()=>{});
-// #endregion
 import { getPool } from '../src/db/index.js';
 
-const __dirname = __dirnamePre;
-// #region agent log
-const dotenvResult = dotenv.config({ path: envPath });
-fetch('http://127.0.0.1:7246/ingest/e2e403c5-3c70-4f1e-adfb-38e8c147c460',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'importFoundationFoods.js:after-dotenv',message:'After dotenv.config',data:{parsedKeys:dotenvResult.parsed?Object.keys(dotenvResult.parsed):[],error:dotenvResult.error?String(dotenvResult.error):null,DATABASE_URL_set:!!process.env.DATABASE_URL},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1,H2,H4'})}).catch(()=>{});
-// #endregion
+const __dirname = fileURLToPath(new URL('.', import.meta.url));
+dotenv.config({ path: join(__dirname, '../.env') });
 
 const NUTRIENT_ENERGY_KCAL = '208';
 const NUTRIENT_ENERGY_KJ = '268';
@@ -41,79 +35,90 @@ function getNutrientValue(foodNutrients, number) {
   return typeof v === 'number' && Number.isFinite(v) ? v : null;
 }
 
-function parseLine(line) {
-  const raw = line.trim();
-  if (!raw) return null;
-  try {
-    const obj = JSON.parse(raw);
-    const description = typeof obj.description === 'string' ? obj.description.trim() : '';
-    if (!description) return null;
-    const foodNutrients = Array.isArray(obj.foodNutrients) ? obj.foodNutrients : [];
-    const caloriesKcal = getNutrientValue(foodNutrients, NUTRIENT_ENERGY_KCAL);
-    const caloriesKj = getNutrientValue(foodNutrients, NUTRIENT_ENERGY_KJ);
-    const calories =
-      caloriesKcal != null
-        ? Math.round(caloriesKcal)
-        : caloriesKj != null
-          ? Math.round(caloriesKj * KJ_TO_KCAL)
-          : 0;
-    const protein = getNutrientValue(foodNutrients, NUTRIENT_PROTEIN) ?? 0;
-    const carbs = getNutrientValue(foodNutrients, NUTRIENT_CARBS) ?? 0;
-    const fats = getNutrientValue(foodNutrients, NUTRIENT_FAT) ?? 0;
-    const food_class = typeof obj.foodClass === 'string' ? obj.foodClass.trim() : null;
-    return {
-      description,
-      calories,
-      protein: Number(protein),
-      carbs: Number(carbs),
-      fats: Number(fats),
-      food_class: food_class || null,
-    };
-  } catch {
-    return null;
+const LIQUID_KEYWORDS = ['beverage', 'beverages', 'drink', 'drinks', 'juice', 'juices', 'soda', 'sodas'];
+
+function isLiquidFromObject(obj) {
+  const desc = (typeof obj.description === 'string' ? obj.description : '').toLowerCase();
+  const foodClass = (typeof obj.foodClass === 'string' ? obj.foodClass : '').toLowerCase();
+  const combined = `${desc} ${foodClass}`;
+  return LIQUID_KEYWORDS.some((kw) => combined.includes(kw));
+}
+
+function parseFoodObject(obj) {
+  if (!obj || typeof obj !== 'object') return null;
+  const description = typeof obj.description === 'string' ? obj.description.trim() : '';
+  if (!description) return null;
+  const foodNutrients = Array.isArray(obj.foodNutrients) ? obj.foodNutrients : [];
+  const caloriesKcal = getNutrientValue(foodNutrients, NUTRIENT_ENERGY_KCAL);
+  const caloriesKj = getNutrientValue(foodNutrients, NUTRIENT_ENERGY_KJ);
+  const calories =
+    caloriesKcal != null
+      ? Math.round(caloriesKcal)
+      : caloriesKj != null
+        ? Math.round(caloriesKj * KJ_TO_KCAL)
+        : 0;
+  const protein = getNutrientValue(foodNutrients, NUTRIENT_PROTEIN) ?? 0;
+  const carbs = getNutrientValue(foodNutrients, NUTRIENT_CARBS) ?? 0;
+  const fat = getNutrientValue(foodNutrients, NUTRIENT_FAT) ?? 0;
+  let caloriesFinal = calories;
+  if (caloriesFinal === 0 && (protein > 0 || carbs > 0 || fat > 0)) {
+    caloriesFinal = Math.round(4 * protein + 4 * carbs + 9 * fat);
   }
+  const is_liquid = isLiquidFromObject(obj);
+  const descLower = description.toLowerCase();
+  const preparation = /\b(uncooked|raw)\b/.test(descLower) ? 'uncooked' : 'cooked';
+  return {
+    name: description,
+    calories: caloriesFinal,
+    protein: Number(protein),
+    carbs: Number(carbs),
+    fat: Number(fat),
+    is_liquid,
+    preparation,
+  };
 }
 
 async function run() {
   const jsonPath =
     process.argv[2] || resolve(join(__dirname, '../../FoodData_Central_foundation_food_json_2025-12-18.json'));
   console.log('Using JSON path:', jsonPath);
-  // #region agent log
-  fetch('http://127.0.0.1:7246/ingest/e2e403c5-3c70-4f1e-adfb-38e8c147c460',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'importFoundationFoods.js:run-before-getPool',message:'Right before getPool()',data:{DATABASE_URL_set:!!process.env.DATABASE_URL},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1,H4'})}).catch(()=>{});
-  // #endregion
+
+  const raw = await readFile(jsonPath, 'utf8');
+  const data = JSON.parse(raw);
+  const foods = Array.isArray(data.FoundationFoods) ? data.FoundationFoods : [];
+  console.log('Found', foods.length, 'foods in JSON');
 
   const pool = getPool();
   const client = await pool.connect();
   try {
-    await client.query('TRUNCATE TABLE foundation_foods');
-    console.log('Truncated foundation_foods.');
+    await client.query('TRUNCATE TABLE foods');
+    console.log('Truncated foods.');
 
-    const stream = createReadStream(jsonPath, { encoding: 'utf8' });
-    const rl = createInterface({ input: stream, crlfDelay: Infinity });
     let batch = [];
     let total = 0;
 
-    for await (const line of rl) {
-      const row = parseLine(line);
+    for (const obj of foods) {
+      const row = parseFoodObject(obj);
       if (!row) continue;
       batch.push(row);
       if (batch.length >= BATCH_SIZE) {
-        const values = batch.flatMap((r) => [
-          r.description,
-          r.calories,
-          r.protein,
-          r.carbs,
-          r.fats,
-          r.food_class,
-        ]);
-        const placeholders = batch
-          .map(
-            (_, i) =>
-              `($${i * 6 + 1}, $${i * 6 + 2}, $${i * 6 + 3}, $${i * 6 + 4}, $${i * 6 + 5}, $${i * 6 + 6})`
-          )
-          .join(', ');
+      const values = batch.flatMap((r) => [
+        r.name,
+        r.calories,
+        r.protein,
+        r.carbs,
+        r.fat,
+        r.is_liquid ?? false,
+        r.preparation ?? 'cooked',
+      ]);
+      const placeholders = batch
+        .map(
+          (_, i) =>
+            `($${i * 7 + 1}, $${i * 7 + 2}, $${i * 7 + 3}, $${i * 7 + 4}, $${i * 7 + 5}, $${i * 7 + 6}, $${i * 7 + 7})`
+        )
+        .join(', ');
         await client.query(
-          `INSERT INTO foundation_foods (description, calories, protein, carbs, fats, food_class) VALUES ${placeholders}`,
+          `INSERT INTO foods (name, calories, protein, carbs, fat, is_liquid, preparation) VALUES ${placeholders}`,
           values
         );
         total += batch.length;
@@ -123,21 +128,22 @@ async function run() {
     }
     if (batch.length > 0) {
       const values = batch.flatMap((r) => [
-        r.description,
+        r.name,
         r.calories,
         r.protein,
         r.carbs,
-        r.fats,
-        r.food_class,
+        r.fat,
+        r.is_liquid ?? false,
+        r.preparation ?? 'cooked',
       ]);
       const placeholders = batch
         .map(
           (_, i) =>
-            `($${i * 6 + 1}, $${i * 6 + 2}, $${i * 6 + 3}, $${i * 6 + 4}, $${i * 6 + 5}, $${i * 6 + 6})`
+            `($${i * 7 + 1}, $${i * 7 + 2}, $${i * 7 + 3}, $${i * 7 + 4}, $${i * 7 + 5}, $${i * 7 + 6}, $${i * 7 + 7})`
         )
         .join(', ');
       await client.query(
-        `INSERT INTO foundation_foods (description, calories, protein, carbs, fats, food_class) VALUES ${placeholders}`,
+        `INSERT INTO foods (name, calories, protein, carbs, fat, is_liquid, preparation) VALUES ${placeholders}`,
         values
       );
       total += batch.length;

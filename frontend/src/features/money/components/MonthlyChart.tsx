@@ -31,6 +31,7 @@ import {
   eachMonthOfInterval,
   isWithinInterval,
 } from 'date-fns';
+import { WEEK_SUNDAY } from '@/lib/dateRanges';
 
 interface MonthlyChartProps {
   transactions: Transaction[];
@@ -69,8 +70,8 @@ export const MonthlyChart = memo(function MonthlyChart({
       chartTitle = 'Daily Overview';
       chartEmptyMessage = 'No transactions today';
     } else if (period === 'weekly') {
-      const weekStart = startOfWeek(now);
-      const weekEnd = endOfWeek(now);
+      const weekStart = startOfWeek(now, WEEK_SUNDAY);
+      const weekEnd = endOfWeek(now, WEEK_SUNDAY);
       const days = eachDayOfInterval({ start: weekStart, end: weekEnd });
       chartData = days
         .map((day) => {

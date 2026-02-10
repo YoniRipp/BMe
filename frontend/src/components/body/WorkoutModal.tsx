@@ -42,7 +42,7 @@ const defaultExercise: WorkoutFormValues['exercises'][0] = {
 };
 
 const defaultValues: WorkoutFormValues = {
-  title: '',
+  title: 'Workout',
   type: 'strength',
   date: new Date().toISOString().split('T')[0],
   durationMinutes: '',
@@ -91,7 +91,7 @@ export function WorkoutModal({ open, onOpenChange, onSave, workout }: WorkoutMod
           : [defaultExercise],
       });
     } else {
-      reset({ ...defaultValues, date: new Date().toISOString().split('T')[0] });
+      reset({ ...defaultValues, title: 'Workout', date: new Date().toISOString().split('T')[0] });
     }
   }, [open, workout, reset]);
 
@@ -178,136 +178,142 @@ export function WorkoutModal({ open, onOpenChange, onSave, workout }: WorkoutMod
               </div>
             )}
 
-            <div>
-              <Label htmlFor="title">Title</Label>
-              <Input
-                id="title"
-                {...register('title')}
-                placeholder="e.g., Chest and Shoulders"
-                aria-invalid={!!errors.title}
-                aria-describedby={errors.title ? 'title-error' : undefined}
-              />
-              {errors.title && (
-                <p id="title-error" className="text-sm text-destructive mt-1">
-                  {errors.title.message}
-                </p>
-              )}
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
+            <div className="p-4 rounded-lg border bg-muted/30 space-y-4">
+              <h3 className="text-sm font-medium">Workout</h3>
               <div>
-                <Label htmlFor="type">Type</Label>
-                <Controller
-                  name="type"
-                  control={control}
-                  render={({ field }) => (
-                    <Select value={field.value} onValueChange={field.onChange}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {WORKOUT_TYPES.map((type) => (
-                          <SelectItem key={type} value={type}>
-                            {type.charAt(0).toUpperCase() + type.slice(1)}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                />
-              </div>
-              <div>
-                <Label htmlFor="duration">Duration (min)</Label>
+                <Label htmlFor="title">Title</Label>
                 <Input
-                  id="duration"
-                  type="number"
-                  {...register('durationMinutes')}
-                  aria-invalid={!!errors.durationMinutes}
-                  aria-describedby={errors.durationMinutes ? 'duration-error' : undefined}
+                  id="title"
+                  {...register('title')}
+                  placeholder="e.g., Workout, SS"
+                  aria-invalid={!!errors.title}
+                  aria-describedby={errors.title ? 'title-error' : undefined}
                 />
-                {errors.durationMinutes && (
-                  <p id="duration-error" className="text-sm text-destructive mt-1">
-                    {errors.durationMinutes.message}
+                {errors.title && (
+                  <p id="title-error" className="text-sm text-destructive mt-1">
+                    {errors.title.message}
                   </p>
                 )}
               </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="type">Type</Label>
+                  <Controller
+                    name="type"
+                    control={control}
+                    render={({ field }) => (
+                      <Select value={field.value} onValueChange={field.onChange}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {WORKOUT_TYPES.map((type) => (
+                            <SelectItem key={type} value={type}>
+                              {type.charAt(0).toUpperCase() + type.slice(1)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="duration">Duration (min)</Label>
+                  <Input
+                    id="duration"
+                    type="number"
+                    {...register('durationMinutes')}
+                    aria-invalid={!!errors.durationMinutes}
+                    aria-describedby={errors.durationMinutes ? 'duration-error' : undefined}
+                  />
+                  {errors.durationMinutes && (
+                    <p id="duration-error" className="text-sm text-destructive mt-1">
+                      {errors.durationMinutes.message}
+                    </p>
+                  )}
+                </div>
+              </div>
+              <div>
+                <Label htmlFor="date">Date</Label>
+                <Input id="date" type="date" {...register('date')} />
+              </div>
+              <div>
+                <Label htmlFor="notes">Notes (Optional)</Label>
+                <Textarea id="notes" {...register('notes')} placeholder="How did it go?" />
+              </div>
             </div>
 
-            <div>
-              <Label htmlFor="date">Date</Label>
-              <Input id="date" type="date" {...register('date')} />
-            </div>
-
-            <div>
+            <div className="pt-2">
               <div className="flex items-center justify-between mb-2">
-                <Label>Exercises</Label>
+                <h3 className="text-sm font-medium">Exercises</h3>
                 <Button type="button" variant="outline" size="sm" onClick={addExercise}>
                   <Plus className="w-4 h-4 mr-1" />
                   Add Exercise
                 </Button>
               </div>
-              <div className="space-y-3">
+              <div className="rounded-lg border bg-muted/30 p-3 space-y-3">
+                <div className="grid gap-2 grid-cols-[1fr_4rem_4rem_5rem] items-center text-xs font-medium text-muted-foreground">
+                  <span>Exercise name</span>
+                  <span>Sets</span>
+                  <span>Reps</span>
+                  <span>Weight (kg)</span>
+                </div>
                 {fields.map((field, idx) => (
-                  <div key={field.id} className="p-3 border rounded-lg space-y-2">
-                    <div className="flex items-center gap-2">
-                      <div className="flex-1">
-                        <Input
-                          placeholder="Exercise name"
-                          {...register(`exercises.${idx}.name`)}
-                          aria-invalid={!!errors.exercises?.[idx]?.name}
-                          aria-describedby={errors.exercises?.[idx]?.name ? `exercise-${idx}-name-error` : undefined}
-                        />
-                        {errors.exercises?.[idx]?.name && (
-                          <p id={`exercise-${idx}-name-error`} className="text-sm text-destructive mt-1">
-                            {errors.exercises[idx]?.name?.message}
-                          </p>
+                  <div key={field.id} className="grid gap-2 grid-cols-[1fr_4rem_4rem_5rem] items-start">
+                    <div>
+                      <Input
+                        placeholder="e.g. Squat, Deadlift"
+                        className="w-full"
+                        {...register(`exercises.${idx}.name`)}
+                        aria-invalid={!!errors.exercises?.[idx]?.name}
+                        aria-describedby={errors.exercises?.[idx]?.name ? `exercise-${idx}-name-error` : undefined}
+                      />
+                      {errors.exercises?.[idx]?.name && (
+                        <p id={`exercise-${idx}-name-error`} className="text-xs text-destructive mt-1">
+                          {errors.exercises[idx]?.name?.message}
+                        </p>
+                      )}
+                    </div>
+                    <div>
+                      <Input
+                        type="number"
+                        placeholder="3"
+                        {...register(`exercises.${idx}.sets`)}
+                        aria-invalid={!!errors.exercises?.[idx]?.sets}
+                      />
+                      {errors.exercises?.[idx]?.sets && (
+                        <p className="text-xs text-destructive mt-1">{errors.exercises[idx]?.sets?.message}</p>
+                      )}
+                    </div>
+                    <div>
+                      <Input
+                        type="number"
+                        placeholder="5"
+                        {...register(`exercises.${idx}.reps`)}
+                        aria-invalid={!!errors.exercises?.[idx]?.reps}
+                      />
+                      {errors.exercises?.[idx]?.reps && (
+                        <p className="text-xs text-destructive mt-1">{errors.exercises[idx]?.reps?.message}</p>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Controller
+                        name={`exercises.${idx}.weight`}
+                        control={control}
+                        render={({ field }) => (
+                          <Input
+                            type="number"
+                            placeholder="kg"
+                            className="w-full"
+                            value={field.value ?? ''}
+                            onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
+                            aria-invalid={!!errors.exercises?.[idx]?.weight}
+                          />
                         )}
-                      </div>
-                      <Button type="button" variant="ghost" size="icon" onClick={() => remove(idx)}>
+                      />
+                      <Button type="button" variant="ghost" size="icon" onClick={() => remove(idx)} aria-label="Remove exercise">
                         <Trash2 className="w-4 h-4" />
                       </Button>
-                    </div>
-                    <div className="grid grid-cols-3 gap-2">
-                      <div>
-                        <Input
-                          type="number"
-                          placeholder="Sets"
-                          {...register(`exercises.${idx}.sets`)}
-                          aria-invalid={!!errors.exercises?.[idx]?.sets}
-                        />
-                        {errors.exercises?.[idx]?.sets && (
-                          <p className="text-xs text-destructive mt-1">{errors.exercises[idx]?.sets?.message}</p>
-                        )}
-                      </div>
-                      <div>
-                        <Input
-                          type="number"
-                          placeholder="Reps"
-                          {...register(`exercises.${idx}.reps`)}
-                          aria-invalid={!!errors.exercises?.[idx]?.reps}
-                        />
-                        {errors.exercises?.[idx]?.reps && (
-                          <p className="text-xs text-destructive mt-1">{errors.exercises[idx]?.reps?.message}</p>
-                        )}
-                      </div>
-                      <div>
-                        <Controller
-                          name={`exercises.${idx}.weight`}
-                          control={control}
-                          render={({ field }) => (
-                            <Input
-                              type="number"
-                              placeholder="Weight (lbs)"
-                              value={field.value ?? ''}
-                              onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
-                              aria-invalid={!!errors.exercises?.[idx]?.weight}
-                            />
-                          )}
-                        />
-                        {errors.exercises?.[idx]?.weight && (
-                          <p className="text-xs text-destructive mt-1">{errors.exercises[idx]?.weight?.message}</p>
-                        )}
-                      </div>
                     </div>
                   </div>
                 ))}
@@ -315,11 +321,6 @@ export function WorkoutModal({ open, onOpenChange, onSave, workout }: WorkoutMod
               {errors.exercises?.root && (
                 <p className="text-sm text-destructive mt-1">{errors.exercises.root.message}</p>
               )}
-            </div>
-
-            <div>
-              <Label htmlFor="notes">Notes (Optional)</Label>
-              <Textarea id="notes" {...register('notes')} placeholder="How did it go?" />
             </div>
           </div>
 

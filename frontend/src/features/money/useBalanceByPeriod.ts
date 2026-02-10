@@ -11,6 +11,7 @@ import {
   endOfYear,
   isWithinInterval,
 } from 'date-fns';
+import { WEEK_SUNDAY } from '@/lib/dateRanges';
 
 export type BalancePeriod = 'daily' | 'weekly' | 'monthly' | 'yearly';
 
@@ -36,8 +37,8 @@ export function useBalanceByPeriod(transactions: Transaction[]) {
 
   const dayStart = startOfDay(now);
   const dayEnd = endOfDay(now);
-  const weekStart = startOfWeek(now);
-  const weekEnd = endOfWeek(now);
+  const weekStart = startOfWeek(now, WEEK_SUNDAY);
+  const weekEnd = endOfWeek(now, WEEK_SUNDAY);
   const monthStart = startOfMonth(now);
   const monthEnd = endOfMonth(now);
   const yearStart = startOfYear(now);

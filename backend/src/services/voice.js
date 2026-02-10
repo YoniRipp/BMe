@@ -1,20 +1,23 @@
 /**
  * Voice service — Gemini parsing and action mapping.
  */
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from '@google/generative-ai';
 import { config } from '../config/index.js';
 import { isDbConfigured, getPool } from '../db/index.js';
 import { SCHEDULE_CATEGORIES, VALID_RECURRENCE, TRANSACTION_CATEGORIES, WORKOUT_TYPES, GOAL_TYPES, GOAL_PERIODS } from '../config/constants.js';
 import { normTime, normCat } from '../utils/validation.js';
 import { VOICE_TOOLS } from '../../voice/tools.js';
-import { getNutritionForFoodName } from '../models/foodSearch.js';
+import { getNutritionForFoodName, unitToGrams } from '../models/foodSearch.js';
+import { lookupAndCreateFood } from './foodLookupGemini.js';
 
 const VOICE_PROMPT = `You are a voice assistant for a life management app. The user speaks in Hebrew or English.
 Parse their message and call the appropriate function(s) for each action they want to take.
 
-When the user says they bought or spent money on food or drink (e.g. "got a Coke for 9", "bought coffee for 5", "paid 9 for a Coke"), you MUST call BOTH: (1) add_transaction with type expense, amount, category "Food" (not "Other"), description = the item name; (2) add_food with food = the item name in English. One utterance about buying food/drink must produce two function calls.
-
-Examples: "work 8-18, eat 18-22" → add_schedule twice. "bought coke for 10, slept 8 hours" → add_transaction (expense, 10, Food, Coke) + add_food (Coke) + log_sleep. "got a Coke for 9" → add_transaction (expense, 9, Food, Coke) + add_food (Coke).
+Food and drink rules:
+- Only when the user EXPLICITLY says they paid or spent a specific amount (e.g. "bought X for 9", "paid 5 for coffee", "cost 10") do you call BOTH add_transaction (with that amount, category "Food", description = item name) AND add_food (food = item name in English).
+- When the user says ONLY a food or drink name (e.g. "Diet Coke", "coffee") or "ate X" / "had X" WITHOUT any amount or purchase wording, call ONLY add_food. Do NOT call add_transaction. Do not invent or guess an amount.
+Examples: "Diet Coke" or "had a Diet Coke" → add_food only. "Bought Diet Coke for 5" → add_transaction (expense, 5, Food, Diet Coke) + add_food (Diet Coke). "work 8-18, eat 18-22" → add_schedule twice. "bought coke for 10, slept 8 hours" → add_transaction (expense, 10, Food, Coke) + add_food (Coke) + log_sleep.
+Workouts: When the user says they worked out and gives exercises with sets/reps/weight, call add_workout with type "strength". Use title "Workout" when they do not give a workout name; when they say a program name (e.g. SS, Starting Strength) use that as title. Do not use an exercise name as the workout title. Each exercise in the exercises array must use the exact exercise name the user said (e.g. Squat, Deadlift). Sets and reps: use sets × reps (e.g. 3 reps 5 sets = 5 sets of 3 reps; 3x3 = 3 sets, 3 reps). durationMinutes is optional (default 30).
 Call all relevant functions; the user may combine multiple actions in one message.`;
 
 const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
@@ -40,6 +43,15 @@ const trim = (v) => (v != null ? String(v).trim() : undefined);
 const trimOrUndefined = (v) => (v != null && String(v).trim() !== '' ? String(v).trim() : undefined);
 const num = (v) => (v != null && Number.isFinite(Number(v)) ? Number(v) : undefined);
 const passThrough = (v) => v;
+
+/** If name has no "uncooked"/"raw" or "cooked", append ", cooked" (default). Use "uncooked" consistently (not "raw"). Used only for fallback names (not from DB). */
+function withRawOrCooked(name) {
+  let s = String(name).trim();
+  if (!s) return 'Unknown';
+  if (/\b(raw)\b/i.test(s)) s = s.replace(/\braw\b/gi, 'uncooked');
+  if (/\b(uncooked|cooked)\b/i.test(s)) return s;
+  return `${s}, cooked`;
+}
 
 const EDIT_SCHEDULE_SPEC = {
   itemTitle: trimOrUndefined,
@@ -147,11 +159,23 @@ function buildDeleteTransaction(args) {
 }
 
 function buildAddWorkout(args, ctx) {
+  const exercises = Array.isArray(args.exercises)
+    ? args.exercises
+        .filter((e) => e && typeof e.name === 'string' && e.name.trim())
+        .map((e) => ({
+          name: String(e.name).trim(),
+          sets: Math.max(0, Number(e.sets) || 0),
+          reps: Math.max(0, Number(e.reps) || 0),
+          weight: Number(e.weight) > 0 ? Number(e.weight) : undefined,
+          notes: e.notes ? String(e.notes).trim() : undefined,
+        }))
+    : [];
   return {
     date: parseDate(args.date, ctx.todayStr),
     title: args.title ? trim(args.title) : 'Workout',
     type: WORKOUT_TYPES.includes(args.type) ? args.type : 'cardio',
-    durationMinutes: Number.isFinite(Number(args.durationMinutes)) ? Number(args.durationMinutes) : 30,
+    durationMinutes: Number.isFinite(Number(args.durationMinutes)) && Number(args.durationMinutes) > 0 ? Number(args.durationMinutes) : 30,
+    exercises,
     notes: args.notes ? trim(args.notes) : undefined,
   };
 }
@@ -182,6 +206,9 @@ async function buildAddFood(args, ctx) {
   const amount = Number(args.amount);
   const numAmount = Number.isFinite(amount) && amount > 0 ? amount : 100;
   const unit = args.unit ? String(args.unit).trim().toLowerCase() : 'g';
+  // #region agent log
+  fetch('http://127.0.0.1:7246/ingest/e2e403c5-3c70-4f1e-adfb-38e8c147c460', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'voice.js:buildAddFood:entry', message: 'buildAddFood args', data: { food, numAmount, unit }, timestamp: Date.now(), hypothesisId: 'H1' }) }).catch(() => {});
+  // #endregion
   const action = {
     food,
     amount: numAmount,
@@ -191,18 +218,60 @@ async function buildAddFood(args, ctx) {
   if (isDbConfigured()) {
     try {
       const pool = getPool();
-      const nutrition = await getNutritionForFoodName(pool, food || 'unknown', numAmount, unit);
+      const preferUncooked = /\b(uncooked|raw)\b/i.test(food || '');
+      let nutrition = await getNutritionForFoodName(pool, food || 'unknown', numAmount, unit, preferUncooked);
+      let source = nutrition ? 'db' : null;
+      if (!nutrition && config.geminiApiKey) {
+        const geminiRow = await lookupAndCreateFood(pool, food || 'unknown');
+        if (geminiRow) {
+          const ref = 100;
+          const grams = unitToGrams(numAmount, unit);
+          const scale = grams / ref;
+          const displayName = (geminiRow.name || '').replace(/\braw\b/gi, 'uncooked');
+          nutrition = {
+            name: displayName,
+            calories: Math.round(geminiRow.calories * scale),
+            protein: Math.round(geminiRow.protein * scale * 10) / 10,
+            carbs: Math.round(geminiRow.carbs * scale * 10) / 10,
+            fat: Math.round(geminiRow.fat * scale * 10) / 10,
+          };
+          source = 'gemini';
+        }
+      }
+      // #region agent log
+      fetch('http://127.0.0.1:7246/ingest/e2e403c5-3c70-4f1e-adfb-38e8c147c460', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'voice.js:buildAddFood:afterLookup', message: 'nutrition source', data: { source, hasNutrition: !!nutrition }, timestamp: Date.now(), hypothesisId: 'H1' }) }).catch(() => {});
+      // #endregion
       if (nutrition) {
         action.name = nutrition.name;
         action.calories = nutrition.calories;
         action.protein = nutrition.protein;
         action.carbs = nutrition.carbs;
-        action.fats = nutrition.fats;
+        action.fats = nutrition.fat;
+      } else {
+        action.name = withRawOrCooked(food || 'Unknown');
+        action.calories = 0;
+        action.protein = 0;
+        action.carbs = 0;
+        action.fats = 0;
       }
     } catch (e) {
       console.error('add_food DB lookup:', e?.message ?? e);
+      action.name = withRawOrCooked(food || 'Unknown');
+      action.calories = 0;
+      action.protein = 0;
+      action.carbs = 0;
+      action.fats = 0;
     }
+  } else if (food) {
+    action.name = withRawOrCooked(food || 'Unknown');
+    action.calories = 0;
+    action.protein = 0;
+    action.carbs = 0;
+    action.fats = 0;
   }
+  // #region agent log
+  fetch('http://127.0.0.1:7246/ingest/e2e403c5-3c70-4f1e-adfb-38e8c147c460', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'voice.js:buildAddFood:return', message: 'add_food action out', data: { hasName: 'name' in action, hasCalories: 'calories' in action, name: action.name, calories: action.calories }, timestamp: Date.now(), hypothesisId: 'H1' }) }).catch(() => {});
+  // #endregion
   return action;
 }
 
@@ -270,6 +339,27 @@ const HANDLERS = {
  * @param {string} [lang]
  * @returns {Promise<{ actions: object[] }>}
  */
+/** When Gemini blocks (safety/empty), treat transcript as a single add_food so the user is never blocked. */
+function fallbackAddFoodFromTranscript(transcript, todayStr) {
+  const name = (transcript || '').trim() || 'Unknown';
+  return {
+    actions: [
+      {
+        intent: 'add_food',
+        food: name,
+        amount: 100,
+        unit: 'g',
+        date: todayStr,
+        name: withRawOrCooked(name),
+        calories: 0,
+        protein: 0,
+        carbs: 0,
+        fats: 0,
+      },
+    ],
+  };
+}
+
 export async function parseTranscript(text, lang = 'auto') {
   if (!config.geminiApiKey) {
     throw new Error('Voice service not configured (missing GEMINI_API_KEY)');
@@ -277,14 +367,29 @@ export async function parseTranscript(text, lang = 'auto') {
   const todayStr = new Date().toISOString().slice(0, 10);
   const ctx = { todayStr };
   const genAI = new GoogleGenerativeAI(config.geminiApiKey);
-  const model = genAI.getGenerativeModel({ model: config.geminiModel });
-  const result = await model.generateContent({
-    contents: [{ role: 'user', parts: [{ text: `${VOICE_PROMPT}\n\nUser transcript (lang: ${lang}):\n${text}` }] }],
-    tools: VOICE_TOOLS,
-  });
+  const safetySettings = [
+    { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
+    { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
+    { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+    { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+  ];
+  const model = genAI.getGenerativeModel({ model: config.geminiModel, safetySettings });
+
+  let result;
+  try {
+    result = await model.generateContent({
+      contents: [{ role: 'user', parts: [{ text: `${VOICE_PROMPT}\n\nUser transcript (lang: ${lang}):\n${text}` }] }],
+      tools: VOICE_TOOLS,
+    });
+  } catch (e) {
+    console.error('Gemini voice parse blocked or error:', e?.message ?? e);
+    return fallbackAddFoodFromTranscript(text, todayStr);
+  }
+
   const response = result.response;
   if (!response) {
-    throw new Error('Empty response from Gemini');
+    console.error('Gemini voice parse: empty response');
+    return fallbackAddFoodFromTranscript(text, todayStr);
   }
   const functionCalls = response.functionCalls?.() ?? [];
   const actions = [];

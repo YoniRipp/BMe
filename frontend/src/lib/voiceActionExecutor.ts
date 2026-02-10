@@ -136,12 +136,22 @@ const handleDeleteTransaction: Handler = async (action, ctx) => {
 
 const handleAddWorkout: Handler = async (action, ctx) => {
   if (action.intent !== 'add_workout') return { success: false };
+  const rawExercises = Array.isArray(action.exercises) ? action.exercises : [];
+  const exercises = rawExercises
+    .filter((e: { name?: string }) => e?.name && String(e.name).trim())
+    .map((e: { name?: string; sets?: number; reps?: number; weight?: number; notes?: string }) => ({
+      name: String(e.name).trim(),
+      sets: Math.max(0, Number(e.sets) ?? 0),
+      reps: Math.max(0, Number(e.reps) ?? 0),
+      weight: Number(e.weight) > 0 ? Number(e.weight) : undefined,
+      notes: e.notes ? String(e.notes).trim() : undefined,
+    }));
   await ctx.addWorkout({
     date: parseDateOrToday(action.date),
     title: action.title ?? 'Workout',
     type: (VALID_WORKOUT_TYPES.includes(action.type as (typeof VALID_WORKOUT_TYPES)[number]) ? action.type : 'cardio') as WorkoutType,
     durationMinutes: action.durationMinutes ?? 30,
-    exercises: [],
+    exercises,
     notes: action.notes,
   });
   return { success: true };
@@ -171,9 +181,22 @@ const handleDeleteWorkout: Handler = async (action, ctx) => {
 
 const handleAddFood: Handler = async (action, ctx) => {
   if (action.intent !== 'add_food') return { success: false };
+  // #region agent log
+  fetch('http://127.0.0.1:7246/ingest/e2e403c5-3c70-4f1e-adfb-38e8c147c460', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'voiceActionExecutor.ts:handleAddFood:entry', message: 'add_food received', data: { name: action.name, calories: action.calories, willBail: !action.name && action.calories == null }, timestamp: Date.now(), hypothesisId: 'H3' }) }).catch(() => {});
+  // #endregion
   if (!action.name && action.calories == null) return { success: false, message: 'Food not found' };
-  await ctx.addFoodEntry({ date: parseDateOrToday(action.date), name: action.name ?? 'Unknown', calories: action.calories ?? 0, protein: action.protein ?? 0, carbs: action.carbs ?? 0, fats: action.fats ?? 0 });
-  return { success: true };
+  try {
+    await ctx.addFoodEntry({ date: parseDateOrToday(action.date), name: action.name ?? 'Unknown', calories: action.calories ?? 0, protein: action.protein ?? 0, carbs: action.carbs ?? 0, fats: action.fats ?? 0 });
+    // #region agent log
+    fetch('http://127.0.0.1:7246/ingest/e2e403c5-3c70-4f1e-adfb-38e8c147c460', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'voiceActionExecutor.ts:handleAddFood:afterAdd', message: 'addFoodEntry resolved', data: {}, timestamp: Date.now(), hypothesisId: 'H4' }) }).catch(() => {});
+    // #endregion
+    return { success: true };
+  } catch (e) {
+    // #region agent log
+    fetch('http://127.0.0.1:7246/ingest/e2e403c5-3c70-4f1e-adfb-38e8c147c460', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'voiceActionExecutor.ts:handleAddFood:catch', message: 'addFoodEntry failed', data: { error: e instanceof Error ? e.message : String(e) }, timestamp: Date.now(), hypothesisId: 'H4' }) }).catch(() => {});
+    // #endregion
+    throw e;
+  }
 };
 
 const handleEditFoodEntry: Handler = async (action, ctx) => {

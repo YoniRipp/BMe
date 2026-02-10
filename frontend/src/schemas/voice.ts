@@ -52,6 +52,14 @@ const deleteTransactionSchema = z.object({
   date: z.string().optional(),
 });
 
+const voiceExerciseSchema = z.object({
+  name: z.string(),
+  sets: z.number(),
+  reps: z.number(),
+  weight: z.number().optional(),
+  notes: z.string().optional(),
+});
+
 const addWorkoutSchema = z.object({
   intent: z.literal('add_workout'),
   date: z.string().optional(),
@@ -59,6 +67,7 @@ const addWorkoutSchema = z.object({
   type: z.string().default('cardio'),
   durationMinutes: z.number().default(30),
   notes: z.string().optional(),
+  exercises: z.array(voiceExerciseSchema).optional().default([]),
 });
 const editWorkoutSchema = z.object({
   intent: z.literal('edit_workout'),

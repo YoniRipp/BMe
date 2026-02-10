@@ -54,7 +54,7 @@ export const VOICE_TOOLS = [
       },
       {
         name: 'add_transaction',
-        description: 'Record an income or expense. When the user says they bought or spent money on food or drink (e.g. Coke, coffee, lunch), use category "Food" and set description to the item name. You MUST also call add_food with that item name so both the expense and the food log are recorded. For other expenses use the appropriate category; for income use Salary, Freelance, Investment, Gift, Other. Never use "Other" for food or drink purchases—use "Food".',
+        description: 'Record an income or expense. Only call this when the user EXPLICITLY mentions an amount of money (e.g. "for 5", "cost 10", "paid 20"). Do NOT call for a food or drink name alone (e.g. "Diet Coke", "coffee") with no price—do not invent or guess an amount. When the user does state a price for food/drink, use category "Food" and description = item name, and also call add_food. For other expenses use the appropriate category; for income use Salary, Freelance, Investment, Gift, Other.',
         parameters: {
           type: 'object',
           properties: {
@@ -101,17 +101,32 @@ export const VOICE_TOOLS = [
       },
       {
         name: 'add_workout',
-        description: 'Log a workout. User may say ran 45 minutes, did strength for an hour, cardio 30 min, etc.',
+        description: 'Log a workout. When the user does not give a workout name use title "Workout". When they say a program name (e.g. SS, Starting Strength) use that as title. Do not use an exercise name as the workout title. Examples: "ran 45 minutes", "did squats 5 sets of 3 at 140 kilos", "SS: squat 5x3 140kg deadlift 3x3 160kg". For strength with sets/reps/weight use type "strength" and fill the exercises array. durationMinutes is optional (default 30).',
         parameters: {
           type: 'object',
           properties: {
             date: { type: 'string', description: 'YYYY-MM-DD, default today' },
-            title: { type: 'string', description: 'Workout name e.g. Morning Run' },
-            type: { type: 'string', enum: ['strength', 'cardio', 'flexibility', 'sports'] },
-            durationMinutes: { type: 'number' },
+            title: { type: 'string', description: 'Workout name: "Workout" when none given, or user\'s program name (e.g. SS)' },
+            type: { type: 'string', enum: ['strength', 'cardio', 'flexibility', 'sports'], description: 'Use strength when user mentions sets/reps/weight' },
+            durationMinutes: { type: 'number', description: 'Optional; default 30' },
             notes: { type: 'string' },
+            exercises: {
+              type: 'array',
+              description: 'For strength: list each exercise with name, sets, reps, weight (kg). Use sets × reps: "5 sets of 3 reps" or "3 reps 5 sets" → sets: 5, reps: 3. Notation "3x3" means 3 sets of 3 reps → sets: 3, reps: 3.',
+              items: {
+                type: 'object',
+                properties: {
+                  name: { type: 'string', description: 'Use the exact exercise name the user said, capitalized (e.g. Squat, Deadlift, Bench Press). Do not use the workout title here; each exercise has its own name.' },
+                  sets: { type: 'number', description: 'Number of sets' },
+                  reps: { type: 'number', description: 'Reps per set' },
+                  weight: { type: 'number', description: 'Weight in kg (optional)' },
+                  notes: { type: 'string' },
+                },
+                required: ['name', 'sets', 'reps'],
+              },
+            },
           },
-          required: ['title', 'type', 'durationMinutes'],
+          required: ['title', 'type'],
         },
       },
       {
@@ -144,7 +159,7 @@ export const VOICE_TOOLS = [
       },
       {
         name: 'add_food',
-        description: 'Log food or drink consumed. When the user says they bought or spent money on food/drink (e.g. got a Coke for 9, bought coffee for 5), call BOTH add_transaction (expense, category Food, description item name) AND add_food (food: item name in English). For "ate X" without purchase, call only add_food. Output food name in English.',
+        description: 'Log food or drink consumed. If the user says ONLY a food or drink name (e.g. "Diet Coke", "coffee", "ate an apple") or "had X" without mentioning buying or a price, call ONLY add_food—do not call add_transaction. When the user explicitly says they bought X for Y money, call BOTH add_transaction and add_food. Output food name in English.',
         parameters: {
           type: 'object',
           properties: {

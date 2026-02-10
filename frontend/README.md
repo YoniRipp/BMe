@@ -28,6 +28,8 @@ The frontend is a TypeScript React app built with Vite. It uses React Router for
 
 The API client ([src/core/api/client.ts](src/core/api/client.ts)) stores the JWT in localStorage (via [src/lib/storage.ts](src/lib/storage.ts)) and attaches it as `Authorization: Bearer <token>` to every request. On 401, it clears the token and dispatches an `auth:logout` event so the UI can redirect to login.
 
+For app-wide conventions (dates, week, voice behavior) and Update 7.0, see the root [README.md](../README.md).
+
 ## Project Structure
 
 ```

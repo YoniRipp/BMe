@@ -155,6 +155,9 @@ export function VoiceAgentPanel({ open, onOpenChange }: VoiceAgentPanelProps) {
       const succeeded: string[] = [];
       const failed: string[] = [];
       for (const action of result.actions) {
+        // #region agent log
+        if (action.intent === 'add_food') fetch('http://127.0.0.1:7246/ingest/e2e403c5-3c70-4f1e-adfb-38e8c147c460', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'VoiceAgentPanel.tsx:beforeExecute', message: 'executing add_food', data: { intent: action.intent, name: (action as { name?: string }).name, calories: (action as { calories?: number }).calories }, timestamp: Date.now(), hypothesisId: 'H5' }) }).catch(() => {});
+        // #endregion
         try {
           const r = await executeVoiceAction(action, voiceContext);
           if (r.success) succeeded.push(r.message ?? action.intent);

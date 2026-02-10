@@ -1,6 +1,10 @@
-import { getPool } from '../src/db/index.js';
+/**
+ * User admin routes. Require auth + admin.
+ */
 import bcrypt from 'bcrypt';
-import { requireAdmin } from '../middleware/auth.js';
+import { Router } from 'express';
+import { getPool } from '../db/index.js';
+import { requireAuth, requireAdmin } from '../middleware/auth.js';
 
 const SALT_ROUNDS = 10;
 
@@ -14,7 +18,7 @@ function rowToUser(row) {
   };
 }
 
-export async function listUsers(req, res) {
+async function listUsers(req, res) {
   try {
     const pool = getPool();
     const result = await pool.query(
@@ -27,7 +31,7 @@ export async function listUsers(req, res) {
   }
 }
 
-export async function createUser(req, res) {
+async function createUser(req, res) {
   try {
     const { email, password, name, role } = req.body ?? {};
     if (!email || typeof email !== 'string' || !email.trim()) {
@@ -58,7 +62,7 @@ export async function createUser(req, res) {
   }
 }
 
-export async function updateUser(req, res) {
+async function updateUser(req, res) {
   try {
     const { id } = req.params;
     const { name, role, password } = req.body ?? {};
@@ -87,7 +91,7 @@ export async function updateUser(req, res) {
   }
 }
 
-export async function deleteUser(req, res) {
+async function deleteUser(req, res) {
   try {
     const { id } = req.params;
     if (!id) return res.status(400).json({ error: 'id is required' });
@@ -103,3 +107,13 @@ export async function deleteUser(req, res) {
     res.status(500).json({ error: e?.message ?? 'Failed to delete user' });
   }
 }
+
+const router = Router();
+const withAdmin = [requireAuth, requireAdmin];
+
+router.get('/api/users', withAdmin, listUsers);
+router.post('/api/users', withAdmin, createUser);
+router.patch('/api/users/:id', withAdmin, updateUser);
+router.delete('/api/users/:id', withAdmin, deleteUser);
+
+export default router;

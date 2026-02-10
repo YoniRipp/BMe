@@ -16,6 +16,7 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import { format, startOfWeek, endOfWeek, isWithinInterval } from 'date-fns';
+import { WEEK_SUNDAY } from '@/lib/dateRanges';
 
 interface WorkoutFrequencyChartProps {
   workouts: Workout[];
@@ -30,8 +31,8 @@ export function WorkoutFrequencyChart({ workouts, weeks = 12 }: WorkoutFrequency
   // Prepare bar chart data (weekly frequency)
   const now = new Date();
   const barData = Array.from({ length: weeks }, (_, i) => {
-    const weekStart = startOfWeek(new Date(now.getTime() - i * 7 * 24 * 60 * 60 * 1000));
-    const weekEnd = endOfWeek(weekStart);
+    const weekStart = startOfWeek(new Date(now.getTime() - i * 7 * 24 * 60 * 60 * 1000), WEEK_SUNDAY);
+    const weekEnd = endOfWeek(weekStart, WEEK_SUNDAY);
     const weekWorkouts = workouts.filter(w => {
       const date = w.date instanceof Date ? w.date : new Date(w.date);
       return isWithinInterval(date, { start: weekStart, end: weekEnd });

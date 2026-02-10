@@ -13,6 +13,8 @@ The backend serves:
 
 When `DATABASE_URL` is not set, the server still starts but auth and data APIs are not mounted. When `GEMINI_API_KEY` is not set, the voice understand endpoint returns an error.
 
+For app-wide conventions (dates, week, voice behavior) and Update 7.0, see the root [README.md](../README.md).
+
 ## Tech Stack
 
 | Category | Technology |
@@ -125,9 +127,18 @@ PostgreSQL schema is defined in [src/db/schema.js](src/db/schema.js). On startup
 | `workouts` | id, user_id, date, title, type (strength/cardio/flexibility/sports), duration_minutes, exercises (jsonb), notes |
 | `food_entries` | id, user_id, date, name, calories, protein, carbs, fats |
 | `daily_check_ins` | id, user_id, date, sleep_hours |
-| `foundation_foods` | id, description, calories, protein, carbs, fats, food_class (no user_id; shared) |
+| `foods` | id, name, calories, protein, carbs, fat (reference foods; used by food search) |
 
-Domain tables reference `users(id)`. There is an index on `foundation_foods` for search (e.g. `lower(description)`).
+Domain tables reference `users(id)`. Food search uses the `foods` table (index on `lower(name)`).
+
+### Using Supabase
+
+To store all data (including reference foods) in Supabase:
+
+1. Set **DATABASE_URL** to your Supabase Postgres connection string (Project Settings → Database → Connection string, URI).
+2. Copy `backend/.env.example` to `backend/.env` and set `DATABASE_URL` (and other vars). For production (e.g. Railway), set `DATABASE_URL` in the service Variables.
+3. Start the backend so `initSchema()` runs and creates tables in Supabase.
+4. Run the food import once so reference foods are in Supabase: from `backend/` run `npm run import:foods`, or from repo root `node backend/scripts/importFoundationFoods.js`.
 
 ## API Overview
 
@@ -215,7 +226,7 @@ All paths under `/api` are rate-limited (200 requests per 15 minutes per IP). JS
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/api/food/search` | Query foundation_foods (no auth) |
+| GET | `/api/food/search` | Query foods table (no auth); returns `{ name, calories, protein, carbs, fat, referenceGrams }` |
 
 ### Voice
 
@@ -252,12 +263,12 @@ Controllers use [src/utils/response.js](src/utils/response.js): `sendJson`, `sen
 
 ## Food Import
 
-The [scripts/importFoundationFoods.js](scripts/importFoundationFoods.js) script reads a USDA FoodData Central Foundation Foods JSON file (e.g. from the project root), parses it, and inserts records into `foundation_foods`. Requires `DATABASE_URL`. Run once after DB setup:
+The [scripts/importFoundationFoods.js](scripts/importFoundationFoods.js) script reads a USDA FoodData Central Foundation Foods JSON file (e.g. from the project root), parses it, and inserts records into the `foods` table (name, calories, protein, carbs, fat, is_liquid, preparation). Preparation is derived from the description: "uncooked" or "raw" → uncooked; otherwise cooked. When Energy (kcal/kJ) is missing in the JSON, calories are estimated from macros (Atwater). Requires `DATABASE_URL`. Run once after DB setup (and after tables exist in Supabase or your Postgres):
 
 - From `backend/`: `npm run import:foods`
 - From repo root: `node backend/scripts/importFoundationFoods.js`
 
-See the [root README](../README.md) for the expected file name and placement.
+After pulling changes that affect the import script or schema, run the import again to refresh `foods` with the latest logic. To remove foods that were added outside the Foundation list (e.g. Gemini-created or incomplete entries) so they can be re-looked up with full nutrition, run `npm run remove:non-foundation-foods` from `backend/`. See the [root README](../README.md) for the expected file name and placement.
 
 ## MCP Server
 
