@@ -1,10 +1,12 @@
-# Frontend: multi-stage. Build with VITE_API_URL so the SPA calls the correct API at runtime.
-# Build context: frontend/ (e.g. docker build -t beme-frontend --build-arg VITE_API_URL=http://localhost:3000 ./frontend)
+# Frontend: multi-stage. Build with VITE_API_URL and VITE_GOOGLE_CLIENT_ID so the SPA works in production.
+# Build context: frontend/ (e.g. docker build -t beme-frontend --build-arg VITE_API_URL=... --build-arg VITE_GOOGLE_CLIENT_ID=... ./frontend)
 
 # Stage 1: build
 FROM node:20-alpine AS build
 ARG VITE_API_URL
+ARG VITE_GOOGLE_CLIENT_ID
 ENV VITE_API_URL=$VITE_API_URL
+ENV VITE_GOOGLE_CLIENT_ID=$VITE_GOOGLE_CLIENT_ID
 WORKDIR /app
 
 COPY package.json package-lock.json ./
