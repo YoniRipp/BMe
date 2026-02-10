@@ -1,6 +1,12 @@
-import React, { createContext, useCallback, useEffect, useState } from 'react';
+import React, { createContext, useCallback } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { DailyCheckIn, FoodEntry } from '@/types/energy';
 import { foodEntriesApi, dailyCheckInsApi } from '@/features/energy/api';
+import {
+  apiCheckInToDailyCheckIn,
+  apiFoodEntryToFoodEntry,
+} from '@/features/energy/mappers';
+import { queryKeys } from '@/lib/queryClient';
 
 interface EnergyContextType {
   checkIns: DailyCheckIn[];
@@ -8,151 +14,192 @@ interface EnergyContextType {
   energyLoading: boolean;
   energyError: string | null;
   refetchEnergy: () => Promise<void>;
-  addCheckIn: (checkIn: Omit<DailyCheckIn, 'id'>) => void;
-  updateCheckIn: (id: string, checkIn: Partial<DailyCheckIn>) => void;
-  deleteCheckIn: (id: string) => void;
+  addCheckIn: (checkIn: Omit<DailyCheckIn, 'id'>) => Promise<void>;
+  updateCheckIn: (id: string, checkIn: Partial<DailyCheckIn>) => Promise<void>;
+  deleteCheckIn: (id: string) => Promise<void>;
   getCheckInById: (id: string) => DailyCheckIn | undefined;
   getCheckInByDate: (date: Date) => DailyCheckIn | undefined;
-  addFoodEntry: (entry: Omit<FoodEntry, 'id'>) => void;
-  updateFoodEntry: (id: string, entry: Partial<FoodEntry>) => void;
-  deleteFoodEntry: (id: string) => void;
+  addFoodEntry: (entry: Omit<FoodEntry, 'id'>) => Promise<void>;
+  updateFoodEntry: (id: string, entry: Partial<FoodEntry>) => Promise<void>;
+  deleteFoodEntry: (id: string) => Promise<void>;
   getFoodEntryById: (id: string) => FoodEntry | undefined;
 }
 
 export const EnergyContext = createContext<EnergyContextType | undefined>(undefined);
 
-import {
-  apiCheckInToDailyCheckIn,
-  apiFoodEntryToFoodEntry,
-} from '@/features/energy/mappers';
-
 export function EnergyProvider({ children }: { children: React.ReactNode }) {
-  const [checkIns, setCheckIns] = useState<DailyCheckIn[]>([]);
-  const [foodEntries, setFoodEntries] = useState<FoodEntry[]>([]);
-  const [energyLoading, setEnergyLoading] = useState(true);
-  const [energyError, setEnergyError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+
+  const checkInsQuery = useQuery({
+    queryKey: queryKeys.checkIns,
+    queryFn: async () => {
+      const list = await dailyCheckInsApi.list();
+      return list.map(apiCheckInToDailyCheckIn);
+    },
+  });
+
+  const foodEntriesQuery = useQuery({
+    queryKey: queryKeys.foodEntries,
+    queryFn: async () => {
+      const list = await foodEntriesApi.list();
+      return list.map(apiFoodEntryToFoodEntry);
+    },
+  });
+
+  const checkIns = checkInsQuery.data ?? [];
+  const foodEntries = foodEntriesQuery.data ?? [];
+  const energyLoading = checkInsQuery.isLoading || foodEntriesQuery.isLoading;
+  const energyError =
+    checkInsQuery.error
+      ? (checkInsQuery.error instanceof Error ? checkInsQuery.error.message : 'Failed to load check-ins')
+      : foodEntriesQuery.error
+        ? (foodEntriesQuery.error instanceof Error ? foodEntriesQuery.error.message : 'Failed to load food entries')
+        : null;
 
   const refetchEnergy = useCallback(async () => {
-    setEnergyLoading(true);
-    setEnergyError(null);
-    try {
-      const [checkInsList, foodList] = await Promise.all([
-        dailyCheckInsApi.list(),
-        foodEntriesApi.list(),
-      ]);
-      setCheckIns(checkInsList.map(apiCheckInToDailyCheckIn));
-      setFoodEntries(foodList.map(apiFoodEntryToFoodEntry));
-    } catch (e) {
-      setEnergyError(e instanceof Error ? e.message : 'Failed to load energy data');
-      setCheckIns([]);
-      setFoodEntries([]);
-    } finally {
-      setEnergyLoading(false);
-    }
-  }, []);
+    await Promise.all([checkInsQuery.refetch(), foodEntriesQuery.refetch()]);
+  }, [checkInsQuery, foodEntriesQuery]);
 
-  useEffect(() => {
-    refetchEnergy();
-  }, [refetchEnergy]);
+  const addCheckInMutation = useMutation({
+    mutationFn: (checkIn: Omit<DailyCheckIn, 'id'>) =>
+      dailyCheckInsApi.add({
+        date: checkIn.date.toISOString().slice(0, 10),
+        sleepHours: checkIn.sleepHours,
+      }),
+    onSuccess: (created) => {
+      queryClient.setQueryData(queryKeys.checkIns, (prev: DailyCheckIn[] | undefined) =>
+        prev ? [...prev, apiCheckInToDailyCheckIn(created)] : [apiCheckInToDailyCheckIn(created)]
+      );
+    },
+  });
 
-  const addCheckIn = useCallback((checkIn: Omit<DailyCheckIn, 'id'>) => {
-    setEnergyError(null);
-    dailyCheckInsApi.add({
-      date: checkIn.date.toISOString().slice(0, 10),
-      sleepHours: checkIn.sleepHours,
-    }).then(created => {
-      setCheckIns(prev => [...prev, apiCheckInToDailyCheckIn(created)]);
-    }).catch(e => {
-      setEnergyError(e instanceof Error ? e.message : 'Failed to add check-in');
-    });
-  }, []);
+  const updateCheckInMutation = useMutation({
+    mutationFn: ({ id, updates }: { id: string; updates: Partial<DailyCheckIn> }) => {
+      const body: Record<string, unknown> = {};
+      if (updates.date !== undefined) body.date = updates.date.toISOString().slice(0, 10);
+      if (updates.sleepHours !== undefined) body.sleepHours = updates.sleepHours;
+      return dailyCheckInsApi.update(id, body);
+    },
+    onSuccess: (updated) => {
+      queryClient.setQueryData(queryKeys.checkIns, (prev: DailyCheckIn[] | undefined) =>
+        prev ? prev.map((c) => (c.id === updated.id ? apiCheckInToDailyCheckIn(updated) : c)) : [apiCheckInToDailyCheckIn(updated)]
+      );
+    },
+  });
 
-  const updateCheckIn = useCallback((id: string, updates: Partial<DailyCheckIn>) => {
-    setEnergyError(null);
-    const body: Record<string, unknown> = {};
-    if (updates.date !== undefined) body.date = updates.date.toISOString().slice(0, 10);
-    if (updates.sleepHours !== undefined) body.sleepHours = updates.sleepHours;
-    dailyCheckInsApi.update(id, body).then(updated => {
-      setCheckIns(prev => prev.map(c => c.id === id ? apiCheckInToDailyCheckIn(updated) : c));
-    }).catch(e => {
-      setEnergyError(e instanceof Error ? e.message : 'Failed to update check-in');
-    });
-  }, []);
+  const deleteCheckInMutation = useMutation({
+    mutationFn: (id: string) => dailyCheckInsApi.delete(id),
+    onSuccess: (_, id) => {
+      queryClient.setQueryData(queryKeys.checkIns, (prev: DailyCheckIn[] | undefined) =>
+        prev ? prev.filter((c) => c.id !== id) : []
+      );
+    },
+  });
 
-  const deleteCheckIn = useCallback((id: string) => {
-    setEnergyError(null);
-    dailyCheckInsApi.delete(id).then(() => {
-      setCheckIns(prev => prev.filter(c => c.id !== id));
-    }).catch(e => {
-      setEnergyError(e instanceof Error ? e.message : 'Failed to delete check-in');
-    });
-  }, []);
+  const addFoodEntryMutation = useMutation({
+    mutationFn: (entry: Omit<FoodEntry, 'id'>) =>
+      foodEntriesApi.add({
+        date: entry.date.toISOString().slice(0, 10),
+        name: entry.name,
+        calories: entry.calories,
+        protein: entry.protein,
+        carbs: entry.carbs,
+        fats: entry.fats,
+      }),
+    onSuccess: (created) => {
+      queryClient.setQueryData(queryKeys.foodEntries, (prev: FoodEntry[] | undefined) =>
+        prev ? [...prev, apiFoodEntryToFoodEntry(created)] : [apiFoodEntryToFoodEntry(created)]
+      );
+    },
+  });
 
-  const getCheckInById = useCallback((id: string) => checkIns.find(c => c.id === id), [checkIns]);
-  const getCheckInByDate = useCallback((date: Date) =>
-    checkIns.find(c => c.date.toDateString() === date.toDateString()),
-  [checkIns]);
+  const updateFoodEntryMutation = useMutation({
+    mutationFn: ({ id, updates }: { id: string; updates: Partial<FoodEntry> }) => {
+      const body: Record<string, unknown> = {};
+      if (updates.date !== undefined) body.date = updates.date.toISOString().slice(0, 10);
+      if (updates.name !== undefined) body.name = updates.name;
+      if (updates.calories !== undefined) body.calories = updates.calories;
+      if (updates.protein !== undefined) body.protein = updates.protein;
+      if (updates.carbs !== undefined) body.carbs = updates.carbs;
+      if (updates.fats !== undefined) body.fats = updates.fats;
+      return foodEntriesApi.update(id, body);
+    },
+    onSuccess: (updated) => {
+      queryClient.setQueryData(queryKeys.foodEntries, (prev: FoodEntry[] | undefined) =>
+        prev ? prev.map((e) => (e.id === updated.id ? apiFoodEntryToFoodEntry(updated) : e)) : [apiFoodEntryToFoodEntry(updated)]
+      );
+    },
+  });
 
-  const addFoodEntry = useCallback((entry: Omit<FoodEntry, 'id'>) => {
-    setEnergyError(null);
-    foodEntriesApi.add({
-      date: entry.date.toISOString().slice(0, 10),
-      name: entry.name,
-      calories: entry.calories,
-      protein: entry.protein,
-      carbs: entry.carbs,
-      fats: entry.fats,
-    }).then(created => {
-      setFoodEntries(prev => [...prev, apiFoodEntryToFoodEntry(created)]);
-    }).catch(e => {
-      setEnergyError(e instanceof Error ? e.message : 'Failed to add food entry');
-    });
-  }, []);
+  const deleteFoodEntryMutation = useMutation({
+    mutationFn: (id: string) => foodEntriesApi.delete(id),
+    onSuccess: (_, id) => {
+      queryClient.setQueryData(queryKeys.foodEntries, (prev: FoodEntry[] | undefined) =>
+        prev ? prev.filter((e) => e.id !== id) : []
+      );
+    },
+  });
 
-  const updateFoodEntry = useCallback((id: string, updates: Partial<FoodEntry>) => {
-    setEnergyError(null);
-    const body: Record<string, unknown> = {};
-    if (updates.date !== undefined) body.date = updates.date.toISOString().slice(0, 10);
-    if (updates.name !== undefined) body.name = updates.name;
-    if (updates.calories !== undefined) body.calories = updates.calories;
-    if (updates.protein !== undefined) body.protein = updates.protein;
-    if (updates.carbs !== undefined) body.carbs = updates.carbs;
-    if (updates.fats !== undefined) body.fats = updates.fats;
-    foodEntriesApi.update(id, body).then(updated => {
-      setFoodEntries(prev => prev.map(e => e.id === id ? apiFoodEntryToFoodEntry(updated) : e));
-    }).catch(e => {
-      setEnergyError(e instanceof Error ? e.message : 'Failed to update food entry');
-    });
-  }, []);
+  const addCheckIn = useCallback(
+    (checkIn: Omit<DailyCheckIn, 'id'>): Promise<void> =>
+      addCheckInMutation.mutateAsync(checkIn).then(() => undefined),
+    [addCheckInMutation]
+  );
+  const updateCheckIn = useCallback(
+    (id: string, updates: Partial<DailyCheckIn>): Promise<void> =>
+      updateCheckInMutation.mutateAsync({ id, updates }).then(() => undefined),
+    [updateCheckInMutation]
+  );
+  const deleteCheckIn = useCallback(
+    (id: string): Promise<void> =>
+      deleteCheckInMutation.mutateAsync(id).then(() => undefined),
+    [deleteCheckInMutation]
+  );
+  const addFoodEntry = useCallback(
+    (entry: Omit<FoodEntry, 'id'>): Promise<void> =>
+      addFoodEntryMutation.mutateAsync(entry).then(() => undefined),
+    [addFoodEntryMutation]
+  );
+  const updateFoodEntry = useCallback(
+    (id: string, updates: Partial<FoodEntry>): Promise<void> =>
+      updateFoodEntryMutation.mutateAsync({ id, updates }).then(() => undefined),
+    [updateFoodEntryMutation]
+  );
+  const deleteFoodEntry = useCallback(
+    (id: string): Promise<void> =>
+      deleteFoodEntryMutation.mutateAsync(id).then(() => undefined),
+    [deleteFoodEntryMutation]
+  );
 
-  const deleteFoodEntry = useCallback((id: string) => {
-    setEnergyError(null);
-    foodEntriesApi.delete(id).then(() => {
-      setFoodEntries(prev => prev.filter(e => e.id !== id));
-    }).catch(e => {
-      setEnergyError(e instanceof Error ? e.message : 'Failed to delete food entry');
-    });
-  }, []);
-
-  const getFoodEntryById = useCallback((id: string) => foodEntries.find(e => e.id === id), [foodEntries]);
+  const getCheckInById = useCallback((id: string) => checkIns.find((c) => c.id === id), [checkIns]);
+  const getCheckInByDate = useCallback(
+    (date: Date) => checkIns.find((c) => c.date.toDateString() === date.toDateString()),
+    [checkIns]
+  );
+  const getFoodEntryById = useCallback(
+    (id: string) => foodEntries.find((e) => e.id === id),
+    [foodEntries]
+  );
 
   return (
-    <EnergyContext.Provider value={{
-      checkIns,
-      foodEntries,
-      energyLoading,
-      energyError,
-      refetchEnergy,
-      addCheckIn,
-      updateCheckIn,
-      deleteCheckIn,
-      getCheckInById,
-      getCheckInByDate,
-      addFoodEntry,
-      updateFoodEntry,
-      deleteFoodEntry,
-      getFoodEntryById,
-    }}>
+    <EnergyContext.Provider
+      value={{
+        checkIns,
+        foodEntries,
+        energyLoading,
+        energyError,
+        refetchEnergy,
+        addCheckIn,
+        updateCheckIn,
+        deleteCheckIn,
+        getCheckInById,
+        getCheckInByDate,
+        addFoodEntry,
+        updateFoodEntry,
+        deleteFoodEntry,
+        getFoodEntryById,
+      }}
+    >
       {children}
     </EnergyContext.Provider>
   );

@@ -1,4 +1,4 @@
-import { Goal } from '@/types/goals';
+import { Goal, GoalType } from '@/types/goals';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -10,6 +10,19 @@ import { cn } from '@/lib/utils';
 import { ConfirmationDialog } from '@/components/shared/ConfirmationDialog';
 import { toast } from 'sonner';
 
+const GOAL_ICONS: Record<GoalType, React.ReactNode> = {
+  calories: <Flame className="w-5 h-5 text-orange-600" />,
+  workouts: <Dumbbell className="w-5 h-5 text-blue-600" />,
+  savings: <DollarSign className="w-5 h-5 text-green-600" />,
+};
+const GOAL_LABELS: Record<GoalType, string> = {
+  calories: 'calories',
+  workouts: 'workouts',
+  savings: '% saved',
+};
+const formatGoalValue = (type: GoalType, value: number) =>
+  type === 'savings' ? `${value}%` : value.toLocaleString();
+
 interface GoalCardProps {
   goal: Goal;
   onEdit?: (goal: Goal) => void;
@@ -19,35 +32,6 @@ export function GoalCard({ goal, onEdit }: GoalCardProps) {
   const { deleteGoal } = useGoals();
   const progress = useGoalProgress(goal.id);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-
-  const getIcon = () => {
-    switch (goal.type) {
-      case 'calories':
-        return <Flame className="w-5 h-5 text-orange-600" />;
-      case 'workouts':
-        return <Dumbbell className="w-5 h-5 text-blue-600" />;
-      case 'savings':
-        return <DollarSign className="w-5 h-5 text-green-600" />;
-    }
-  };
-
-  const getLabel = () => {
-    switch (goal.type) {
-      case 'calories':
-        return 'calories';
-      case 'workouts':
-        return 'workouts';
-      case 'savings':
-        return '% saved';
-    }
-  };
-
-  const formatValue = (value: number) => {
-    if (goal.type === 'savings') {
-      return `${value}%`;
-    }
-    return value.toLocaleString();
-  };
 
   const handleDelete = () => {
     deleteGoal(goal.id);
@@ -62,13 +46,13 @@ export function GoalCard({ goal, onEdit }: GoalCardProps) {
       )}>
         <div className="flex items-start justify-between mb-3">
           <div className="flex items-center gap-3">
-            {getIcon()}
+            {GOAL_ICONS[goal.type]}
             <div>
               <h4 className="font-semibold capitalize">
                 {goal.type} Goal ({goal.period})
               </h4>
               <p className="text-sm text-muted-foreground">
-                {formatValue(progress.current)} / {formatValue(goal.target)} {getLabel()}
+                {formatGoalValue(goal.type, progress.current)} / {formatGoalValue(goal.type, goal.target)} {GOAL_LABELS[goal.type]}
               </p>
             </div>
           </div>

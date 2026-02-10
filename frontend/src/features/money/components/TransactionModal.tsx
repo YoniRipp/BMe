@@ -1,10 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { Transaction, TRANSACTION_CATEGORIES } from '@/types/transaction';
-import {
-  validateTransactionAmount,
-  validateTransactionDate,
-  validateCategory,
-} from '@/lib/validation';
+import { transactionFormSchema, type TransactionFormValues } from '@/schemas/transaction';
 import {
   Dialog,
   DialogContent,
@@ -31,94 +29,62 @@ interface TransactionModalProps {
   transaction?: Transaction;
 }
 
+const defaultValues: TransactionFormValues = {
+  type: 'expense',
+  amount: '',
+  category: '',
+  description: '',
+  date: new Date().toISOString().split('T')[0],
+  isRecurring: false,
+};
+
 export function TransactionModal({
   open,
   onOpenChange,
   onSave,
   transaction,
 }: TransactionModalProps) {
-  const [formData, setFormData] = useState({
-    type: 'expense' as 'income' | 'expense',
-    amount: '',
-    category: '',
-    description: '',
-    date: new Date().toISOString().split('T')[0],
-    isRecurring: false,
+  const {
+    register,
+    control,
+    handleSubmit,
+    reset,
+    watch,
+    setValue,
+    formState: { errors, isValid },
+  } = useForm<TransactionFormValues>({
+    resolver: zodResolver(transactionFormSchema),
+    defaultValues,
+    mode: 'onChange',
   });
-  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const type = watch('type');
+  const categories = type === 'income' ? TRANSACTION_CATEGORIES.income : TRANSACTION_CATEGORIES.expense;
 
   useEffect(() => {
+    if (!open) return;
     if (transaction) {
-      setFormData({
+      reset({
         type: transaction.type,
         amount: transaction.amount.toString(),
         category: transaction.category,
-        description: transaction.description || '',
+        description: transaction.description ?? '',
         date: new Date(transaction.date).toISOString().split('T')[0],
         isRecurring: transaction.isRecurring,
       });
     } else {
-      setFormData({
-        type: 'expense',
-        amount: '',
-        category: '',
-        description: '',
-        date: new Date().toISOString().split('T')[0],
-        isRecurring: false,
-      });
+      reset({ ...defaultValues, date: new Date().toISOString().split('T')[0] });
     }
-    setErrors({});
-  }, [transaction, open]);
+  }, [open, transaction, reset]);
 
-  const categories =
-    formData.type === 'income' ? TRANSACTION_CATEGORIES.income : TRANSACTION_CATEGORIES.expense;
-
-  const validateField = (field: string, value: string) => {
-    if (field === 'amount') {
-      if (!value) {
-        setErrors((prev) => ({ ...prev, amount: '' }));
-        return;
-      }
-      const result = validateTransactionAmount(parseFloat(value));
-      setErrors((prev) => ({ ...prev, amount: result.isValid ? '' : (result.error ?? '') }));
-      return;
-    }
-    if (field === 'date') {
-      if (!value) {
-        setErrors((prev) => ({ ...prev, date: '' }));
-        return;
-      }
-      const result = validateTransactionDate(new Date(value));
-      setErrors((prev) => ({ ...prev, date: result.isValid ? '' : (result.error ?? '') }));
-      return;
-    }
-    if (field === 'category') {
-      const result = validateCategory(value, categories);
-      setErrors((prev) => ({ ...prev, category: result.isValid ? '' : (result.error ?? '') }));
-    }
-  };
-
-  const isFormValid = () => {
-    if (!formData.amount || !formData.category || !formData.date) return false;
-    const amountValid = validateTransactionAmount(parseFloat(formData.amount)).isValid;
-    const dateValid = validateTransactionDate(new Date(formData.date)).isValid;
-    const categoryValid = validateCategory(formData.category, categories).isValid;
-    return amountValid && dateValid && categoryValid && Object.values(errors).every((e) => !e);
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    validateField('amount', formData.amount);
-    validateField('date', formData.date);
-    validateField('category', formData.category);
-    if (!isFormValid()) return;
+  const onSubmit = (data: TransactionFormValues) => {
     onSave({
-      type: formData.type,
-      amount: parseFloat(formData.amount),
-      category: formData.category,
-      description: formData.description,
-      date: new Date(formData.date),
-      isRecurring: formData.isRecurring,
+      type: data.type,
+      amount: parseFloat(data.amount),
+      category: data.category,
+      description: data.description,
+      date: new Date(data.date),
+      isRecurring: data.isRecurring,
     });
     onOpenChange(false);
   };
@@ -129,25 +95,31 @@ export function TransactionModal({
         <DialogHeader>
           <DialogTitle>{transaction ? 'Edit Transaction' : 'Add Transaction'}</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit(onSubmit)}>
           <div className="space-y-4">
             <div>
               <Label htmlFor="type">Type</Label>
-              <Select
-                value={formData.type}
-                onValueChange={(value: 'income' | 'expense') => {
-                  setFormData({ ...formData, type: value, category: '' });
-                  setErrors((prev) => ({ ...prev, category: '' }));
-                }}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="income">Income</SelectItem>
-                  <SelectItem value="expense">Expense</SelectItem>
-                </SelectContent>
-              </Select>
+              <Controller
+                name="type"
+                control={control}
+                render={({ field }) => (
+                  <Select
+                    value={field.value}
+                    onValueChange={(value: 'income' | 'expense') => {
+                      field.onChange(value);
+                      setValue('category', '');
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="income">Income</SelectItem>
+                      <SelectItem value="expense">Expense</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
+              />
             </div>
             <div>
               <Label htmlFor="amount">Amount</Label>
@@ -155,49 +127,42 @@ export function TransactionModal({
                 id="amount"
                 type="number"
                 step="0.01"
-                required
-                value={formData.amount}
-                onChange={(e) => {
-                  setFormData({ ...formData, amount: e.target.value });
-                  if (e.target.value) validateField('amount', e.target.value);
-                  else setErrors((prev) => ({ ...prev, amount: '' }));
-                }}
-                onBlur={(e) => validateField('amount', e.target.value)}
+                {...register('amount')}
                 aria-invalid={!!errors.amount}
                 aria-describedby={errors.amount ? 'amount-error' : undefined}
               />
               {errors.amount && (
                 <p id="amount-error" className="text-sm text-destructive mt-1">
-                  {errors.amount}
+                  {errors.amount.message}
                 </p>
               )}
             </div>
             <div>
               <Label htmlFor="category">Category</Label>
-              <Select
-                value={formData.category}
-                onValueChange={(value) => {
-                  setFormData({ ...formData, category: value });
-                  validateField('category', value);
-                }}
-              >
-                <SelectTrigger
-                  aria-invalid={!!errors.category}
-                  aria-describedby={errors.category ? 'category-error' : undefined}
-                >
-                  <SelectValue placeholder="Select category" />
-                </SelectTrigger>
-                <SelectContent>
-                  {categories.map((cat) => (
-                    <SelectItem key={cat} value={cat}>
-                      {cat}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Controller
+                name="category"
+                control={control}
+                render={({ field }) => (
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <SelectTrigger
+                      aria-invalid={!!errors.category}
+                      aria-describedby={errors.category ? 'category-error' : undefined}
+                    >
+                      <SelectValue placeholder="Select category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {categories.map((cat) => (
+                        <SelectItem key={cat} value={cat}>
+                          {cat}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
               {errors.category && (
                 <p id="category-error" className="text-sm text-destructive mt-1">
-                  {errors.category}
+                  {errors.category.message}
                 </p>
               )}
             </div>
@@ -206,36 +171,33 @@ export function TransactionModal({
               <Input
                 id="date"
                 type="date"
-                required
-                value={formData.date}
-                onChange={(e) => {
-                  setFormData({ ...formData, date: e.target.value });
-                  validateField('date', e.target.value);
-                }}
+                {...register('date')}
                 aria-invalid={!!errors.date}
                 aria-describedby={errors.date ? 'date-error' : undefined}
               />
               {errors.date && (
                 <p id="date-error" className="text-sm text-destructive mt-1">
-                  {errors.date}
+                  {errors.date.message}
                 </p>
               )}
             </div>
             <div>
               <Label htmlFor="description">Description (Optional)</Label>
-              <Textarea
-                id="description"
-                value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              />
+              <Textarea id="description" {...register('description')} />
             </div>
             <div className="flex items-center space-x-2">
-              <input
-                type="checkbox"
-                id="isRecurring"
-                checked={formData.isRecurring}
-                onChange={(e) => setFormData({ ...formData, isRecurring: e.target.checked })}
-                className="rounded"
+              <Controller
+                name="isRecurring"
+                control={control}
+                render={({ field }) => (
+                  <input
+                    type="checkbox"
+                    id="isRecurring"
+                    checked={field.value}
+                    onChange={(e) => field.onChange(e.target.checked)}
+                    className="rounded"
+                  />
+                )}
               />
               <Label htmlFor="isRecurring">Recurring transaction</Label>
             </div>
@@ -244,7 +206,7 @@ export function TransactionModal({
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={!isFormValid()}>
+            <Button type="submit" disabled={!isValid}>
               {transaction ? 'Update' : 'Add'} Transaction
             </Button>
           </DialogFooter>

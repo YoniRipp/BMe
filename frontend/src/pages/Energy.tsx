@@ -8,18 +8,8 @@ import { ConfirmationDialog } from '@/components/shared/ConfirmationDialog';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Zap, Moon, Plus, Trash2 } from 'lucide-react';
-import { 
-  isSameDay, 
-  startOfDay, 
-  endOfDay, 
-  startOfWeek, 
-  endOfWeek, 
-  startOfMonth, 
-  endOfMonth, 
-  startOfYear, 
-  endOfYear,
-  isWithinInterval
-} from 'date-fns';
+import { isSameDay, startOfDay, endOfDay, isWithinInterval } from 'date-fns';
+import { getPeriodRange } from '@/lib/dateRanges';
 
 export function Energy() {
   const { checkIns, foodEntries, addCheckIn, updateCheckIn, addFoodEntry, updateFoodEntry, deleteFoodEntry } = useEnergy();
@@ -35,34 +25,9 @@ export function Energy() {
   const [calorieRange, _setCalorieRange] = useState<{ min: string; max: string }>({ min: '', max: '' });
 
   const now = new Date();
-  
-  // Date ranges for periods
-  const dayStart = startOfDay(now);
-  const dayEnd = endOfDay(now);
-  const weekStart = startOfWeek(now);
-  const weekEnd = endOfWeek(now);
-  const monthStart = startOfMonth(now);
-  const monthEnd = endOfMonth(now);
-  const yearStart = startOfYear(now);
-  const yearEnd = endOfYear(now);
 
-  // Helper to get date range for a period
-  const getPeriodRange = (period: 'daily' | 'weekly' | 'monthly' | 'yearly') => {
-    switch (period) {
-      case 'daily':
-        return { start: dayStart, end: dayEnd };
-      case 'weekly':
-        return { start: weekStart, end: weekEnd };
-      case 'monthly':
-        return { start: monthStart, end: monthEnd };
-      case 'yearly':
-        return { start: yearStart, end: yearEnd };
-    }
-  };
-
-  // Filter food entries by period, search, and filters
   const periodFoodEntries = useMemo(() => {
-    const range = getPeriodRange(caloriePeriod);
+    const range = getPeriodRange(caloriePeriod, now);
     let filtered = foodEntries.filter(f => 
       isWithinInterval(new Date(f.date), range)
     );
@@ -114,10 +79,10 @@ export function Energy() {
   // Calculate sleep averages for periods
   const sleepData = useMemo(() => {
     const ranges = {
-      daily: getPeriodRange('daily'),
-      weekly: getPeriodRange('weekly'),
-      monthly: getPeriodRange('monthly'),
-      yearly: getPeriodRange('yearly'),
+      daily: getPeriodRange('daily', now),
+      weekly: getPeriodRange('weekly', now),
+      monthly: getPeriodRange('monthly', now),
+      yearly: getPeriodRange('yearly', now),
     };
 
     const calculateSleep = (range: { start: Date; end: Date }) => {
@@ -137,7 +102,7 @@ export function Energy() {
       monthly: calculateSleep(ranges.monthly),
       yearly: calculateSleep(ranges.yearly),
     };
-  }, [checkIns]);
+  }, [checkIns, now]);
 
   const selectedSleep = sleepData[sleepPeriod];
 
@@ -203,7 +168,7 @@ export function Energy() {
         {/* Period selector cards */}
         <div className="grid grid-cols-4 gap-2 mb-4">
           {(['daily', 'weekly', 'monthly', 'yearly'] as const).map((period) => {
-            const range = getPeriodRange(period);
+            const range = getPeriodRange(period, now);
             const periodEntries = foodEntries.filter(f => 
               isWithinInterval(new Date(f.date), range)
             );

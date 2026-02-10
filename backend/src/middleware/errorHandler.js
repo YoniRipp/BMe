@@ -3,6 +3,13 @@
  */
 import { ValidationError, NotFoundError, UnauthorizedError, ConflictError } from '../errors.js';
 
+const ERROR_STATUS_MAP = [
+  [ValidationError, 400],
+  [NotFoundError, 404],
+  [UnauthorizedError, 401],
+  [ConflictError, 409],
+];
+
 /**
  * Wraps async route handlers to pass errors to next().
  * @param {import('express').RequestHandler} fn
@@ -24,20 +31,12 @@ export function asyncHandler(fn) {
 export function errorHandler(err, req, res, next) {
   if (res.headersSent) return next(err);
 
-  if (err instanceof ValidationError) {
-    return res.status(400).json({ error: err.message });
-  }
-  if (err instanceof NotFoundError) {
-    return res.status(404).json({ error: err.message });
-  }
-  if (err instanceof UnauthorizedError) {
-    return res.status(401).json({ error: err.message });
-  }
-  if (err instanceof ConflictError) {
-    return res.status(409).json({ error: err.message });
+  for (const [ErrorClass, status] of ERROR_STATUS_MAP) {
+    if (err instanceof ErrorClass) {
+      return res.status(status).json({ error: err.message });
+    }
   }
 
-  // PostgreSQL unique violation
   if (err?.code === '23505') {
     return res.status(409).json({ error: 'Resource already exists' });
   }

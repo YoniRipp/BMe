@@ -1,7 +1,8 @@
-import { Suspense, lazy, useEffect } from 'react';
+import { Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import { useSettings } from './hooks/useSettings';
+import { useThemeEffect } from './hooks/useThemeEffect';
 import { Layout } from './components/layout/Layout';
 import { LoadingSpinner } from './components/shared/LoadingSpinner';
 import { AppProviders } from './Providers';
@@ -43,25 +44,7 @@ function ProtectedRoutes() {
 
 function ProtectedAppRoutes() {
   const { settings } = useSettings();
-
-  useEffect(() => {
-    const root = document.documentElement;
-    const applyTheme = () => {
-      if (settings.theme === 'system') {
-        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-        root.classList.toggle('dark', prefersDark);
-      } else {
-        root.classList.toggle('dark', settings.theme === 'dark');
-      }
-    };
-    applyTheme();
-    if (settings.theme === 'system') {
-      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-      const handleChange = () => applyTheme();
-      mediaQuery.addEventListener('change', handleChange);
-      return () => mediaQuery.removeEventListener('change', handleChange);
-    }
-  }, [settings.theme]);
+  useThemeEffect(settings.theme);
 
   return (
     <Routes>

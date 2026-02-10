@@ -51,19 +51,6 @@ export function Settings() {
   const handleThemeChange = (value: string) => {
     updateSettings({ theme: value as any });
     toast.success('Theme updated');
-    // Apply theme immediately
-    applyTheme(value as any);
-  };
-
-  const applyTheme = (theme: string) => {
-    const root = document.documentElement;
-    
-    if (theme === 'system') {
-      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-      root.classList.toggle('dark', prefersDark);
-    } else {
-      root.classList.toggle('dark', theme === 'dark');
-    }
   };
 
   const handleExportData = () => {
@@ -112,7 +99,6 @@ export function Settings() {
   const handleResetSettings = () => {
     try {
       updateSettings(DEFAULT_SETTINGS);
-      applyTheme(DEFAULT_SETTINGS.theme);
       toast.success('Settings reset to defaults');
     } catch (error) {
       toast.error('Failed to reset settings');

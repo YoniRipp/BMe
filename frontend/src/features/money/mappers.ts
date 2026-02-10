@@ -10,6 +10,6 @@ export function apiTransactionToTransaction(a: ApiTransaction): Transaction {
     category: a.category,
     description: a.description,
     isRecurring: a.isRecurring,
-    groupId: a.groupId,
+    groupId: a.groupId ?? undefined,
   };
 }

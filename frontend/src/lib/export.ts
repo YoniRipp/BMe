@@ -79,66 +79,69 @@ export function importAllData(jsonString: string): { success: boolean; error?: s
   }
 }
 
-/**
- * Export transactions to CSV
- */
-export function exportToCSV(type: 'transactions' | 'workouts' | 'food'): string {
-  let csv = '';
-  let headers: string[] = [];
-  let rows: any[] = [];
+type ExportCSVType = 'transactions' | 'workouts' | 'food';
 
-  switch (type) {
-    case 'transactions':
-      headers = ['Date', 'Type', 'Amount', 'Category', 'Description', 'Recurring'];
-      const transactions = storage.get<Transaction[]>(STORAGE_KEYS.TRANSACTIONS) || [];
-      rows = transactions.map(t => [
+const EXPORT_CONFIG: Record<
+  ExportCSVType,
+  { headers: string[]; getRows: () => (string | number)[][] }
+> = {
+  transactions: {
+    headers: ['Date', 'Type', 'Amount', 'Category', 'Description', 'Recurring'],
+    getRows: () =>
+      (storage.get<Transaction[]>(STORAGE_KEYS.TRANSACTIONS) || []).map(t => [
         new Date(t.date).toLocaleDateString(),
         t.type,
         t.amount.toString(),
         t.category,
         t.description || '',
         t.isRecurring ? 'Yes' : 'No',
-      ]);
-      break;
-
-    case 'workouts':
-      headers = ['Date', 'Title', 'Type', 'Duration (min)', 'Exercises'];
-      const workouts = storage.get<Workout[]>(STORAGE_KEYS.WORKOUTS) || [];
-      rows = workouts.map(w => [
+      ]),
+  },
+  workouts: {
+    headers: ['Date', 'Title', 'Type', 'Duration (min)', 'Exercises'],
+    getRows: () =>
+      (storage.get<Workout[]>(STORAGE_KEYS.WORKOUTS) || []).map(w => [
         new Date(w.date).toLocaleDateString(),
         w.title,
         w.type,
         w.durationMinutes.toString(),
-        w.exercises.map(e => `${e.name} (${e.sets}x${e.reps}${e.weight ? ` @ ${e.weight}lbs` : ''})`).join('; '),
-      ]);
-      break;
-
-    case 'food':
-      headers = ['Date', 'Name', 'Calories', 'Protein (g)', 'Carbs (g)', 'Fats (g)'];
-      const foodEntries = storage.get<FoodEntry[]>(STORAGE_KEYS.FOOD_ENTRIES) || [];
-      rows = foodEntries.map(f => [
+        w.exercises
+          .map(e =>
+            `${e.name} (${e.sets}x${e.reps}${e.weight ? ` @ ${e.weight}lbs` : ''})`
+          )
+          .join('; '),
+      ]),
+  },
+  food: {
+    headers: ['Date', 'Name', 'Calories', 'Protein (g)', 'Carbs (g)', 'Fats (g)'],
+    getRows: () =>
+      (storage.get<FoodEntry[]>(STORAGE_KEYS.FOOD_ENTRIES) || []).map(f => [
         new Date(f.date).toLocaleDateString(),
         f.name,
         f.calories.toString(),
         f.protein.toString(),
         f.carbs.toString(),
         f.fats.toString(),
-      ]);
-      break;
+      ]),
+  },
+};
+
+function escapeCSV(value: string): string {
+  if (value.includes(',') || value.includes('"') || value.includes('\n')) {
+    return `"${value.replace(/"/g, '""')}"`;
   }
+  return value;
+}
 
-  // Escape CSV values (handle commas and quotes)
-  const escapeCSV = (value: string): string => {
-    if (value.includes(',') || value.includes('"') || value.includes('\n')) {
-      return `"${value.replace(/"/g, '""')}"`;
-    }
-    return value;
-  };
-
-  // Build CSV
-  csv = headers.map(escapeCSV).join(',') + '\n';
-  csv += rows.map(row => row.map(escapeCSV).join(',')).join('\n');
-
+/**
+ * Export transactions to CSV
+ */
+export function exportToCSV(type: ExportCSVType): string {
+  const { headers, getRows } = EXPORT_CONFIG[type];
+  const rows = getRows();
+  const csv =
+    headers.map(escapeCSV).join(',') + '\n' +
+    rows.map(row => row.map(cell => escapeCSV(String(cell))).join(',')).join('\n');
   return csv;
 }
 

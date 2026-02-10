@@ -3,14 +3,16 @@
  */
 import { Router } from 'express';
 import { requireAuth, resolveEffectiveUserId } from '../middleware/auth.js';
+import { validateBody } from '../middleware/validateBody.js';
+import { createTransactionSchema, updateTransactionSchema } from '../schemas/transaction.js';
 import * as transactionController from '../controllers/transaction.js';
 
 const router = Router();
 const withUser = [requireAuth, resolveEffectiveUserId];
 
 router.get('/api/transactions', withUser, transactionController.list);
-router.post('/api/transactions', withUser, transactionController.add);
-router.patch('/api/transactions/:id', withUser, transactionController.update);
+router.post('/api/transactions', withUser, validateBody(createTransactionSchema), transactionController.add);
+router.patch('/api/transactions/:id', withUser, validateBody(updateTransactionSchema), transactionController.update);
 router.delete('/api/transactions/:id', withUser, transactionController.remove);
 router.get('/api/balance', withUser, transactionController.balance);
 

@@ -42,6 +42,28 @@ export function OnboardingTour({ onComplete }: OnboardingTourProps) {
     }
   }, [currentStep, isVisible]);
 
+  const POSITION_OFFSETS: Record<
+    string,
+    (rect: DOMRect, scrollY: number, scrollX: number) => { top: number; left: number }
+  > = {
+    bottom: (r, sy, sx) => ({
+      top: r.bottom + sy + 10,
+      left: r.left + sx + r.width / 2,
+    }),
+    top: (r, sy, sx) => ({
+      top: r.top + sy - 10,
+      left: r.left + sx + r.width / 2,
+    }),
+    left: (r, sy, sx) => ({
+      top: r.top + sy + r.height / 2,
+      left: r.left + sx - 10,
+    }),
+    right: (r, sy, sx) => ({
+      top: r.top + sy + r.height / 2,
+      left: r.right + sx + 10,
+    }),
+  };
+
   const updatePosition = () => {
     if (currentStep >= ONBOARDING_STEPS.length) return;
 
@@ -53,32 +75,10 @@ export function OnboardingTour({ onComplete }: OnboardingTourProps) {
       const rect = targetElement.getBoundingClientRect();
       const scrollY = window.scrollY;
       const scrollX = window.scrollX;
+      const pos = step.position || 'bottom';
+      const offset = POSITION_OFFSETS[pos] ?? POSITION_OFFSETS.bottom;
+      setPosition(offset(rect, scrollY, scrollX));
 
-      let top = 0;
-      let left = 0;
-
-      switch (step.position || 'bottom') {
-        case 'bottom':
-          top = rect.bottom + scrollY + 10;
-          left = rect.left + scrollX + rect.width / 2;
-          break;
-        case 'top':
-          top = rect.top + scrollY - 10;
-          left = rect.left + scrollX + rect.width / 2;
-          break;
-        case 'left':
-          top = rect.top + scrollY + rect.height / 2;
-          left = rect.left + scrollX - 10;
-          break;
-        case 'right':
-          top = rect.top + scrollY + rect.height / 2;
-          left = rect.right + scrollX + 10;
-          break;
-      }
-
-      setPosition({ top, left });
-
-      // Scroll element into view
       targetElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
   };

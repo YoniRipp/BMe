@@ -77,26 +77,22 @@ export function useBalanceByPeriod(transactions: Transaction[]) {
   const monthly = useMemo(() => calculateBalance(monthlyTransactions), [monthlyTransactions]);
   const yearly = useMemo(() => calculateBalance(yearlyTransactions), [yearlyTransactions]);
 
-  const selectedPeriodTransactions = useMemo(() => {
-    switch (selectedPeriod) {
-      case 'daily':
-        return dailyTransactions;
-      case 'weekly':
-        return weeklyTransactions;
-      case 'monthly':
-        return monthlyTransactions;
-      case 'yearly':
-        return yearlyTransactions;
-      default:
-        return monthlyTransactions;
-    }
-  }, [
-    selectedPeriod,
-    dailyTransactions,
-    weeklyTransactions,
-    monthlyTransactions,
-    yearlyTransactions,
-  ]);
+  const periodToTransactions: Record<BalancePeriod, Transaction[]> = {
+    daily: dailyTransactions,
+    weekly: weeklyTransactions,
+    monthly: monthlyTransactions,
+    yearly: yearlyTransactions,
+  };
+  const selectedPeriodTransactions = useMemo(
+    () => periodToTransactions[selectedPeriod] ?? monthlyTransactions,
+    [
+      selectedPeriod,
+      dailyTransactions,
+      weeklyTransactions,
+      monthlyTransactions,
+      yearlyTransactions,
+    ]
+  );
 
   const balances = useMemo(
     () => ({ daily, weekly, monthly, yearly }),

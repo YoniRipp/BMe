@@ -1,19 +1,8 @@
 import { Transaction } from '@/types/transaction';
 import { Workout } from '@/types/workout';
 import { FoodEntry, DailyCheckIn } from '@/types/energy';
-import {
-  startOfWeek,
-  endOfWeek,
-  startOfMonth,
-  endOfMonth,
-  startOfYear,
-  endOfYear,
-  subWeeks,
-  subMonths,
-  subYears,
-  isWithinInterval,
-  format,
-} from 'date-fns';
+import { isWithinInterval, format, startOfWeek, endOfWeek, subWeeks, startOfMonth, endOfMonth, subMonths } from 'date-fns';
+import { getTrendPeriodBounds } from '@/lib/dateRanges';
 
 export interface TrendData {
   current: number;
@@ -49,40 +38,19 @@ export interface HealthInsight {
   averageSleepHours: number;
 }
 
+type TrendPeriod = 'week' | 'month' | 'year';
+
 /**
  * Calculate trends comparing current period to previous period
  */
 export function calculateTrends<T>(
   data: T[],
   getValue: (item: T) => number,
-  period: 'week' | 'month' | 'year'
+  period: TrendPeriod
 ): TrendData {
   const now = new Date();
-  let currentStart: Date;
-  let currentEnd: Date;
-  let previousStart: Date;
-  let previousEnd: Date;
-
-  switch (period) {
-    case 'week':
-      currentStart = startOfWeek(now);
-      currentEnd = endOfWeek(now);
-      previousStart = startOfWeek(subWeeks(now, 1));
-      previousEnd = endOfWeek(subWeeks(now, 1));
-      break;
-    case 'month':
-      currentStart = startOfMonth(now);
-      currentEnd = endOfMonth(now);
-      previousStart = startOfMonth(subMonths(now, 1));
-      previousEnd = endOfMonth(subMonths(now, 1));
-      break;
-    case 'year':
-      currentStart = startOfYear(now);
-      currentEnd = endOfYear(now);
-      previousStart = startOfYear(subYears(now, 1));
-      previousEnd = endOfYear(subYears(now, 1));
-      break;
-  }
+  const { currentStart, currentEnd, previousStart, previousEnd } =
+    getTrendPeriodBounds(period, now);
 
   const currentData = data.filter(item => {
     const date = getItemDate(item);

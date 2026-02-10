@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
+import { useForm, Controller, useFieldArray } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { Workout, Exercise, WORKOUT_TYPES } from '@/types/workout';
-import { validateWorkoutDuration, validateExerciseName, validateExerciseSets, validateExerciseReps, validateExerciseWeight, isStringNotEmpty } from '@/lib/validation';
+import { workoutFormSchema, type WorkoutFormValues } from '@/schemas/workout';
 import {
   Dialog,
   DialogContent,
@@ -23,7 +25,6 @@ import { Plus, Trash2, Copy, Save } from 'lucide-react';
 import { STORAGE_KEYS, storage } from '@/lib/storage';
 import { toast } from 'sonner';
 
-// Workout template type (same as Workout but without id and date)
 export type WorkoutTemplate = Omit<Workout, 'id' | 'date'>;
 
 interface WorkoutModalProps {
@@ -33,28 +34,42 @@ interface WorkoutModalProps {
   workout?: Workout;
 }
 
+const defaultExercise: WorkoutFormValues['exercises'][0] = {
+  name: '',
+  sets: 3,
+  reps: 10,
+  weight: undefined,
+};
+
+const defaultValues: WorkoutFormValues = {
+  title: '',
+  type: 'strength',
+  date: new Date().toISOString().split('T')[0],
+  durationMinutes: '',
+  notes: '',
+  exercises: [defaultExercise],
+};
+
 export function WorkoutModal({ open, onOpenChange, onSave, workout }: WorkoutModalProps) {
   const [templates, setTemplates] = useState<WorkoutTemplate[]>([]);
-  const [formData, setFormData] = useState({
-    title: '',
-    type: 'strength' as typeof WORKOUT_TYPES[number],
-    date: new Date().toISOString().split('T')[0],
-    durationMinutes: '',
-    notes: '',
-    exercises: [] as Exercise[],
-  });
-  const [errors, setErrors] = useState<{
-    title?: string;
-    duration?: string;
-    exercises?: Array<{
-      name?: string;
-      sets?: string;
-      reps?: string;
-      weight?: string;
-    }>;
-  }>({});
 
-  // Load templates when modal opens
+  const {
+    register,
+    control,
+    handleSubmit,
+    reset,
+    watch,
+    formState: { errors, isValid },
+  } = useForm<WorkoutFormValues>({
+    resolver: zodResolver(workoutFormSchema),
+    defaultValues,
+    mode: 'onChange',
+  });
+
+  const { fields, append, remove } = useFieldArray({ control, name: 'exercises' });
+  const watchedTitle = watch('title');
+  const watchedExercises = watch('exercises');
+
   useEffect(() => {
     if (open) {
       const savedTemplates = storage.get<WorkoutTemplate[]>(STORAGE_KEYS.WORKOUT_TEMPLATES) || [];
@@ -63,227 +78,73 @@ export function WorkoutModal({ open, onOpenChange, onSave, workout }: WorkoutMod
   }, [open]);
 
   useEffect(() => {
+    if (!open) return;
     if (workout) {
-      setFormData({
+      reset({
         title: workout.title,
         type: workout.type,
         date: new Date(workout.date).toISOString().split('T')[0],
         durationMinutes: workout.durationMinutes.toString(),
-        notes: workout.notes || '',
-        exercises: workout.exercises,
+        notes: workout.notes ?? '',
+        exercises: workout.exercises.length
+          ? workout.exercises.map((e) => ({ name: e.name, sets: e.sets, reps: e.reps, weight: e.weight }))
+          : [defaultExercise],
       });
     } else {
-      setFormData({
-        title: '',
-        type: 'strength',
-        date: new Date().toISOString().split('T')[0],
-        durationMinutes: '',
-        notes: '',
-        exercises: [],
-      });
+      reset({ ...defaultValues, date: new Date().toISOString().split('T')[0] });
     }
-    setErrors({});
-  }, [workout, open]);
+  }, [open, workout, reset]);
 
-  const validateTitle = (title: string) => {
-    if (!isStringNotEmpty(title)) {
-      return { isValid: false, error: 'Title is required.' };
-    }
-    if (title.length > 100) {
-      return { isValid: false, error: 'Title cannot exceed 100 characters.' };
-    }
-    return { isValid: true };
-  };
-
-  const validateField = (field: 'title' | 'duration', value: string) => {
-    let result: { isValid: boolean; error?: string };
-    switch (field) {
-      case 'title':
-        result = validateTitle(value);
-        setErrors(prev => ({
-          ...prev,
-          title: result.isValid ? undefined : result.error
-        }));
-        break;
-      case 'duration':
-        if (!value) {
-          setErrors(prev => ({ ...prev, duration: undefined }));
-          return;
-        }
-        result = validateWorkoutDuration(parseInt(value) || 0);
-        setErrors(prev => ({
-          ...prev,
-          duration: result.isValid ? undefined : result.error
-        }));
-        break;
-    }
-  };
-
-  const validateExercise = (index: number, field: 'name' | 'sets' | 'reps' | 'weight', value: string | number | undefined) => {
-    let result: { isValid: boolean; error?: string };
-    const exerciseErrors = errors.exercises || [];
-    const currentErrors = exerciseErrors[index] || {};
-
-    switch (field) {
-      case 'name':
-        result = validateExerciseName(value as string);
-        exerciseErrors[index] = {
-          ...currentErrors,
-          name: result.isValid ? undefined : result.error
-        };
-        break;
-      case 'sets':
-        if (value === undefined || value === null || value === '') {
-          exerciseErrors[index] = {
-            ...currentErrors,
-            sets: undefined
-          };
-        } else {
-          result = validateExerciseSets(typeof value === 'number' ? value : parseInt(value as string) || 0);
-          exerciseErrors[index] = {
-            ...currentErrors,
-            sets: result.isValid ? undefined : result.error
-          };
-        }
-        break;
-      case 'reps':
-        if (value === undefined || value === null || value === '') {
-          exerciseErrors[index] = {
-            ...currentErrors,
-            reps: undefined
-          };
-        } else {
-          result = validateExerciseReps(typeof value === 'number' ? value : parseInt(value as string) || 0);
-          exerciseErrors[index] = {
-            ...currentErrors,
-            reps: result.isValid ? undefined : result.error
-          };
-        }
-        break;
-      case 'weight':
-        result = validateExerciseWeight(value === '' ? undefined : (typeof value === 'number' ? value : parseFloat(value as string)));
-        exerciseErrors[index] = {
-          ...currentErrors,
-          weight: result.isValid ? undefined : result.error
-        };
-        break;
-    }
-
-    setErrors(prev => ({
-      ...prev,
-      exercises: [...exerciseErrors]
-    }));
-  };
-
-  const isFormValid = () => {
-    const titleValid = validateTitle(formData.title).isValid;
-    const durationValid = !formData.durationMinutes || validateWorkoutDuration(parseInt(formData.durationMinutes) || 0).isValid;
-    
-    const exercisesValid = formData.exercises.every((ex) => {
-      const nameValid = validateExerciseName(ex.name).isValid;
-      const setsValid = validateExerciseSets(ex.sets).isValid;
-      const repsValid = validateExerciseReps(ex.reps).isValid;
-      const weightValid = validateExerciseWeight(ex.weight).isValid;
-      return nameValid && setsValid && repsValid && weightValid;
-    });
-
-    const exerciseErrors = errors.exercises || [];
-    const hasExerciseErrors = exerciseErrors.some(e => e.name || e.sets || e.reps || e.weight);
-
-    return titleValid && durationValid && exercisesValid && !errors.title && !errors.duration && !hasExerciseErrors;
-  };
-
-  const addExercise = () => {
-    setFormData({
-      ...formData,
-      exercises: [
-        ...formData.exercises,
-        { name: '', sets: 3, reps: 10, weight: undefined },
-      ],
-    });
-  };
-
-  const updateExercise = (index: number, field: keyof Exercise, value: string | number | undefined) => {
-    const newExercises = [...formData.exercises];
-    newExercises[index] = { ...newExercises[index], [field]: value };
-    setFormData({ ...formData, exercises: newExercises });
-    
-    // Validate the updated field
-    if (field === 'name' || field === 'sets' || field === 'reps' || field === 'weight') {
-      validateExercise(index, field, value);
-    }
-  };
-
-  const removeExercise = (index: number) => {
-    setFormData({
-      ...formData,
-      exercises: formData.exercises.filter((_, i) => i !== index),
-    });
-  };
+  const addExercise = () => append({ ...defaultExercise });
 
   const loadTemplate = (template: WorkoutTemplate) => {
-    setFormData({
-      ...formData,
+    reset({
       title: template.title,
       type: template.type,
+      date: new Date().toISOString().split('T')[0],
       durationMinutes: template.durationMinutes.toString(),
-      notes: template.notes || '',
-      exercises: template.exercises,
+      notes: template.notes ?? '',
+      exercises: template.exercises.length
+        ? template.exercises.map((e) => ({ name: e.name, sets: e.sets, reps: e.reps, weight: e.weight }))
+        : [defaultExercise],
     });
   };
 
   const saveAsTemplate = () => {
-    if (!formData.title.trim() || formData.exercises.length === 0) {
+    const title = watchedTitle?.trim();
+    const exercises = (watchedExercises ?? []).filter((ex) => ex.name?.trim());
+    if (!title || exercises.length === 0) {
       toast.error('Please add a title and at least one exercise before saving as template');
       return;
     }
-
     const template: WorkoutTemplate = {
-      title: formData.title,
-      type: formData.type,
-      durationMinutes: parseInt(formData.durationMinutes) || 0,
-      notes: formData.notes,
-      exercises: formData.exercises.filter(ex => ex.name.trim() !== ''),
+      title,
+      type: watch('type'),
+      durationMinutes: parseInt(watch('durationMinutes') || '0', 10),
+      notes: watch('notes'),
+      exercises: exercises.map((e) => ({ name: e.name, sets: e.sets, reps: e.reps, weight: e.weight })),
     };
-
     try {
       const updatedTemplates = [...templates, template];
       storage.set(STORAGE_KEYS.WORKOUT_TEMPLATES, updatedTemplates);
       setTemplates(updatedTemplates);
       toast.success('Workout saved as template!');
-    } catch (error) {
+    } catch {
       toast.error('Failed to save template. Please try again.');
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    // Validate all fields
-    validateField('title', formData.title);
-    if (formData.durationMinutes) {
-      validateField('duration', formData.durationMinutes);
-    }
-
-    // Validate all exercises
-    formData.exercises.forEach((ex, idx) => {
-      validateExercise(idx, 'name', ex.name);
-      validateExercise(idx, 'sets', ex.sets);
-      validateExercise(idx, 'reps', ex.reps);
-      validateExercise(idx, 'weight', ex.weight);
-    });
-
-    if (!isFormValid()) {
-      return;
-    }
-
+  const onSubmit = (data: WorkoutFormValues) => {
+    const exercises: Exercise[] = data.exercises
+      .filter((ex) => ex.name.trim() !== '')
+      .map((ex) => ({ name: ex.name, sets: ex.sets, reps: ex.reps, weight: ex.weight }));
     onSave({
-      title: formData.title,
-      type: formData.type,
-      date: new Date(formData.date),
-      durationMinutes: parseInt(formData.durationMinutes),
-      notes: formData.notes,
-      exercises: formData.exercises.filter(ex => ex.name.trim() !== ''),
+      title: data.title,
+      type: data.type,
+      date: new Date(data.date),
+      durationMinutes: parseInt(data.durationMinutes, 10),
+      notes: data.notes,
+      exercises,
     });
     onOpenChange(false);
   };
@@ -294,24 +155,23 @@ export function WorkoutModal({ open, onOpenChange, onSave, workout }: WorkoutMod
         <DialogHeader>
           <DialogTitle>{workout ? 'Edit Workout' : 'Add Workout'}</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit(onSubmit)}>
           <div className="space-y-4">
-            {/* Templates section */}
             {templates.length > 0 && !workout && (
               <div className="p-3 bg-muted rounded-lg">
                 <Label className="mb-2 block">Saved Workouts</Label>
                 <div className="flex flex-wrap gap-2">
-                  {templates.map((template, idx) => (
+                  {templates.map((t, idx) => (
                     <Button
                       key={idx}
                       type="button"
                       variant="outline"
                       size="sm"
-                      onClick={() => loadTemplate(template)}
+                      onClick={() => loadTemplate(t)}
                       className="text-xs"
                     >
                       <Copy className="w-3 h-3 mr-1" />
-                      {template.title}
+                      {t.title}
                     </Button>
                   ))}
                 </div>
@@ -322,20 +182,14 @@ export function WorkoutModal({ open, onOpenChange, onSave, workout }: WorkoutMod
               <Label htmlFor="title">Title</Label>
               <Input
                 id="title"
-                required
-                value={formData.title}
-                onChange={(e) => {
-                  setFormData({ ...formData, title: e.target.value });
-                  validateField('title', e.target.value);
-                }}
-                onBlur={(e) => validateField('title', e.target.value)}
+                {...register('title')}
                 placeholder="e.g., Chest and Shoulders"
                 aria-invalid={!!errors.title}
                 aria-describedby={errors.title ? 'title-error' : undefined}
               />
               {errors.title && (
                 <p id="title-error" className="text-sm text-destructive mt-1">
-                  {errors.title}
+                  {errors.title.message}
                 </p>
               )}
             </div>
@@ -343,49 +197,37 @@ export function WorkoutModal({ open, onOpenChange, onSave, workout }: WorkoutMod
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="type">Type</Label>
-                <Select
-                  value={formData.type}
-                  onValueChange={(value: typeof WORKOUT_TYPES[number]) =>
-                    setFormData({ ...formData, type: value })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {WORKOUT_TYPES.map((type) => (
-                      <SelectItem key={type} value={type}>
-                        {type.charAt(0).toUpperCase() + type.slice(1)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Controller
+                  name="type"
+                  control={control}
+                  render={({ field }) => (
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {WORKOUT_TYPES.map((type) => (
+                          <SelectItem key={type} value={type}>
+                            {type.charAt(0).toUpperCase() + type.slice(1)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
               </div>
-
               <div>
                 <Label htmlFor="duration">Duration (min)</Label>
                 <Input
                   id="duration"
                   type="number"
-                  required
-                  value={formData.durationMinutes}
-                  onChange={(e) => {
-                    setFormData({ ...formData, durationMinutes: e.target.value });
-                    if (e.target.value) {
-                      validateField('duration', e.target.value);
-                    } else {
-                      setErrors(prev => ({ ...prev, duration: undefined }));
-                    }
-                  }}
-                  onBlur={(e) => {
-                    if (e.target.value) validateField('duration', e.target.value);
-                  }}
-                  aria-invalid={!!errors.duration}
-                  aria-describedby={errors.duration ? 'duration-error' : undefined}
+                  {...register('durationMinutes')}
+                  aria-invalid={!!errors.durationMinutes}
+                  aria-describedby={errors.durationMinutes ? 'duration-error' : undefined}
                 />
-                {errors.duration && (
+                {errors.durationMinutes && (
                   <p id="duration-error" className="text-sm text-destructive mt-1">
-                    {errors.duration}
+                    {errors.durationMinutes.message}
                   </p>
                 )}
               </div>
@@ -393,13 +235,7 @@ export function WorkoutModal({ open, onOpenChange, onSave, workout }: WorkoutMod
 
             <div>
               <Label htmlFor="date">Date</Label>
-              <Input
-                id="date"
-                type="date"
-                required
-                value={formData.date}
-                onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-              />
+              <Input id="date" type="date" {...register('date')} />
             </div>
 
             <div>
@@ -411,105 +247,79 @@ export function WorkoutModal({ open, onOpenChange, onSave, workout }: WorkoutMod
                 </Button>
               </div>
               <div className="space-y-3">
-                {formData.exercises.map((exercise, idx) => {
-                  const exerciseErrors = errors.exercises?.[idx] || {};
-                  return (
-                    <div key={idx} className="p-3 border rounded-lg space-y-2">
-                      <div className="flex items-center gap-2">
-                        <div className="flex-1">
-                          <Input
-                            placeholder="Exercise name"
-                            value={exercise.name}
-                            onChange={(e) => updateExercise(idx, 'name', e.target.value)}
-                            onBlur={(e) => validateExercise(idx, 'name', e.target.value)}
-                            aria-invalid={!!exerciseErrors.name}
-                            aria-describedby={exerciseErrors.name ? `exercise-${idx}-name-error` : undefined}
-                          />
-                          {exerciseErrors.name && (
-                            <p id={`exercise-${idx}-name-error`} className="text-sm text-destructive mt-1">
-                              {exerciseErrors.name}
-                            </p>
-                          )}
-                        </div>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => {
-                            removeExercise(idx);
-                            // Remove errors for this exercise
-                            const newExerciseErrors = [...(errors.exercises || [])];
-                            newExerciseErrors.splice(idx, 1);
-                            setErrors(prev => ({ ...prev, exercises: newExerciseErrors }));
-                          }}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
+                {fields.map((field, idx) => (
+                  <div key={field.id} className="p-3 border rounded-lg space-y-2">
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1">
+                        <Input
+                          placeholder="Exercise name"
+                          {...register(`exercises.${idx}.name`)}
+                          aria-invalid={!!errors.exercises?.[idx]?.name}
+                          aria-describedby={errors.exercises?.[idx]?.name ? `exercise-${idx}-name-error` : undefined}
+                        />
+                        {errors.exercises?.[idx]?.name && (
+                          <p id={`exercise-${idx}-name-error`} className="text-sm text-destructive mt-1">
+                            {errors.exercises[idx]?.name?.message}
+                          </p>
+                        )}
                       </div>
-                      <div className="grid grid-cols-3 gap-2">
-                        <div>
-                          <Input
-                            type="number"
-                            placeholder="Sets"
-                            value={exercise.sets}
-                            onChange={(e) => updateExercise(idx, 'sets', e.target.value ? parseInt(e.target.value) : undefined)}
-                            onBlur={(e) => validateExercise(idx, 'sets', e.target.value ? parseInt(e.target.value) : undefined)}
-                            aria-invalid={!!exerciseErrors.sets}
-                            aria-describedby={exerciseErrors.sets ? `exercise-${idx}-sets-error` : undefined}
-                          />
-                          {exerciseErrors.sets && (
-                            <p id={`exercise-${idx}-sets-error`} className="text-xs text-destructive mt-1">
-                              {exerciseErrors.sets}
-                            </p>
+                      <Button type="button" variant="ghost" size="icon" onClick={() => remove(idx)}>
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      <div>
+                        <Input
+                          type="number"
+                          placeholder="Sets"
+                          {...register(`exercises.${idx}.sets`)}
+                          aria-invalid={!!errors.exercises?.[idx]?.sets}
+                        />
+                        {errors.exercises?.[idx]?.sets && (
+                          <p className="text-xs text-destructive mt-1">{errors.exercises[idx]?.sets?.message}</p>
+                        )}
+                      </div>
+                      <div>
+                        <Input
+                          type="number"
+                          placeholder="Reps"
+                          {...register(`exercises.${idx}.reps`)}
+                          aria-invalid={!!errors.exercises?.[idx]?.reps}
+                        />
+                        {errors.exercises?.[idx]?.reps && (
+                          <p className="text-xs text-destructive mt-1">{errors.exercises[idx]?.reps?.message}</p>
+                        )}
+                      </div>
+                      <div>
+                        <Controller
+                          name={`exercises.${idx}.weight`}
+                          control={control}
+                          render={({ field }) => (
+                            <Input
+                              type="number"
+                              placeholder="Weight (lbs)"
+                              value={field.value ?? ''}
+                              onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
+                              aria-invalid={!!errors.exercises?.[idx]?.weight}
+                            />
                           )}
-                        </div>
-                        <div>
-                          <Input
-                            type="number"
-                            placeholder="Reps"
-                            value={exercise.reps}
-                            onChange={(e) => updateExercise(idx, 'reps', e.target.value ? parseInt(e.target.value) : undefined)}
-                            onBlur={(e) => validateExercise(idx, 'reps', e.target.value ? parseInt(e.target.value) : undefined)}
-                            aria-invalid={!!exerciseErrors.reps}
-                            aria-describedby={exerciseErrors.reps ? `exercise-${idx}-reps-error` : undefined}
-                          />
-                          {exerciseErrors.reps && (
-                            <p id={`exercise-${idx}-reps-error`} className="text-xs text-destructive mt-1">
-                              {exerciseErrors.reps}
-                            </p>
-                          )}
-                        </div>
-                        <div>
-                          <Input
-                            type="number"
-                            placeholder="Weight (lbs)"
-                            value={exercise.weight || ''}
-                            onChange={(e) => updateExercise(idx, 'weight', e.target.value ? parseFloat(e.target.value) : undefined)}
-                            onBlur={(e) => validateExercise(idx, 'weight', e.target.value ? parseFloat(e.target.value) : undefined)}
-                            aria-invalid={!!exerciseErrors.weight}
-                            aria-describedby={exerciseErrors.weight ? `exercise-${idx}-weight-error` : undefined}
-                          />
-                          {exerciseErrors.weight && (
-                            <p id={`exercise-${idx}-weight-error`} className="text-xs text-destructive mt-1">
-                              {exerciseErrors.weight}
-                            </p>
-                          )}
-                        </div>
+                        />
+                        {errors.exercises?.[idx]?.weight && (
+                          <p className="text-xs text-destructive mt-1">{errors.exercises[idx]?.weight?.message}</p>
+                        )}
                       </div>
                     </div>
-                  );
-                })}
+                  </div>
+                ))}
               </div>
+              {errors.exercises?.root && (
+                <p className="text-sm text-destructive mt-1">{errors.exercises.root.message}</p>
+              )}
             </div>
 
             <div>
               <Label htmlFor="notes">Notes (Optional)</Label>
-              <Textarea
-                id="notes"
-                value={formData.notes}
-                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                placeholder="How did it go?"
-              />
+              <Textarea id="notes" {...register('notes')} placeholder="How did it go?" />
             </div>
           </div>
 
@@ -520,7 +330,7 @@ export function WorkoutModal({ open, onOpenChange, onSave, workout }: WorkoutMod
                   type="button"
                   variant="outline"
                   onClick={saveAsTemplate}
-                  disabled={!formData.title.trim() || formData.exercises.length === 0}
+                  disabled={!watchedTitle?.trim() || (watchedExercises?.length ?? 0) === 0}
                 >
                   <Save className="w-4 h-4 mr-1" />
                   Save as Template
@@ -530,7 +340,7 @@ export function WorkoutModal({ open, onOpenChange, onSave, workout }: WorkoutMod
                 <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                   Cancel
                 </Button>
-                <Button type="submit" disabled={!isFormValid()}>
+                <Button type="submit" disabled={!isValid}>
                   {workout ? 'Update' : 'Add'} Workout
                 </Button>
               </div>

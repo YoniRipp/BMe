@@ -1,90 +1,98 @@
-import React, { createContext, useCallback, useEffect, useState } from 'react';
+import React, { createContext, useCallback } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Goal } from '@/types/goals';
 import { goalsApi } from '@/features/goals/api';
 import { apiGoalToGoal } from '@/features/goals/mappers';
+import { queryKeys } from '@/lib/queryClient';
 
 interface GoalsContextType {
   goals: Goal[];
   goalsLoading: boolean;
   goalsError: string | null;
   refetchGoals: () => Promise<void>;
-  addGoal: (goal: Omit<Goal, 'id' | 'createdAt'>) => void;
-  updateGoal: (id: string, updates: Partial<Goal>) => void;
-  deleteGoal: (id: string) => void;
+  addGoal: (goal: Omit<Goal, 'id' | 'createdAt'>) => Promise<void>;
+  updateGoal: (id: string, updates: Partial<Goal>) => Promise<void>;
+  deleteGoal: (id: string) => Promise<void>;
   getGoalById: (id: string) => Goal | undefined;
 }
 
 export const GoalsContext = createContext<GoalsContextType | undefined>(undefined);
 
 export function GoalsProvider({ children }: { children: React.ReactNode }) {
-  const [goals, setGoals] = useState<Goal[]>([]);
-  const [goalsLoading, setGoalsLoading] = useState(true);
-  const [goalsError, setGoalsError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+
+  const {
+    data: goals = [],
+    isLoading: goalsLoading,
+    error: goalsQueryError,
+    refetch: refetchGoalsQuery,
+  } = useQuery({
+    queryKey: queryKeys.goals,
+    queryFn: async () => {
+      const list = await goalsApi.list();
+      return list.map(apiGoalToGoal);
+    },
+  });
+
+  const goalsError = goalsQueryError ? (goalsQueryError instanceof Error ? goalsQueryError.message : 'Failed to load goals') : null;
 
   const refetchGoals = useCallback(async () => {
-    setGoalsLoading(true);
-    setGoalsError(null);
-    try {
-      const list = await goalsApi.list();
-      setGoals(list.map(apiGoalToGoal));
-    } catch (e) {
-      setGoalsError(e instanceof Error ? e.message : 'Failed to load goals');
-      setGoals([]);
-    } finally {
-      setGoalsLoading(false);
-    }
-  }, []);
+    await refetchGoalsQuery();
+  }, [refetchGoalsQuery]);
 
-  useEffect(() => {
-    refetchGoals();
-  }, [refetchGoals]);
+  const addMutation = useMutation({
+    mutationFn: (goal: Omit<Goal, 'id' | 'createdAt'>) =>
+      goalsApi.add({ type: goal.type, target: goal.target, period: goal.period }),
+    onSuccess: (created) => {
+      queryClient.setQueryData(queryKeys.goals, (prev: Goal[] | undefined) =>
+        prev ? [...prev, apiGoalToGoal(created)] : [apiGoalToGoal(created)]
+      );
+    },
+  });
 
-  const addGoal = useCallback((goal: Omit<Goal, 'id' | 'createdAt'>) => {
-    setGoalsError(null);
-    goalsApi
-      .add({ type: goal.type, target: goal.target, period: goal.period })
-      .then((created) => {
-        setGoals((prev) => [...prev, apiGoalToGoal(created)]);
-      })
-      .catch((e) => {
-        setGoalsError(e instanceof Error ? e.message : 'Failed to add goal');
-      });
-  }, []);
+  const updateMutation = useMutation({
+    mutationFn: ({ id, updates }: { id: string; updates: Partial<Goal> }) => {
+      const body: { type?: string; target?: number; period?: string } = {};
+      if (updates.type !== undefined) body.type = updates.type;
+      if (updates.target !== undefined) body.target = updates.target;
+      if (updates.period !== undefined) body.period = updates.period;
+      return goalsApi.update(id, body);
+    },
+    onSuccess: (updated) => {
+      queryClient.setQueryData(queryKeys.goals, (prev: Goal[] | undefined) =>
+        prev ? prev.map((g) => (g.id === updated.id ? apiGoalToGoal(updated) : g)) : [apiGoalToGoal(updated)]
+      );
+    },
+  });
 
-  const updateGoal = useCallback((id: string, updates: Partial<Goal>) => {
-    setGoalsError(null);
-    const body: { type?: string; target?: number; period?: string } = {};
-    if (updates.type !== undefined) body.type = updates.type;
-    if (updates.target !== undefined) body.target = updates.target;
-    if (updates.period !== undefined) body.period = updates.period;
-    goalsApi
-      .update(id, body)
-      .then((updated) => {
-        setGoals((prev) =>
-          prev.map((g) => (g.id === id ? apiGoalToGoal(updated) : g))
-        );
-      })
-      .catch((e) => {
-        setGoalsError(e instanceof Error ? e.message : 'Failed to update goal');
-      });
-  }, []);
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => goalsApi.delete(id),
+    onSuccess: (_, id) => {
+      queryClient.setQueryData(queryKeys.goals, (prev: Goal[] | undefined) =>
+        prev ? prev.filter((g) => g.id !== id) : []
+      );
+    },
+  });
 
-  const deleteGoal = useCallback((id: string) => {
-    setGoalsError(null);
-    goalsApi
-      .delete(id)
-      .then(() => {
-        setGoals((prev) => prev.filter((g) => g.id !== id));
-      })
-      .catch((e) => {
-        setGoalsError(e instanceof Error ? e.message : 'Failed to delete goal');
-      });
-  }, []);
+  const addGoal = useCallback(
+    (goal: Omit<Goal, 'id' | 'createdAt'>): Promise<void> =>
+      addMutation.mutateAsync(goal).then(() => undefined),
+    [addMutation]
+  );
+
+  const updateGoal = useCallback(
+    (id: string, updates: Partial<Goal>): Promise<void> =>
+      updateMutation.mutateAsync({ id, updates }).then(() => undefined),
+    [updateMutation]
+  );
+
+  const deleteGoal = useCallback(
+    (id: string): Promise<void> => deleteMutation.mutateAsync(id).then(() => undefined),
+    [deleteMutation]
+  );
 
   const getGoalById = useCallback(
-    (id: string) => {
-      return goals.find((g) => g.id === id);
-    },
+    (id: string) => goals.find((g) => g.id === id),
     [goals]
   );
 

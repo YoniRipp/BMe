@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { FoodEntry } from '@/types/energy';
-import { validateFoodName, validateCalories, validateProtein, validateCarbs, validateFats, ValidationResult } from '@/lib/validation';
+import { foodEntryFormSchema, type FoodEntryFormValues } from '@/schemas/foodEntry';
 import { useDebounce } from '@/hooks/useDebounce';
 import { searchFoods, type FoodSearchResult } from '@/features/energy/api';
 import {
@@ -38,15 +40,15 @@ function scaleFromPer100g(per100g: Per100g, portionGrams: number): Per100g {
   };
 }
 
+const defaultValues: FoodEntryFormValues = {
+  name: '',
+  calories: '',
+  protein: '',
+  carbs: '',
+  fats: '',
+};
+
 export function FoodEntryModal({ open, onOpenChange, onSave, entry }: FoodEntryModalProps) {
-  const [formData, setFormData] = useState({
-    name: '',
-    calories: '',
-    protein: '',
-    carbs: '',
-    fats: '',
-  });
-  const [errors, setErrors] = useState<Record<string, string>>({});
   const [portionGrams, setPortionGrams] = useState(DEFAULT_REFERENCE_GRAMS);
   const [per100g, setPer100g] = useState<Per100g | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -58,34 +60,38 @@ export function FoodEntryModal({ open, onOpenChange, onSave, entry }: FoodEntryM
 
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
 
+  const {
+    register,
+    handleSubmit,
+    reset,
+    setValue,
+    formState: { errors, isValid },
+  } = useForm<FoodEntryFormValues>({
+    resolver: zodResolver(foodEntryFormSchema),
+    defaultValues,
+    mode: 'onChange',
+  });
+
   useEffect(() => {
+    if (!open) return;
     if (entry) {
-      setFormData({
+      reset({
         name: entry.name,
         calories: entry.calories.toString(),
         protein: entry.protein.toString(),
         carbs: entry.carbs.toString(),
         fats: entry.fats.toString(),
       });
-      setPortionGrams(DEFAULT_REFERENCE_GRAMS);
-      setPer100g(null);
     } else {
-      setFormData({
-        name: '',
-        calories: '',
-        protein: '',
-        carbs: '',
-        fats: '',
-      });
-      setPortionGrams(DEFAULT_REFERENCE_GRAMS);
-      setPer100g(null);
+      reset(defaultValues);
     }
-    setErrors({});
+    setPortionGrams(DEFAULT_REFERENCE_GRAMS);
+    setPer100g(null);
     setSearchQuery('');
     setSearchResults([]);
     setSearchError(null);
     setDropdownOpen(false);
-  }, [entry, open]);
+  }, [entry, open, reset]);
 
   useEffect(() => {
     const q = debouncedSearchQuery.trim();
@@ -119,30 +125,31 @@ export function FoodEntryModal({ open, onOpenChange, onSave, entry }: FoodEntryM
     };
   }, [debouncedSearchQuery]);
 
-  const handleSelectFood = useCallback((item: FoodSearchResult) => {
-    const refGrams = item.referenceGrams ?? DEFAULT_REFERENCE_GRAMS;
-    const factor = DEFAULT_REFERENCE_GRAMS / refGrams;
-    const base: Per100g = {
-      calories: Math.round(item.calories * factor),
-      protein: Math.round(item.protein * factor * 10) / 10,
-      carbs: Math.round(item.carbs * factor * 10) / 10,
-      fats: Math.round(item.fats * factor * 10) / 10,
-    };
-    setPer100g(base);
-    setPortionGrams(DEFAULT_REFERENCE_GRAMS);
-    const scaled = scaleFromPer100g(base, DEFAULT_REFERENCE_GRAMS);
-    setFormData({
-      name: item.name,
-      calories: scaled.calories.toString(),
-      protein: scaled.protein.toString(),
-      carbs: scaled.carbs.toString(),
-      fats: scaled.fats.toString(),
-    });
-    setSearchQuery('');
-    setSearchResults([]);
-    setDropdownOpen(false);
-    setSearchError(null);
-  }, []);
+  const handleSelectFood = useCallback(
+    (item: FoodSearchResult) => {
+      const refGrams = item.referenceGrams ?? DEFAULT_REFERENCE_GRAMS;
+      const factor = DEFAULT_REFERENCE_GRAMS / refGrams;
+      const base: Per100g = {
+        calories: Math.round(item.calories * factor),
+        protein: Math.round(item.protein * factor * 10) / 10,
+        carbs: Math.round(item.carbs * factor * 10) / 10,
+        fats: Math.round(item.fats * factor * 10) / 10,
+      };
+      setPer100g(base);
+      setPortionGrams(DEFAULT_REFERENCE_GRAMS);
+      const scaled = scaleFromPer100g(base, DEFAULT_REFERENCE_GRAMS);
+      setValue('name', item.name);
+      setValue('calories', scaled.calories.toString());
+      setValue('protein', scaled.protein.toString());
+      setValue('carbs', scaled.carbs.toString());
+      setValue('fats', scaled.fats.toString());
+      setSearchQuery('');
+      setSearchResults([]);
+      setDropdownOpen(false);
+      setSearchError(null);
+    },
+    [setValue]
+  );
 
   const handlePortionChange = useCallback(
     (value: string) => {
@@ -154,109 +161,35 @@ export function FoodEntryModal({ open, onOpenChange, onSave, entry }: FoodEntryM
       setPortionGrams(g);
       if (per100g) {
         const scaled = scaleFromPer100g(per100g, g);
-        setFormData((prev) => ({
-          ...prev,
-          calories: scaled.calories.toString(),
-          protein: scaled.protein.toString(),
-          carbs: scaled.carbs.toString(),
-          fats: scaled.fats.toString(),
-        }));
+        setValue('calories', scaled.calories.toString());
+        setValue('protein', scaled.protein.toString());
+        setValue('carbs', scaled.carbs.toString());
+        setValue('fats', scaled.fats.toString());
       }
     },
-    [per100g]
+    [per100g, setValue]
   );
 
   const handleSearchBlur = useCallback(() => {
     setTimeout(() => setDropdownOpen(false), 150);
   }, []);
 
-  const validateField = (field: string, value: string) => {
-    let result: ValidationResult;
-    switch (field) {
-      case 'name':
-        result = validateFoodName(value);
-        setErrors(prev => ({
-          ...prev,
-          name: result.isValid ? '' : (result.error || '')
-        }));
-        break;
-      case 'calories':
-        if (!value) {
-          setErrors(prev => ({ ...prev, calories: '' }));
-          return;
-        }
-        result = validateCalories(parseInt(value) || 0);
-        setErrors(prev => ({
-          ...prev,
-          calories: result.isValid ? '' : (result.error || '')
-        }));
-        break;
-      case 'protein':
-        if (!value) {
-          setErrors(prev => ({ ...prev, protein: '' }));
-          return;
-        }
-        result = validateProtein(parseFloat(value) || 0);
-        setErrors(prev => ({
-          ...prev,
-          protein: result.isValid ? '' : (result.error || '')
-        }));
-        break;
-      case 'carbs':
-        if (!value) {
-          setErrors(prev => ({ ...prev, carbs: '' }));
-          return;
-        }
-        result = validateCarbs(parseFloat(value) || 0);
-        setErrors(prev => ({
-          ...prev,
-          carbs: result.isValid ? '' : (result.error || '')
-        }));
-        break;
-      case 'fats':
-        if (!value) {
-          setErrors(prev => ({ ...prev, fats: '' }));
-          return;
-        }
-        result = validateFats(parseFloat(value) || 0);
-        setErrors(prev => ({
-          ...prev,
-          fats: result.isValid ? '' : (result.error || '')
-        }));
-        break;
-    }
-  };
-
-  const isFormValid = () => {
-    if (!formData.name) return false;
-    const nameValid = validateFoodName(formData.name).isValid;
-    const caloriesValid = !formData.calories || validateCalories(parseInt(formData.calories) || 0).isValid;
-    const proteinValid = !formData.protein || validateProtein(parseFloat(formData.protein) || 0).isValid;
-    const carbsValid = !formData.carbs || validateCarbs(parseFloat(formData.carbs) || 0).isValid;
-    const fatsValid = !formData.fats || validateFats(parseFloat(formData.fats) || 0).isValid;
-    return nameValid && caloriesValid && proteinValid && carbsValid && fatsValid && Object.values(errors).every(e => !e);
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    validateField('name', formData.name);
-    if (formData.calories) validateField('calories', formData.calories);
-    if (formData.protein) validateField('protein', formData.protein);
-    if (formData.carbs) validateField('carbs', formData.carbs);
-    if (formData.fats) validateField('fats', formData.fats);
-    if (!isFormValid()) return;
+  const onSubmit = (data: FoodEntryFormValues) => {
     onSave({
       date: entry ? entry.date : new Date(),
-      name: formData.name,
-      calories: parseInt(formData.calories) || 0,
-      protein: parseFloat(formData.protein) || 0,
-      carbs: parseFloat(formData.carbs) || 0,
-      fats: parseFloat(formData.fats) || 0,
+      name: data.name,
+      calories: parseFloat(data.calories),
+      protein: parseFloat(data.protein),
+      carbs: parseFloat(data.carbs),
+      fats: parseFloat(data.fats),
     });
     onOpenChange(false);
   };
 
-  const showDropdown = dropdownOpen && searchQuery.trim().length >= MIN_SEARCH_LENGTH && (isSearching || searchResults.length > 0 || !!searchError);
+  const showDropdown =
+    dropdownOpen &&
+    searchQuery.trim().length >= MIN_SEARCH_LENGTH &&
+    (isSearching || searchResults.length > 0 || !!searchError);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -264,9 +197,8 @@ export function FoodEntryModal({ open, onOpenChange, onSave, entry }: FoodEntryM
         <DialogHeader>
           <DialogTitle>{entry ? 'Edit Food Entry' : 'Add Food Entry'}</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit(onSubmit)}>
           <div className="space-y-4">
-            {/* Search / dropdown section */}
             <div ref={searchContainerRef} className="relative">
               <Label htmlFor="food-search">Search food (optional)</Label>
               <Input
@@ -331,25 +263,18 @@ export function FoodEntryModal({ open, onOpenChange, onSave, entry }: FoodEntryM
               )}
             </div>
 
-            {/* Manual entry fields */}
             <div>
               <Label htmlFor="name">Food Name</Label>
               <Input
                 id="name"
-                required
-                value={formData.name}
-                onChange={(e) => {
-                  setFormData({ ...formData, name: e.target.value });
-                  validateField('name', e.target.value);
-                }}
-                onBlur={(e) => validateField('name', e.target.value)}
+                {...register('name')}
                 placeholder="e.g., Grilled Chicken Breast"
                 aria-invalid={!!errors.name}
                 aria-describedby={errors.name ? 'name-error' : undefined}
               />
               {errors.name && (
                 <p id="name-error" className="text-sm text-destructive mt-1">
-                  {errors.name}
+                  {errors.name.message}
                 </p>
               )}
             </div>
@@ -360,7 +285,7 @@ export function FoodEntryModal({ open, onOpenChange, onSave, entry }: FoodEntryM
                 <Input
                   id="portion-grams"
                   type="number"
-                  min="1"
+                  min={1}
                   value={portionGrams}
                   onChange={(e) => handlePortionChange(e.target.value)}
                   aria-label="Portion size in grams; values scale from per 100 g"
@@ -376,22 +301,16 @@ export function FoodEntryModal({ open, onOpenChange, onSave, entry }: FoodEntryM
               <Input
                 id="calories"
                 type="number"
-                min="0"
-                required
-                value={formData.calories}
-                onChange={(e) => {
-                  setPer100g(null);
-                  setFormData({ ...formData, calories: e.target.value });
-                  if (e.target.value) validateField('calories', e.target.value);
-                  else setErrors(prev => ({ ...prev, calories: '' }));
-                }}
-                onBlur={(e) => { if (e.target.value) validateField('calories', e.target.value); }}
+                min={0}
+                {...register('calories', {
+                  onChange: () => setPer100g(null),
+                })}
                 aria-invalid={!!errors.calories}
                 aria-describedby={errors.calories ? 'calories-error' : undefined}
               />
               {errors.calories && (
                 <p id="calories-error" className="text-sm text-destructive mt-1">
-                  {errors.calories}
+                  {errors.calories.message}
                 </p>
               )}
             </div>
@@ -403,21 +322,14 @@ export function FoodEntryModal({ open, onOpenChange, onSave, entry }: FoodEntryM
                   id="protein"
                   type="number"
                   step="0.1"
-                  min="0"
-                  value={formData.protein}
-                  onChange={(e) => {
-                    setPer100g(null);
-                    setFormData({ ...formData, protein: e.target.value });
-                    if (e.target.value) validateField('protein', e.target.value);
-                    else setErrors(prev => ({ ...prev, protein: '' }));
-                  }}
-                  onBlur={(e) => { if (e.target.value) validateField('protein', e.target.value); }}
+                  min={0}
+                  {...register('protein', { onChange: () => setPer100g(null) })}
                   aria-invalid={!!errors.protein}
                   aria-describedby={errors.protein ? 'protein-error' : undefined}
                 />
                 {errors.protein && (
                   <p id="protein-error" className="text-sm text-destructive mt-1">
-                    {errors.protein}
+                    {errors.protein.message}
                   </p>
                 )}
               </div>
@@ -427,21 +339,14 @@ export function FoodEntryModal({ open, onOpenChange, onSave, entry }: FoodEntryM
                   id="carbs"
                   type="number"
                   step="0.1"
-                  min="0"
-                  value={formData.carbs}
-                  onChange={(e) => {
-                    setPer100g(null);
-                    setFormData({ ...formData, carbs: e.target.value });
-                    if (e.target.value) validateField('carbs', e.target.value);
-                    else setErrors(prev => ({ ...prev, carbs: '' }));
-                  }}
-                  onBlur={(e) => { if (e.target.value) validateField('carbs', e.target.value); }}
+                  min={0}
+                  {...register('carbs', { onChange: () => setPer100g(null) })}
                   aria-invalid={!!errors.carbs}
                   aria-describedby={errors.carbs ? 'carbs-error' : undefined}
                 />
                 {errors.carbs && (
                   <p id="carbs-error" className="text-sm text-destructive mt-1">
-                    {errors.carbs}
+                    {errors.carbs.message}
                   </p>
                 )}
               </div>
@@ -451,21 +356,14 @@ export function FoodEntryModal({ open, onOpenChange, onSave, entry }: FoodEntryM
                   id="fats"
                   type="number"
                   step="0.1"
-                  min="0"
-                  value={formData.fats}
-                  onChange={(e) => {
-                    setPer100g(null);
-                    setFormData({ ...formData, fats: e.target.value });
-                    if (e.target.value) validateField('fats', e.target.value);
-                    else setErrors(prev => ({ ...prev, fats: '' }));
-                  }}
-                  onBlur={(e) => { if (e.target.value) validateField('fats', e.target.value); }}
+                  min={0}
+                  {...register('fats', { onChange: () => setPer100g(null) })}
                   aria-invalid={!!errors.fats}
                   aria-describedby={errors.fats ? 'fats-error' : undefined}
                 />
                 {errors.fats && (
                   <p id="fats-error" className="text-sm text-destructive mt-1">
-                    {errors.fats}
+                    {errors.fats.message}
                   </p>
                 )}
               </div>
@@ -476,7 +374,7 @@ export function FoodEntryModal({ open, onOpenChange, onSave, entry }: FoodEntryM
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={!isFormValid()}>
+            <Button type="submit" disabled={!isValid}>
               {entry ? 'Update' : 'Add'} Food
             </Button>
           </DialogFooter>

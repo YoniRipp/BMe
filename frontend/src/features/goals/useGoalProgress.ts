@@ -3,20 +3,44 @@ import { useGoals } from '@/hooks/useGoals';
 import { useTransactions } from '@/hooks/useTransactions';
 import { useWorkouts } from '@/hooks/useWorkouts';
 import { useEnergy } from '@/hooks/useEnergy';
-import {
-  startOfWeek,
-  endOfWeek,
-  startOfMonth,
-  endOfMonth,
-  startOfYear,
-  endOfYear,
-  isWithinInterval,
-} from 'date-fns';
+import type { Goal, GoalType } from '@/types/goals';
+import { isWithinInterval } from 'date-fns';
+import { getPeriodRange } from '@/lib/dateRanges';
 
 export interface GoalProgress {
   current: number;
   target: number;
   percentage: number;
+}
+
+function buildGoalCurrentCalcs(deps: {
+  foodEntries: { date: Date | string; calories: number }[];
+  workouts: { date: Date }[];
+  transactions: { date: Date; type: string; amount: number }[];
+}) {
+  return {
+    calories: (_goal: Goal, dateRange: { start: Date; end: Date }) =>
+      deps.foodEntries
+        .filter((f) => isWithinInterval(new Date(f.date), dateRange))
+        .reduce((sum, f) => sum + f.calories, 0),
+    workouts: (_goal: Goal, dateRange: { start: Date; end: Date }) =>
+      deps.workouts.filter((w) =>
+        isWithinInterval(new Date(w.date), dateRange)
+      ).length,
+    savings: (_goal: Goal, dateRange: { start: Date; end: Date }) => {
+      const periodTransactions = deps.transactions.filter((t) =>
+        isWithinInterval(new Date(t.date), dateRange)
+      );
+      const income = periodTransactions
+        .filter((t) => t.type === 'income')
+        .reduce((sum, t) => sum + t.amount, 0);
+      const expenses = periodTransactions
+        .filter((t) => t.type === 'expense')
+        .reduce((sum, t) => sum + t.amount, 0);
+      const balance = income - expenses;
+      return income > 0 ? Math.round((balance / income) * 100) : 0;
+    },
+  } as Record<GoalType, (goal: Goal, dateRange: { start: Date; end: Date }) => number>;
 }
 
 export function useGoalProgress(goalId: string): GoalProgress {
@@ -32,41 +56,13 @@ export function useGoalProgress(goalId: string): GoalProgress {
     }
 
     const now = new Date();
-    const dateRange =
-      goal.period === 'weekly'
-        ? { start: startOfWeek(now), end: endOfWeek(now) }
-        : goal.period === 'monthly'
-          ? { start: startOfMonth(now), end: endOfMonth(now) }
-          : { start: startOfYear(now), end: endOfYear(now) };
-
-    let current = 0;
-
-    switch (goal.type) {
-      case 'calories':
-        current = foodEntries
-          .filter((f) => isWithinInterval(new Date(f.date), dateRange))
-          .reduce((sum, f) => sum + f.calories, 0);
-        break;
-      case 'workouts':
-        current = workouts.filter((w) =>
-          isWithinInterval(new Date(w.date), dateRange)
-        ).length;
-        break;
-      case 'savings': {
-        const periodTransactions = transactions.filter((t) =>
-          isWithinInterval(new Date(t.date), dateRange)
-        );
-        const income = periodTransactions
-          .filter((t) => t.type === 'income')
-          .reduce((sum, t) => sum + t.amount, 0);
-        const expenses = periodTransactions
-          .filter((t) => t.type === 'expense')
-          .reduce((sum, t) => sum + t.amount, 0);
-        const balance = income - expenses;
-        current = income > 0 ? Math.round((balance / income) * 100) : 0;
-        break;
-      }
-    }
+    const dateRange = getPeriodRange(goal.period, now);
+    const calcs = buildGoalCurrentCalcs({
+      foodEntries,
+      workouts,
+      transactions,
+    });
+    const current = calcs[goal.type](goal, dateRange);
 
     const percentage =
       goal.target > 0 ? Math.min((current / goal.target) * 100, 100) : 0;

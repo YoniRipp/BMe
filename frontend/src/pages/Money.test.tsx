@@ -7,7 +7,7 @@ import { TransactionProvider } from '@/context/TransactionContext';
 import { AppProvider } from '@/context/AppContext';
 
 // Mock the MonthlyChart component
-vi.mock('@/components/money/MonthlyChart', () => ({
+vi.mock('@/features/money/components/MonthlyChart', () => ({
   MonthlyChart: () => <div data-testid="monthly-chart">Chart</div>,
 }));
 

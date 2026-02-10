@@ -20,9 +20,8 @@ import { useTransactions } from '@/hooks/useTransactions';
 import { useEnergy } from '@/hooks/useEnergy';
 import { useWorkouts } from '@/hooks/useWorkouts';
 import { useGoals } from '@/hooks/useGoals';
-import { CATEGORY_EMOJIS, SCHEDULE_CATEGORIES } from '@/types/schedule';
-import { TRANSACTION_CATEGORIES } from '@/types/transaction';
-import { understandTranscript, type VoiceAction } from '@/lib/voiceApi';
+import { understandTranscript } from '@/lib/voiceApi';
+import { executeVoiceAction, type VoiceExecutorContext } from '@/lib/voiceActionExecutor';
 import { toast } from '@/components/shared/ToastProvider';
 
 interface VoiceAgentPanelProps {
@@ -38,19 +37,6 @@ const LANG_OPTIONS = [
 function getSpeechRecognition(): (new () => SpeechRecognition) | null {
   if (typeof window === 'undefined') return null;
   return window.SpeechRecognition ?? window.webkitSpeechRecognition ?? null;
-}
-
-const VALID_SCHEDULE_CATEGORIES = new Set(SCHEDULE_CATEGORIES);
-const VALID_INCOME = new Set(TRANSACTION_CATEGORIES.income);
-const VALID_EXPENSE = new Set(TRANSACTION_CATEGORIES.expense);
-
-function parseDateOrToday(dateStr?: string): Date {
-  if (dateStr && /^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
-    return new Date(dateStr + 'T00:00:00');
-  }
-  const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  return d;
 }
 
 export function VoiceAgentPanel({ open, onOpenChange }: VoiceAgentPanelProps) {
@@ -71,160 +57,33 @@ export function VoiceAgentPanel({ open, onOpenChange }: VoiceAgentPanelProps) {
   const SpeechRecognitionClass = getSpeechRecognition();
   const isSupported = !!SpeechRecognitionClass;
 
-  const executeAction = (action: VoiceAction): { success: boolean; message?: string } => {
-    try {
-      switch (action.intent) {
-        case 'add_schedule':
-          if (!action.items?.length) return { success: false, message: 'No schedule items' };
-          let order = scheduleItems.length;
-          const validRecurrence = ['daily', 'weekdays', 'weekends'] as const;
-          addScheduleItems(action.items.map((item) => {
-            const category = VALID_SCHEDULE_CATEGORIES.has(item.category as (typeof SCHEDULE_CATEGORIES)[number]) ? item.category : 'Other';
-            const recurrence = item.recurrence && validRecurrence.includes(item.recurrence as typeof validRecurrence[number]) ? (item.recurrence as 'daily' | 'weekdays' | 'weekends') : undefined;
-            return {
-              title: item.title,
-              startTime: item.startTime ?? '09:00',
-              endTime: item.endTime ?? '10:00',
-              category,
-              emoji: CATEGORY_EMOJIS[category],
-              order: order++,
-              isActive: true,
-              recurrence,
-            };
-          }));
-          return { success: true, message: `Added ${action.items.length} to schedule` };
-        case 'edit_schedule': {
-          let targetId = action.itemId ? getScheduleItemById(action.itemId)?.id : undefined;
-          if (!targetId && action.itemTitle) targetId = scheduleItems.find((s) => s.title.toLowerCase().includes(action.itemTitle!.toLowerCase()))?.id;
-          if (!targetId) return { success: false, message: 'Schedule item not found' };
-          const updates: Record<string, unknown> = {};
-          if (action.startTime) updates.startTime = action.startTime;
-          if (action.endTime) updates.endTime = action.endTime;
-          if (action.title) updates.title = action.title;
-          if (action.category) updates.category = action.category;
-          if (Object.keys(updates).length > 0) void updateScheduleItem(targetId, updates);
-          return { success: true };
-        }
-        case 'delete_schedule': {
-          let targetId = action.itemId ? getScheduleItemById(action.itemId)?.id : undefined;
-          if (!targetId && action.itemTitle) targetId = scheduleItems.find((s) => s.title.toLowerCase().includes(action.itemTitle!.toLowerCase()))?.id;
-          if (!targetId) return { success: false, message: 'Schedule item not found' };
-          deleteScheduleItem(targetId);
-          return { success: true };
-        }
-        case 'add_transaction': {
-          const category: string = action.type === 'income' ? (VALID_INCOME.has(action.category as (typeof TRANSACTION_CATEGORIES.income)[number]) ? action.category : 'Other') : (VALID_EXPENSE.has(action.category as (typeof TRANSACTION_CATEGORIES.expense)[number]) ? action.category : 'Other');
-          addTransaction({ type: action.type, amount: action.amount >= 0 ? action.amount : 0, category, description: action.description, date: parseDateOrToday(action.date), isRecurring: action.isRecurring ?? false });
-          return { success: true };
-        }
-        case 'edit_transaction': {
-          const target = action.transactionId ? transactions.find((t) => t.id === action.transactionId) : transactions.find((t) => t.description?.toLowerCase().includes((action.description ?? '').toLowerCase()));
-          if (!target) return { success: false, message: 'Transaction not found' };
-          const updates: Record<string, unknown> = {};
-          if (action.type) updates.type = action.type;
-          if (action.amount != null) updates.amount = action.amount;
-          if (action.category) updates.category = action.category;
-          if (action.description !== undefined) updates.description = action.description;
-          if (action.date) updates.date = parseDateOrToday(action.date);
-          if (Object.keys(updates).length > 0) updateTransaction(target.id, updates);
-          return { success: true };
-        }
-        case 'delete_transaction': {
-          const target = action.transactionId ? transactions.find((t) => t.id === action.transactionId) : transactions.find((t) => t.description?.toLowerCase().includes((action.description ?? '').toLowerCase()));
-          if (!target) return { success: false, message: 'Transaction not found' };
-          deleteTransaction(target.id);
-          return { success: true };
-        }
-        case 'add_workout':
-          addWorkout({ date: parseDateOrToday(action.date), title: action.title ?? 'Workout', type: (['strength', 'cardio', 'flexibility', 'sports'].includes(action.type) ? action.type : 'cardio') as 'strength' | 'cardio' | 'flexibility' | 'sports', durationMinutes: action.durationMinutes ?? 30, exercises: [], notes: action.notes });
-          return { success: true };
-        case 'edit_workout': {
-          const target = action.workoutId ? workouts.find((w) => w.id === action.workoutId) : workouts.find((w) => w.title.toLowerCase().includes((action.workoutTitle ?? '').toLowerCase()));
-          if (!target) return { success: false, message: 'Workout not found' };
-          const updates: Record<string, unknown> = {};
-          if (action.title) updates.title = action.title;
-          if (action.type) updates.type = action.type;
-          if (action.durationMinutes != null) updates.durationMinutes = action.durationMinutes;
-          if (action.notes !== undefined) updates.notes = action.notes;
-          if (action.date) updates.date = parseDateOrToday(action.date);
-          if (Object.keys(updates).length > 0) updateWorkout(target.id, updates);
-          return { success: true };
-        }
-        case 'delete_workout': {
-          const target = action.workoutId ? workouts.find((w) => w.id === action.workoutId) : workouts.find((w) => w.title.toLowerCase().includes((action.workoutTitle ?? '').toLowerCase()));
-          if (!target) return { success: false, message: 'Workout not found' };
-          deleteWorkout(target.id);
-          return { success: true };
-        }
-        case 'add_food':
-          if (!action.name && action.calories == null) return { success: false, message: 'Food not found' };
-          addFoodEntry({ date: parseDateOrToday(action.date), name: action.name ?? 'Unknown', calories: action.calories ?? 0, protein: action.protein ?? 0, carbs: action.carbs ?? 0, fats: action.fats ?? 0 });
-          return { success: true };
-        case 'edit_food_entry': {
-          const target = action.entryId ? foodEntries.find((e) => e.id === action.entryId) : foodEntries.find((e) => e.name.toLowerCase().includes((action.foodName ?? '').toLowerCase()));
-          if (!target) return { success: false, message: 'Food entry not found' };
-          const updates: Record<string, unknown> = {};
-          if (action.name) updates.name = action.name;
-          if (action.calories != null) updates.calories = action.calories;
-          if (action.protein != null) updates.protein = action.protein;
-          if (action.carbs != null) updates.carbs = action.carbs;
-          if (action.fats != null) updates.fats = action.fats;
-          if (action.date) updates.date = parseDateOrToday(action.date);
-          if (Object.keys(updates).length > 0) updateFoodEntry(target.id, updates);
-          return { success: true };
-        }
-        case 'delete_food_entry': {
-          const target = action.entryId ? foodEntries.find((e) => e.id === action.entryId) : foodEntries.find((e) => e.name.toLowerCase().includes((action.foodName ?? '').toLowerCase()));
-          if (!target) return { success: false, message: 'Food entry not found' };
-          deleteFoodEntry(target.id);
-          return { success: true };
-        }
-        case 'log_sleep': {
-          const date = parseDateOrToday(action.date);
-          const existing = getCheckInByDate(date);
-          if (existing) updateCheckIn(existing.id, { sleepHours: action.sleepHours });
-          else addCheckIn({ date, sleepHours: action.sleepHours });
-          return { success: true };
-        }
-        case 'edit_check_in': {
-          if (!action.date) return { success: false, message: 'Date required' };
-          const existing = getCheckInByDate(parseDateOrToday(action.date));
-          if (!existing) return { success: false, message: 'Check-in not found' };
-          updateCheckIn(existing.id, { sleepHours: action.sleepHours });
-          return { success: true };
-        }
-        case 'delete_check_in': {
-          if (!action.date) return { success: false, message: 'Date required' };
-          const existing = getCheckInByDate(parseDateOrToday(action.date));
-          if (!existing) return { success: false, message: 'Check-in not found' };
-          deleteCheckIn(existing.id);
-          return { success: true };
-        }
-        case 'add_goal':
-          addGoal({ type: action.type as 'calories' | 'workouts' | 'savings', target: action.target, period: action.period as 'weekly' | 'monthly' | 'yearly' });
-          return { success: true };
-        case 'edit_goal': {
-          const target = action.goalId ? goals.find((g) => g.id === action.goalId) : goals.find((g) => g.type === action.goalType);
-          if (!target) return { success: false, message: 'Goal not found' };
-          const updates: Record<string, unknown> = {};
-          if (action.target != null) updates.target = action.target;
-          if (action.period) updates.period = action.period;
-          if (Object.keys(updates).length > 0) updateGoal(target.id, updates);
-          return { success: true };
-        }
-        case 'delete_goal': {
-          const target = action.goalId ? goals.find((g) => g.id === action.goalId) : goals.find((g) => g.type === action.goalType);
-          if (!target) return { success: false, message: 'Goal not found' };
-          deleteGoal(target.id);
-          return { success: true };
-        }
-        default:
-          return { success: false, message: 'Could not understand' };
-      }
-    } catch (e) {
-      return { success: false, message: e instanceof Error ? e.message : 'Unknown error' };
-    }
-  };
+  const voiceContext = {
+    scheduleItems,
+    addScheduleItems,
+    updateScheduleItem,
+    deleteScheduleItem,
+    getScheduleItemById,
+    transactions,
+    addTransaction,
+    updateTransaction,
+    deleteTransaction,
+    foodEntries,
+    addFoodEntry,
+    updateFoodEntry,
+    deleteFoodEntry,
+    addCheckIn,
+    updateCheckIn,
+    deleteCheckIn,
+    getCheckInByDate,
+    workouts,
+    addWorkout,
+    updateWorkout,
+    deleteWorkout,
+    goals,
+    addGoal,
+    updateGoal,
+    deleteGoal,
+  } as VoiceExecutorContext;
 
   const stopListening = () => {
     const rec = recognitionRef.current;
@@ -296,13 +155,13 @@ export function VoiceAgentPanel({ open, onOpenChange }: VoiceAgentPanelProps) {
       const succeeded: string[] = [];
       const failed: string[] = [];
       for (const action of result.actions) {
-        if (action.intent === 'unknown') {
-          failed.push('Could not understand');
-          continue;
+        try {
+          const r = await executeVoiceAction(action, voiceContext);
+          if (r.success) succeeded.push(r.message ?? action.intent);
+          else failed.push(r.message ?? 'Failed');
+        } catch (e) {
+          failed.push(e instanceof Error ? e.message : 'Action failed');
         }
-        const r = executeAction(action);
-        if (r.success) succeeded.push(r.message ?? action.intent);
-        else failed.push(r.message ?? 'Failed');
       }
       if (succeeded.length > 0) {
         toast.success(succeeded.length === 1 ? succeeded[0] : `Done: ${succeeded.join(', ')}`);
