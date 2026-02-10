@@ -21,7 +21,11 @@ RUN npm install -g serve
 
 COPY --from=build /app/dist ./dist
 
+# PORT is set by Railway at runtime; default for local runs.
 ENV PORT=3000
 EXPOSE 3000
 
-CMD ["sh", "-c", "npx serve dist -s -l ${PORT}"]
+# Must pass a value to -l: when PORT is unset, serve gets undefined and throws
+# "Unknown --listen endpoint scheme (protocol): undefined". Use default 3000.
+# Bind to 0.0.0.0 so the server is reachable from outside the container.
+CMD ["sh", "-c", "npx serve dist -s -l tcp://0.0.0.0:${PORT:-3000}"]
