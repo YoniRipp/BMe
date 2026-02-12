@@ -11,7 +11,6 @@ import { ScheduleItem } from '@/components/home/ScheduleItem';
 import { ScheduleModal } from '@/components/home/ScheduleModal';
 import { GoalCard } from '@/components/goals/GoalCard';
 import { GoalModal } from '@/components/goals/GoalModal';
-import { OnboardingTour } from '@/components/onboarding/OnboardingTour';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { Card } from '@/components/ui/card';
 import { Home as HomeIcon, Plus } from 'lucide-react';
@@ -108,8 +107,7 @@ export function Home() {
   };
 
   return (
-    <div className="space-y-6" data-onboarding="home">
-      <OnboardingTour />
+    <div className="space-y-6">
       <PageHeader
         title="Dashboard"
         subtitle="Your life at a glance"
@@ -126,7 +124,6 @@ export function Home() {
           ) : activeSchedule.length === 0 ? (
             <Card 
               className="p-8 border-2 border-dashed cursor-pointer hover:border-primary transition-colors text-center"
-              data-onboarding="add-schedule"
               onClick={() => {
                 setEditingSchedule(undefined);
                 setScheduleModalOpen(true);

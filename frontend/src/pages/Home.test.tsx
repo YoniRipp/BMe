@@ -1,21 +1,18 @@
+/// <reference types="@testing-library/jest-dom" />
+import React, { type ReactNode } from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { BrowserRouter } from 'react-router-dom';
 import { Home } from './Home';
-import { TransactionProvider } from '@/context/TransactionContext';
-import { WorkoutProvider } from '@/context/WorkoutContext';
-import { EnergyProvider } from '@/context/EnergyContext';
-import { ScheduleProvider } from '@/context/ScheduleContext';
-import { GoalsProvider } from '@/context/GoalsContext';
-import { AppProvider } from '@/context/AppContext';
+import { TransactionProvider } from '../context/TransactionContext';
+import { WorkoutProvider } from '../context/WorkoutContext';
+import { EnergyProvider } from '../context/EnergyContext';
+import { ScheduleProvider } from '../context/ScheduleContext';
+import { GoalsProvider } from '../context/GoalsContext';
+import { AppProvider } from '../context/AppContext';
 
-// Mock OnboardingTour
-vi.mock('@/components/onboarding/OnboardingTour', () => ({
-  OnboardingTour: () => null,
-}));
-
-const wrapper = ({ children }: { children: React.ReactNode }) => (
+const wrapper = ({ children }: { children: ReactNode }) => (
   <BrowserRouter>
     <AppProvider>
       <TransactionProvider>
