@@ -30,6 +30,9 @@ export async function findByUserId(userId) {
 export async function create(params) {
   const pool = getPool();
   const { userId, date, name, calories, protein, carbs, fats, portionAmount, portionUnit, servingType } = params;
+  // #region agent log
+  fetch('http://127.0.0.1:7246/ingest/e2e403c5-3c70-4f1e-adfb-38e8c147c460', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'foodEntry.js model:create', message: 'before INSERT', data: { userIdPreview: userId != null ? String(userId).slice(0, 8) : null, userIdType: typeof userId }, timestamp: Date.now(), hypothesisId: 'H3' }) }).catch(() => {});
+  // #endregion
   const d = date ? new Date(date) : new Date();
   const result = await pool.query(
     `INSERT INTO food_entries (user_id, date, name, calories, protein, carbs, fats, portion_amount, portion_unit, serving_type)

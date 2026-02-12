@@ -15,6 +15,9 @@ export function requireAuth(req, res, next) {
   // MCP server: accept shared secret and impersonate a user (for Cursor MCP integration)
   if (config.mcpSecret && config.mcpUserId && token === config.mcpSecret) {
     req.user = { id: config.mcpUserId, email: 'mcp@local', role: 'user' };
+    // #region agent log
+    fetch('http://127.0.0.1:7246/ingest/e2e403c5-3c70-4f1e-adfb-38e8c147c460', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'auth.js:requireAuth', message: 'auth set (mcp)', data: { userIdPreview: String(config.mcpUserId).slice(0, 8), source: 'mcp' }, timestamp: Date.now(), hypothesisId: 'H1' }) }).catch(() => {});
+    // #endregion
     return next();
   }
 
@@ -25,6 +28,9 @@ export function requireAuth(req, res, next) {
       email: payload.email,
       role: payload.role,
     };
+    // #region agent log
+    fetch('http://127.0.0.1:7246/ingest/e2e403c5-3c70-4f1e-adfb-38e8c147c460', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'auth.js:requireAuth', message: 'auth set (jwt)', data: { userIdPreview: String(payload.sub).slice(0, 8), hasSub: typeof payload.sub === 'string' }, timestamp: Date.now(), hypothesisId: 'H1' }) }).catch(() => {});
+    // #endregion
     next();
   } catch (e) {
     return res.status(401).json({ error: 'Invalid or expired token' });
