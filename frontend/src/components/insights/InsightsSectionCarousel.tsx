@@ -17,7 +17,6 @@ export function InsightsSectionCarousel({ slides, 'aria-label': ariaLabel }: Ins
   const {
     setIndex,
     clampedIndex,
-    setClampedIndex,
     goPrev,
     goNext,
     canGoPrev,

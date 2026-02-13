@@ -12,10 +12,12 @@ import dailyCheckInRouter from './dailyCheckIn.js';
 import goalRouter from './goal.js';
 import foodSearchRouter from './foodSearch.js';
 import voiceRouter from './voice.js';
+import adminRouter from './admin.js';
 
 const router = Router();
 
 router.use(authRouter);
+router.use(adminRouter);
 router.use(usersRouter);
 router.use(scheduleRouter);
 router.use(transactionRouter);

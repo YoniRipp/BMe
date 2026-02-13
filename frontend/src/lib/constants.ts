@@ -19,6 +19,7 @@ export const SAMPLE_TRANSACTIONS: Transaction[] = [
     date: new Date(2025, 0, 15),
     type: 'income',
     amount: 5000,
+    currency: 'USD',
     category: 'Salary',
     description: 'Monthly salary',
     isRecurring: true
@@ -28,6 +29,7 @@ export const SAMPLE_TRANSACTIONS: Transaction[] = [
     date: new Date(2025, 0, 14),
     type: 'expense',
     amount: 50,
+    currency: 'USD',
     category: 'Food',
     description: 'Grocery shopping',
     isRecurring: false
@@ -37,6 +39,7 @@ export const SAMPLE_TRANSACTIONS: Transaction[] = [
     date: new Date(2025, 0, 13),
     type: 'expense',
     amount: 30,
+    currency: 'USD',
     category: 'Transportation',
     description: 'Gas',
     isRecurring: false
@@ -46,6 +49,7 @@ export const SAMPLE_TRANSACTIONS: Transaction[] = [
     date: new Date(2025, 0, 12),
     type: 'expense',
     amount: 100,
+    currency: 'USD',
     category: 'Entertainment',
     description: 'Concert tickets',
     isRecurring: false
@@ -55,6 +59,7 @@ export const SAMPLE_TRANSACTIONS: Transaction[] = [
     date: new Date(2025, 0, 10),
     type: 'income',
     amount: 500,
+    currency: 'USD',
     category: 'Freelance',
     description: 'Web design project',
     isRecurring: false

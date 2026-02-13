@@ -42,7 +42,7 @@ export function Home() {
   const [editingGoal, setEditingGoal] = useState<Goal | undefined>(undefined);
 
   // Calculate financial stats (converted to display currency)
-  const { monthlyIncome, monthlyExpenses, balance } = useMemo(() => {
+  const { monthlyIncome, balance } = useMemo(() => {
     const monthStart = startOfMonth(new Date());
     const monthEnd = endOfMonth(new Date());
     const monthly = transactions.filter((t) => {

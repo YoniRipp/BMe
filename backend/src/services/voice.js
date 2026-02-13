@@ -9,6 +9,7 @@ import { normTime, normCat } from '../utils/validation.js';
 import { VOICE_TOOLS } from '../../voice/tools.js';
 import { getNutritionForFoodName, unitToGrams } from '../models/foodSearch.js';
 import { lookupAndCreateFood } from './foodLookupGemini.js';
+import { logError } from './appLog.js';
 
 const VOICE_PROMPT = `You are a voice assistant for a life management app. The user speaks in Hebrew or English.
 Parse their message and call the appropriate function(s) for each action they want to take.
@@ -17,6 +18,7 @@ Food and drink rules:
 - Only when the user EXPLICITLY says they paid or spent a specific amount (e.g. "bought X for 9", "paid 5 for coffee", "cost 10") do you call BOTH add_transaction (with that amount, category "Food", description = item name) AND add_food (food = item name in English).
 - When the user says ONLY a food or drink name (e.g. "Diet Coke", "coffee") or "ate X" / "had X" WITHOUT any amount or purchase wording, call ONLY add_food. Do NOT call add_transaction. Do not invent or guess an amount.
 Examples: "Diet Coke" or "had a Diet Coke" → add_food only. "Bought Diet Coke for 5" → add_transaction (expense, 5, Food, Diet Coke) + add_food (Diet Coke). "work 8-18, eat 18-22" → add_schedule twice. "bought coke for 10, slept 8 hours" → add_transaction (expense, 10, Food, Coke) + add_food (Coke) + log_sleep.
+Sleep: When the user talks about sleep or waking up, use log_sleep (hours) or add_schedule with category Sleep. E.g. "slept 7 hours" → log_sleep(sleepHours: 7). "woke up from 6 to 8" or "slept from 6 to 8" → log_sleep(sleepHours: 2) or add_schedule with Sleep 06:00-08:00. Do NOT use add_food for sleep-related phrases.
 Workouts: When the user says they worked out and gives exercises with sets/reps/weight, call add_workout with type "strength". Use title "Workout" when they do not give a workout name; when they say a program name (e.g. SS, Starting Strength) use that as title. Do not use an exercise name as the workout title. Each exercise in the exercises array must use the exact exercise name the user said (e.g. Squat, Deadlift). Sets and reps: use sets × reps (e.g. 3 reps 5 sets = 5 sets of 3 reps; 3x3 = 3 sets, 3 reps). durationMinutes is optional (default 30).
 Call all relevant functions; the user may combine multiple actions in one message.`;
 
@@ -348,12 +350,17 @@ const HANDLERS = {
   delete_goal: (args, ctx) => Promise.resolve({ merge: buildDeleteGoal(args, ctx) }),
 };
 
-/**
- * @param {string} text
- * @param {string} [lang]
- * @returns {Promise<{ actions: object[] }>}
- */
-/** When Gemini blocks (safety/empty), treat transcript as a single add_food so the user is never blocked. */
+/** True if transcript looks like a short food/drink phrase (no clear sleep/schedule/time patterns). */
+function transcriptLooksLikeFood(text) {
+  const t = (text || '').trim();
+  if (t.length > 80) return false;
+  const lower = t.toLowerCase();
+  const hasTimePattern = /\d{1,2}:\d{2}|\d+\s*hours?|woke|slept|sleep|schedule|עד|מ-|שעות|השכמתי|ישנתי|שינה/i.test(t) || /\d+\s*to\s*\d|\d+\s*-\s*\d/.test(lower);
+  if (hasTimePattern) return false;
+  return true;
+}
+
+/** When Gemini blocks (safety/empty), treat transcript as add_food only if it looks like food; else return unknown and log error. */
 function fallbackAddFoodFromTranscript(transcript, todayStr) {
   const name = (transcript || '').trim() || 'Unknown';
   return {
@@ -374,7 +381,21 @@ function fallbackAddFoodFromTranscript(transcript, todayStr) {
   };
 }
 
-export async function parseTranscript(text, lang = 'auto') {
+async function fallbackOrUnknown(transcript, todayStr, reason, userId) {
+  if (transcriptLooksLikeFood(transcript)) {
+    return fallbackAddFoodFromTranscript(transcript, todayStr);
+  }
+  await logError('Voice: no action from Gemini', { transcript: transcript?.trim?.() ?? transcript, reason }, userId);
+  return { actions: [{ intent: 'unknown' }] };
+}
+
+/**
+ * @param {string} text
+ * @param {string} [lang]
+ * @param {string} [userId] - For error logging
+ * @returns {Promise<{ actions: object[] }>}
+ */
+export async function parseTranscript(text, lang = 'auto', userId = null) {
   if (!config.geminiApiKey) {
     throw new Error('Voice service not configured (missing GEMINI_API_KEY)');
   }
@@ -397,13 +418,13 @@ export async function parseTranscript(text, lang = 'auto') {
     });
   } catch (e) {
     console.error('Gemini voice parse blocked or error:', e?.message ?? e);
-    return fallbackAddFoodFromTranscript(text, todayStr);
+    return fallbackOrUnknown(text, todayStr, e?.message ?? String(e), userId);
   }
 
   const response = result.response;
   if (!response) {
     console.error('Gemini voice parse: empty response');
-    return fallbackAddFoodFromTranscript(text, todayStr);
+    return fallbackOrUnknown(text, todayStr, 'empty response', userId);
   }
   const functionCalls = response.functionCalls?.() ?? [];
   const actions = [];

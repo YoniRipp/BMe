@@ -1,9 +1,14 @@
-import { Database, Download, RefreshCw, Trash2 } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Database, Download, RefreshCw, Trash2, FileText, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 import { storage, STORAGE_KEYS } from '@/lib/storage';
 import { DEFAULT_SETTINGS } from '@/types/settings';
 import { toast } from 'sonner';
+import { useApp } from '@/context/AppContext';
+import { adminApi, type AppLogEntry } from '@/core/api/admin';
 import { SettingsSection } from './SettingsSection';
+import { cn } from '@/lib/utils';
 
 interface DataManagementSectionProps {
   onResetClick: () => void;
@@ -11,6 +16,21 @@ interface DataManagementSectionProps {
 }
 
 export function DataManagementSection({ onResetClick, onClearClick }: DataManagementSectionProps) {
+  const { user } = useApp();
+  const [logTab, setLogTab] = useState<'action' | 'error'>('action');
+  const [logs, setLogs] = useState<AppLogEntry[]>([]);
+  const [logsLoading, setLogsLoading] = useState(false);
+
+  useEffect(() => {
+    if (user?.role !== 'admin') return;
+    setLogsLoading(true);
+    adminApi
+      .getLogs(logTab)
+      .then(setLogs)
+      .catch(() => toast.error('Failed to load logs'))
+      .finally(() => setLogsLoading(false));
+  }, [user?.role, logTab]);
+
   const handleExportData = () => {
     try {
       const allData = {
@@ -58,6 +78,59 @@ export function DataManagementSection({ onResetClick, onClearClick }: DataManage
           <Trash2 className="w-4 h-4 mr-2" />
           Clear All Data
         </Button>
+
+        {user?.role === 'admin' && (
+          <div className="space-y-3 pt-4 border-t border-border">
+            <p className="text-sm font-medium text-muted-foreground">Logs</p>
+            <div className="flex gap-2">
+              <Button
+                variant={logTab === 'action' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setLogTab('action')}
+              >
+                <FileText className="w-4 h-4 mr-1.5" />
+                Logs
+              </Button>
+              <Button
+                variant={logTab === 'error' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setLogTab('error')}
+              >
+                <AlertCircle className="w-4 h-4 mr-1.5" />
+                Log errors
+              </Button>
+            </div>
+            <Card className="p-3 max-h-64 overflow-y-auto">
+              {logsLoading ? (
+                <p className="text-sm text-muted-foreground">Loading...</p>
+              ) : logs.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No entries</p>
+              ) : (
+                <ul className="space-y-2 text-sm">
+                  {logs.map((entry) => (
+                    <li
+                      key={entry.id}
+                      className={cn(
+                        'rounded border p-2',
+                        entry.level === 'error' ? 'border-destructive/50 bg-destructive/5' : 'border-border bg-muted/30'
+                      )}
+                    >
+                      <span className="text-muted-foreground text-xs">
+                        {new Date(entry.createdAt).toLocaleString()}
+                      </span>
+                      <p className="font-medium mt-0.5">{entry.message}</p>
+                      {entry.details && Object.keys(entry.details).length > 0 && (
+                        <pre className="mt-1 text-xs overflow-x-auto whitespace-pre-wrap break-words text-muted-foreground">
+                          {JSON.stringify(entry.details, null, 2)}
+                        </pre>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Card>
+          </div>
+        )}
       </div>
     </SettingsSection>
   );

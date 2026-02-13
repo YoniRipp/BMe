@@ -14,7 +14,7 @@ export function useCarouselIndex({ slideCount, initialIndex = 0 }: UseCarouselIn
 
   const clampedIndex = Math.max(0, Math.min(index, slideCount - 1));
   const setClampedIndex = useCallback(
-    (next: number) => setIndex((i) => Math.max(0, Math.min(next, slideCount - 1))),
+    (next: number) => setIndex((_) => Math.max(0, Math.min(next, slideCount - 1))),
     [slideCount]
   );
 

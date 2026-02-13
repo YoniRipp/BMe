@@ -138,6 +138,20 @@ export async function initSchema() {
     await client.query(`ALTER TABLE foods ADD COLUMN IF NOT EXISTS is_liquid boolean DEFAULT false;`).catch(() => {});
     await client.query(`ALTER TABLE foods ADD COLUMN IF NOT EXISTS serving_sizes_ml jsonb;`).catch(() => {});
     await client.query(`ALTER TABLE foods ADD COLUMN IF NOT EXISTS preparation text DEFAULT 'cooked';`).catch(() => {});
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS app_logs (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        level text NOT NULL CHECK (level IN ('action', 'error')),
+        message text NOT NULL,
+        details jsonb,
+        user_id uuid REFERENCES users(id),
+        created_at timestamptz DEFAULT now()
+      );
+    `);
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_app_logs_level_created_at
+      ON app_logs (level, created_at DESC);
+    `).catch(() => {});
   } finally {
     client.release();
   }

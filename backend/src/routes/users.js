@@ -5,6 +5,7 @@ import bcrypt from 'bcrypt';
 import { Router } from 'express';
 import { getPool } from '../db/index.js';
 import { requireAuth, requireAdmin } from '../middleware/auth.js';
+import { logAction } from '../services/appLog.js';
 
 const SALT_ROUNDS = 10;
 
@@ -52,6 +53,7 @@ async function createUser(req, res) {
        RETURNING id, email, name, role, created_at`,
       [email.trim().toLowerCase(), password_hash, name.trim(), r]
     );
+    await logAction('User created', { email: result.rows[0].email, role: r }, req.user.id);
     res.status(201).json(rowToUser(result.rows[0]));
   } catch (e) {
     if (e.code === '23505') {
@@ -84,6 +86,7 @@ async function updateUser(req, res) {
       values
     );
     if (result.rowCount === 0) return res.status(404).json({ error: 'User not found' });
+    await logAction('User updated', { targetId: id, email: result.rows[0].email, fields: { name: name !== undefined, role: role !== undefined, password: password !== undefined } }, req.user.id);
     res.json(rowToUser(result.rows[0]));
   } catch (e) {
     console.error('update user error:', e?.message ?? e);
@@ -99,8 +102,9 @@ async function deleteUser(req, res) {
       return res.status(400).json({ error: 'Cannot delete your own account' });
     }
     const pool = getPool();
-    const result = await pool.query('DELETE FROM users WHERE id = $1 RETURNING id', [id]);
+    const result = await pool.query('DELETE FROM users WHERE id = $1 RETURNING id, email', [id]);
     if (result.rowCount === 0) return res.status(404).json({ error: 'User not found' });
+    await logAction('User deleted', { targetId: id, targetEmail: result.rows[0].email }, req.user.id);
     res.status(204).send();
   } catch (e) {
     console.error('delete user error:', e?.message ?? e);

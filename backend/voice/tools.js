@@ -217,7 +217,7 @@ export const VOICE_TOOLS = [
       },
       {
         name: 'log_sleep',
-        description: 'Log sleep duration in hours. User may say slept 8 hours, slept 7, etc.',
+        description: 'Log sleep duration in hours. User may say slept 8 hours, slept 7, woke up from 6 to 8 (2 hours), etc.',
         parameters: {
           type: 'object',
           properties: {

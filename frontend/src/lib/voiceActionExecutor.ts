@@ -108,7 +108,7 @@ const handleDeleteSchedule: Handler = async (action, ctx) => {
 const handleAddTransaction: Handler = async (action, ctx) => {
   if (action.intent !== 'add_transaction') return { success: false };
   const category: string = action.type === 'income' ? (VALID_INCOME.has(action.category as (typeof TRANSACTION_CATEGORIES.income)[number]) ? action.category : 'Other') : (VALID_EXPENSE.has(action.category as (typeof TRANSACTION_CATEGORIES.expense)[number]) ? action.category : 'Other');
-  await ctx.addTransaction({ type: action.type, amount: action.amount >= 0 ? action.amount : 0, category, description: action.description, date: parseDateOrToday(action.date), isRecurring: action.isRecurring ?? false });
+  await ctx.addTransaction({ type: action.type, amount: action.amount >= 0 ? action.amount : 0, currency: 'USD', category, description: action.description, date: parseDateOrToday(action.date), isRecurring: action.isRecurring ?? false });
   return { success: true };
 };
 

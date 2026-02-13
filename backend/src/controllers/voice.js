@@ -19,7 +19,8 @@ export const understand = asyncHandler(async (req, res) => {
     return sendError(res, 400, 'Transcript is empty');
   }
   try {
-    const { actions } = await voiceService.parseTranscript(text, lang ?? 'auto');
+    const userId = req.user?.id ?? null;
+    const { actions } = await voiceService.parseTranscript(text, lang ?? 'auto', userId);
     sendJson(res, { actions });
   } catch (e) {
     console.error('Gemini / voice understand error:', e?.message ?? e);
