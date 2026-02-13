@@ -17,7 +17,8 @@ Parse their message and call the appropriate function(s) for each action they wa
 Food and drink rules:
 - Only when the user EXPLICITLY says they paid or spent a specific amount (e.g. "bought X for 9", "paid 5 for coffee", "cost 10") do you call BOTH add_transaction (with that amount, category "Food", description = item name) AND add_food (food = item name in English).
 - When the user says ONLY a food or drink name (e.g. "Diet Coke", "coffee") or "ate X" / "had X" WITHOUT any amount or purchase wording, call ONLY add_food. Do NOT call add_transaction. Do not invent or guess an amount.
-Examples: "Diet Coke" or "had a Diet Coke" → add_food only. "Bought Diet Coke for 5" → add_transaction (expense, 5, Food, Diet Coke) + add_food (Diet Coke). "work 8-18, eat 18-22" → add_schedule twice. "bought coke for 10, slept 8 hours" → add_transaction (expense, 10, Food, Coke) + add_food (Coke) + log_sleep.
+- When the user says they ate or had a meal WITH a time range (e.g. "ate from 6 to 8", "had dinner 18:00-20:00", "I ate at 6-7" and describes what they ate), call BOTH add_schedule (one item: title "Meal" or the meal description, category "Meal", startTime/endTime in HH:MM 24h) AND add_food with the same startTime and endTime and the food name. When they say they ate something without a time range (e.g. "I ate today XYZ"), call ONLY add_food—no add_schedule.
+Examples: "Diet Coke" or "had a Diet Coke" → add_food only. "Bought Diet Coke for 5" → add_transaction (expense, 5, Food, Diet Coke) + add_food (Diet Coke). "work 8-18, eat 18-22" → add_schedule twice. "I ate from 6 to 8, had pasta" → add_schedule (Meal 18:00-20:00) + add_food (pasta, startTime 18:00, endTime 20:00). "bought coke for 10, slept 8 hours" → add_transaction (expense, 10, Food, Coke) + add_food (Coke) + log_sleep.
 Sleep: When the user talks about sleep or waking up, use log_sleep (hours) or add_schedule with category Sleep. E.g. "slept 7 hours" → log_sleep(sleepHours: 7). "woke up from 6 to 8" or "slept from 6 to 8" → log_sleep(sleepHours: 2) or add_schedule with Sleep 06:00-08:00. Do NOT use add_food for sleep-related phrases.
 Workouts: When the user says they worked out and gives exercises with sets/reps/weight, call add_workout with type "strength". Use title "Workout" when they do not give a workout name; when they say a program name (e.g. SS, Starting Strength) use that as title. Do not use an exercise name as the workout title. Each exercise in the exercises array must use the exact exercise name the user said (e.g. Squat, Deadlift). Sets and reps: use sets × reps (e.g. 3 reps 5 sets = 5 sets of 3 reps; 3x3 = 3 sets, 3 reps). durationMinutes is optional (default 30).
 Call all relevant functions; the user may combine multiple actions in one message.`;
@@ -230,6 +231,8 @@ async function buildAddFood(args, ctx) {
     amount: numAmount,
     unit,
     date: parseDate(args.date, ctx.todayStr),
+    startTime: normTime(args.startTime) ?? undefined,
+    endTime: normTime(args.endTime) ?? undefined,
   };
   if (isDbConfigured()) {
     try {

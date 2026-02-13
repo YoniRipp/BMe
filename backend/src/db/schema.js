@@ -110,6 +110,8 @@ export async function initSchema() {
     await client.query(`ALTER TABLE food_entries ADD COLUMN IF NOT EXISTS portion_amount numeric;`).catch(() => {});
     await client.query(`ALTER TABLE food_entries ADD COLUMN IF NOT EXISTS portion_unit text;`).catch(() => {});
     await client.query(`ALTER TABLE food_entries ADD COLUMN IF NOT EXISTS serving_type text;`).catch(() => {});
+    await client.query(`ALTER TABLE food_entries ADD COLUMN IF NOT EXISTS start_time text;`).catch(() => {});
+    await client.query(`ALTER TABLE food_entries ADD COLUMN IF NOT EXISTS end_time text;`).catch(() => {});
     await client.query(`
       CREATE TABLE IF NOT EXISTS daily_check_ins (
         id uuid PRIMARY KEY DEFAULT gen_random_uuid(),

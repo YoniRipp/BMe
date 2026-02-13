@@ -20,7 +20,13 @@ function getSpeechRecognition(): typeof window.SpeechRecognition | null {
 
 type State = 'idle' | 'listening' | 'processing';
 
-export function VoiceAgentButton() {
+interface VoiceAgentButtonProps {
+  /** When provided, the button only toggles the voice panel (one tap open, one tap close). */
+  panelOpen?: boolean;
+  onTogglePanel?: () => void;
+}
+
+export function VoiceAgentButton({ panelOpen, onTogglePanel }: VoiceAgentButtonProps = {}) {
   const { scheduleItems, addScheduleItems, updateScheduleItem, deleteScheduleItem, getScheduleItemById } = useSchedule();
   const { transactions, addTransaction, updateTransaction, deleteTransaction } = useTransactions();
   const { foodEntries, addFoodEntry, updateFoodEntry, deleteFoodEntry, updateCheckIn, addCheckIn, deleteCheckIn, getCheckInByDate } = useEnergy();
@@ -125,6 +131,10 @@ export function VoiceAgentButton() {
   }, [SpeechRecognitionClass]);
 
   const handleClick = async () => {
+    if (onTogglePanel != null) {
+      onTogglePanel();
+      return;
+    }
     if (state === 'listening') {
       const text = transcript.trim();
       if (!text) {
@@ -175,7 +185,7 @@ export function VoiceAgentButton() {
     }
   };
 
-  const isActive = state === 'listening' || state === 'processing';
+  const isActive = onTogglePanel != null ? panelOpen : state === 'listening' || state === 'processing';
 
   return (
     <Button
@@ -184,11 +194,21 @@ export function VoiceAgentButton() {
         'fixed bottom-20 right-4 z-50 h-14 w-14 rounded-full shadow-lg transition-all md:right-6',
         isActive && 'animate-pulse ring-2 ring-primary ring-offset-2 ring-offset-background'
       )}
-      aria-label={state === 'listening' ? 'מרח - מאזין (לחץ לעצור ולשלוח)' : state === 'processing' ? 'מרח - מעבד' : 'מרח - Voice Agent (לחץ להאזנה)'}
+      aria-label={
+        onTogglePanel != null
+          ? panelOpen
+            ? 'מרח - לחץ לסגירה'
+            : 'מרח - Voice Agent (לחץ לפתיחה)'
+          : state === 'listening'
+            ? 'מרח - מאזין (לחץ לעצור ולשלוח)'
+            : state === 'processing'
+              ? 'מרח - מעבד'
+              : 'מרח - Voice Agent (לחץ להאזנה)'
+      }
       onClick={handleClick}
-      disabled={state === 'processing'}
+      disabled={onTogglePanel == null && state === 'processing'}
     >
-      {state === 'processing' ? (
+      {onTogglePanel == null && state === 'processing' ? (
         <Loader2 className="h-6 w-6 animate-spin" />
       ) : (
         <Mic className="h-6 w-6" />

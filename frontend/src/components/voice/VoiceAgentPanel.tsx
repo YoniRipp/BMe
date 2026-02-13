@@ -188,7 +188,10 @@ export function VoiceAgentPanel({ open, onOpenChange }: VoiceAgentPanelProps) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent
+        className="sm:max-w-md"
+        onInteractOutside={(e) => e.preventDefault()}
+      >
         <DialogHeader>
           <DialogTitle>מרח / Voice Agent</DialogTitle>
         </DialogHeader>

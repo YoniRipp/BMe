@@ -174,7 +174,7 @@ export const VOICE_TOOLS = [
       },
       {
         name: 'add_food',
-        description: 'Log food or drink consumed. If the user says ONLY a food or drink name (e.g. "Diet Coke", "coffee", "ate an apple") or "had X" without mentioning buying or a price, call ONLY add_food—do not call add_transaction. When the user explicitly says they bought X for Y money, call BOTH add_transaction and add_food. Output food name in English.',
+        description: 'Log food or drink consumed. If the user says ONLY a food or drink name (e.g. "Diet Coke", "coffee", "ate an apple") or "had X" without mentioning buying or a price, call ONLY add_food—do not call add_transaction. When the user explicitly says they bought X for Y money, call BOTH add_transaction and add_food. When the user says they ate or had a meal WITH a time range (e.g. "ate from 6 to 8", "had dinner 18:00-20:00", "I ate at 6-7"), call BOTH add_schedule (one item: title "Meal" or the meal description, category "Meal", startTime/endTime in HH:MM 24h) AND add_food with the same startTime and endTime and the food name. When they say they ate something without a time range (e.g. "I ate today XYZ"), call ONLY add_food—no add_schedule. Output food name in English. Times in HH:MM 24h (e.g. 18:00, 06:00).',
         parameters: {
           type: 'object',
           properties: {
@@ -182,6 +182,8 @@ export const VOICE_TOOLS = [
             amount: { type: 'number', description: 'Quantity' },
             unit: { type: 'string', description: 'g, kg, ml, L, cup, slice, serving, etc.' },
             date: { type: 'string', description: 'YYYY-MM-DD, default today' },
+            startTime: { type: 'string', description: 'Optional. Meal start time HH:MM 24h (e.g. 18:00). Use when user gives a time range for the meal.' },
+            endTime: { type: 'string', description: 'Optional. Meal end time HH:MM 24h (e.g. 20:00). Use when user gives a time range for the meal.' },
           },
           required: ['food'],
         },

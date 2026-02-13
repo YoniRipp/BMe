@@ -12,6 +12,20 @@ import { Zap, Moon, Plus, Trash2, Pencil } from 'lucide-react';
 import { isSameDay, startOfDay, endOfDay, isWithinInterval, format } from 'date-fns';
 import { getPeriodRange, toLocalDateString } from '@/lib/dateRanges';
 
+function formatMealTime(entry: FoodEntry): string | null {
+  const start = entry.startTime;
+  const end = entry.endTime;
+  if (!start && !end) return null;
+  if (start && end) {
+    const [sh, sm] = start.split(':').map(Number);
+    const [eh, em] = end.split(':').map(Number);
+    const durMin = (eh * 60 + em) - (sh * 60 + sm);
+    const durStr = durMin >= 60 ? `${Math.floor(durMin / 60)}h` : `${durMin} min`;
+    return `${start}–${end} (${durStr})`;
+  }
+  return start ?? end ?? null;
+}
+
 export function Energy() {
   const { checkIns, foodEntries, energyLoading, addCheckIn, updateCheckIn, deleteCheckIn, addFoodEntry, updateFoodEntry, deleteFoodEntry } = useEnergy();
   const [sleepModalOpen, setSleepModalOpen] = useState(false);
@@ -62,7 +76,24 @@ export function Energy() {
       const max = parseInt(calorieRange.max);
       filtered = filtered.filter(f => f.calories <= max);
     }
-    
+
+    // Sort: date desc, then entries with time first, then by startTime asc
+    filtered.sort((a, b) => {
+      const dateA = new Date(a.date).getTime();
+      const dateB = new Date(b.date).getTime();
+      if (dateB !== dateA) return dateB - dateA;
+      const hasTimeA = !!(a.startTime ?? a.endTime);
+      const hasTimeB = !!(b.startTime ?? b.endTime);
+      if (hasTimeB && !hasTimeA) return 1;
+      if (hasTimeA && !hasTimeB) return -1;
+      if (hasTimeA && hasTimeB) {
+        const tA = a.startTime ?? a.endTime ?? '';
+        const tB = b.startTime ?? b.endTime ?? '';
+        return tA.localeCompare(tB);
+      }
+      return 0;
+    });
+
     return filtered;
   }, [foodEntries, caloriePeriod, searchQuery, dateRange, calorieRange]);
 
@@ -250,7 +281,9 @@ export function Energy() {
             </Card>
           ) : (
             <>
-              {periodFoodEntries.map((entry) => (
+              {periodFoodEntries.map((entry) => {
+                const mealTime = formatMealTime(entry);
+                return (
                 <div 
                   key={entry.id} 
                   className="flex items-center justify-between p-3 bg-muted rounded-lg"
@@ -269,6 +302,9 @@ export function Energy() {
                     onClick={() => handleEditFood(entry)}
                   >
                     <p className="font-medium">{entry.name}</p>
+                    {mealTime && (
+                      <p className="text-sm text-muted-foreground">{mealTime}</p>
+                    )}
                     <p className="text-sm text-muted-foreground">
                       {entry.calories} cal • P: {entry.protein}g C: {entry.carbs}g F: {entry.fats}g
                     </p>
@@ -285,7 +321,8 @@ export function Energy() {
                     <Trash2 className="w-4 h-4" aria-hidden="true" />
                   </Button>
                 </div>
-              ))}
+              );
+              })}
               <Card 
                 className="p-6 border-2 border-dashed cursor-pointer hover:border-primary transition-colors text-center bg-muted/50"
                 onClick={handleAddFood}

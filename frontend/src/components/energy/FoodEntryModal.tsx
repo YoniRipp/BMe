@@ -237,6 +237,8 @@ export function FoodEntryModal({ open, onOpenChange, onSave, entry }: FoodEntryM
         portionUnit: isLiquid ? ('ml' as const) : ('g' as const),
         ...(isLiquid && servingType && servingType !== 'other' && { servingType }),
       }),
+      ...(entry?.startTime != null && { startTime: entry.startTime }),
+      ...(entry?.endTime != null && { endTime: entry.endTime }),
     });
     onOpenChange(false);
   };

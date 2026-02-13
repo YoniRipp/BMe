@@ -1,7 +1,7 @@
 /**
  * Food entry service.
  */
-import { parseDate, validateNonNegative, requireNonEmptyString } from '../utils/validation.js';
+import { parseDate, validateNonNegative, requireNonEmptyString, normTime } from '../utils/validation.js';
 import { requireId, requireFound, buildUpdates } from '../utils/serviceHelpers.js';
 import * as foodEntryModel from '../models/foodEntry.js';
 
@@ -9,8 +9,13 @@ export async function list(userId) {
   return foodEntryModel.findByUserId(userId);
 }
 
+function optionalTime(v) {
+  if (v == null || typeof v !== 'string') return undefined;
+  return normTime(v.trim()) || undefined;
+}
+
 export async function create(userId, body) {
-  const { date, name, calories, protein, carbs, fats, portionAmount, portionUnit, servingType } = body ?? {};
+  const { date, name, calories, protein, carbs, fats, portionAmount, portionUnit, servingType, startTime, endTime } = body ?? {};
   return foodEntryModel.create({
     userId,
     date: parseDate(date),
@@ -22,6 +27,8 @@ export async function create(userId, body) {
     portionAmount: portionAmount != null ? validateNonNegative(portionAmount, 'portionAmount') : undefined,
     portionUnit: portionUnit != null && typeof portionUnit === 'string' ? portionUnit.trim() || undefined : undefined,
     servingType: servingType != null && typeof servingType === 'string' ? servingType.trim() || undefined : undefined,
+    startTime: optionalTime(startTime),
+    endTime: optionalTime(endTime),
   });
 }
 
@@ -37,6 +44,8 @@ export async function update(userId, id, body) {
     portionAmount: (v) => (v != null ? validateNonNegative(v, 'portionAmount') : undefined),
     portionUnit: (v) => (v != null && typeof v === 'string' ? v.trim() || undefined : undefined),
     servingType: (v) => (v != null && typeof v === 'string' ? v.trim() || undefined : undefined),
+    startTime: (v) => optionalTime(v),
+    endTime: (v) => optionalTime(v),
   });
   const updated = await foodEntryModel.update(id, userId, updates);
   requireFound(updated, 'Food entry');
