@@ -75,6 +75,9 @@ export async function initSchema() {
       ALTER TABLE transactions ADD COLUMN IF NOT EXISTS user_id uuid REFERENCES users(id);
     `).catch(() => {});
     await client.query(`
+      ALTER TABLE transactions ADD COLUMN IF NOT EXISTS currency text NOT NULL DEFAULT 'USD';
+    `).catch(() => {});
+    await client.query(`
       ALTER TABLE goals ADD COLUMN IF NOT EXISTS user_id uuid REFERENCES users(id);
     `).catch(() => {});
 

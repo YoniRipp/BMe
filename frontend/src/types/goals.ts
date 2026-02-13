@@ -1,5 +1,5 @@
 export type GoalType = 'calories' | 'workouts' | 'savings';
-export type GoalPeriod = 'weekly' | 'monthly' | 'yearly';
+export type GoalPeriod = 'daily' | 'weekly' | 'monthly' | 'yearly';
 
 export interface Goal {
   id: string;
@@ -11,4 +11,4 @@ export interface Goal {
 }
 
 export const GOAL_TYPES: GoalType[] = ['calories', 'workouts', 'savings'];
-export const GOAL_PERIODS: GoalPeriod[] = ['weekly', 'monthly', 'yearly'];
+export const GOAL_PERIODS: GoalPeriod[] = ['daily', 'weekly', 'monthly', 'yearly'];

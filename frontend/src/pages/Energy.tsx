@@ -1,19 +1,22 @@
 import { useState, useMemo } from 'react';
 import { useEnergy } from '@/hooks/useEnergy';
-import { FoodEntry } from '@/types/energy';
+import { FoodEntry, type DailyCheckIn } from '@/types/energy';
 import { PageHeader } from '@/components/shared/PageHeader';
+import { ContentWithLoading } from '@/components/shared/ContentWithLoading';
 import { SleepEditModal } from '@/components/energy/SleepEditModal';
 import { FoodEntryModal } from '@/components/energy/FoodEntryModal';
 import { ConfirmationDialog } from '@/components/shared/ConfirmationDialog';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Zap, Moon, Plus, Trash2 } from 'lucide-react';
-import { isSameDay, startOfDay, endOfDay, isWithinInterval } from 'date-fns';
-import { getPeriodRange } from '@/lib/dateRanges';
+import { Zap, Moon, Plus, Trash2, Pencil } from 'lucide-react';
+import { isSameDay, startOfDay, endOfDay, isWithinInterval, format } from 'date-fns';
+import { getPeriodRange, toLocalDateString } from '@/lib/dateRanges';
 
 export function Energy() {
-  const { checkIns, foodEntries, addCheckIn, updateCheckIn, addFoodEntry, updateFoodEntry, deleteFoodEntry } = useEnergy();
+  const { checkIns, foodEntries, energyLoading, addCheckIn, updateCheckIn, deleteCheckIn, addFoodEntry, updateFoodEntry, deleteFoodEntry } = useEnergy();
   const [sleepModalOpen, setSleepModalOpen] = useState(false);
+  const [editingCheckIn, setEditingCheckIn] = useState<DailyCheckIn | undefined>(undefined);
+  const [deleteConfirmCheckInId, setDeleteConfirmCheckInId] = useState<string | null>(null);
   const [foodModalOpen, setFoodModalOpen] = useState(false);
   const [editingFoodEntry, setEditingFoodEntry] = useState<FoodEntry | undefined>(undefined);
   const [caloriePeriod, setCaloriePeriod] = useState<'daily' | 'weekly' | 'monthly' | 'yearly'>('daily');
@@ -111,14 +114,40 @@ export function Energy() {
     return checkIns.find(c => isSameDay(new Date(c.date), now));
   }, [checkIns, now]);
 
+  const recentCheckIns = useMemo(() => {
+    return [...checkIns]
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      .slice(0, 14);
+  }, [checkIns]);
+
   const handleSleepSave = (hours: number) => {
-    if (todayCheckIn) {
+    if (editingCheckIn) {
+      updateCheckIn(editingCheckIn.id, { sleepHours: hours });
+      setEditingCheckIn(undefined);
+    } else if (todayCheckIn) {
       updateCheckIn(todayCheckIn.id, { sleepHours: hours });
     } else {
       addCheckIn({
         date: now,
         sleepHours: hours,
       });
+    }
+  };
+
+  const openSleepModalForToday = () => {
+    setEditingCheckIn(undefined);
+    setSleepModalOpen(true);
+  };
+
+  const openSleepModalForCheckIn = (checkIn: DailyCheckIn) => {
+    setEditingCheckIn(checkIn);
+    setSleepModalOpen(true);
+  };
+
+  const confirmDeleteCheckIn = () => {
+    if (deleteConfirmCheckInId) {
+      deleteCheckIn(deleteConfirmCheckInId);
+      setDeleteConfirmCheckInId(null);
     }
   };
 
@@ -161,6 +190,7 @@ export function Energy() {
         iconColor="text-purple-600"
       />
 
+      <ContentWithLoading loading={energyLoading} loadingText="Loading energy...">
       {/* Calories Balance Card */}
       <Card className="p-6">
         <h3 className="text-lg font-semibold mb-4">Calorie Balance</h3>
@@ -307,21 +337,64 @@ export function Energy() {
             </p>
           )}
         </div>
-        
+
+        {recentCheckIns.length > 0 && (
+          <div className="space-y-2 mb-4">
+            <h4 className="text-sm font-medium text-muted-foreground">Sleep log</h4>
+            {recentCheckIns.map((c) => {
+              const dateStr = toLocalDateString(new Date(c.date));
+              return (
+                <div
+                  key={c.id}
+                  className="flex items-center justify-between p-3 bg-muted rounded-lg"
+                >
+                  <div>
+                    <p className="font-medium">{format(new Date(c.date), 'EEE, MMM d, yyyy')}</p>
+                    <p className="text-sm text-muted-foreground">{c.sleepHours ?? 0}h slept</p>
+                  </div>
+                  <div className="flex gap-1">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => openSleepModalForCheckIn(c)}
+                      aria-label={`Edit sleep for ${dateStr}`}
+                    >
+                      <Pencil className="w-4 h-4" aria-hidden="true" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setDeleteConfirmCheckInId(c.id)}
+                      aria-label={`Delete sleep for ${dateStr}`}
+                    >
+                      <Trash2 className="w-4 h-4" aria-hidden="true" />
+                    </Button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
         <Card 
           className="p-6 border-2 border-dashed cursor-pointer hover:border-primary transition-colors text-center bg-muted/50"
-          onClick={() => setSleepModalOpen(true)}
+          onClick={openSleepModalForToday}
         >
           <Moon className="w-8 h-8 mx-auto text-primary" />
           <p className="text-sm font-medium mt-2 text-muted-foreground">Log sleep</p>
         </Card>
       </Card>
+      </ContentWithLoading>
 
       <SleepEditModal
         open={sleepModalOpen}
-        onOpenChange={setSleepModalOpen}
+        onOpenChange={(open) => {
+          setSleepModalOpen(open);
+          if (!open) setEditingCheckIn(undefined);
+        }}
         onSave={handleSleepSave}
-        currentHours={todayCheckIn?.sleepHours}
+        checkIn={editingCheckIn ? { id: editingCheckIn.id, date: toLocalDateString(new Date(editingCheckIn.date)), sleepHours: editingCheckIn.sleepHours } : undefined}
+        currentHours={!editingCheckIn ? todayCheckIn?.sleepHours : undefined}
       />
 
       <FoodEntryModal
@@ -337,6 +410,17 @@ export function Energy() {
         title="Delete Food Entry"
         message="Are you sure you want to delete this food entry? This action cannot be undone."
         onConfirm={confirmDeleteFood}
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        variant="destructive"
+      />
+
+      <ConfirmationDialog
+        open={!!deleteConfirmCheckInId}
+        onOpenChange={(open) => !open && setDeleteConfirmCheckInId(null)}
+        title="Delete Sleep Log"
+        message="Are you sure you want to delete this sleep entry? This action cannot be undone."
+        onConfirm={confirmDeleteCheckIn}
         confirmLabel="Delete"
         cancelLabel="Cancel"
         variant="destructive"

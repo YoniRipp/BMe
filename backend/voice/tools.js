@@ -131,7 +131,7 @@ export const VOICE_TOOLS = [
       },
       {
         name: 'edit_workout',
-        description: 'Edit a logged workout.',
+        description: 'Edit a logged workout. You can change title, type, duration, notes, date, or the exercises list. To change one exercise (e.g. "change squat to 5 sets", "remove deadlift", "add bench press 3x10 60kg"), pass the full exercises array with the updates. To replace or remove exercises, send the new list.',
         parameters: {
           type: 'object',
           properties: {
@@ -142,6 +142,21 @@ export const VOICE_TOOLS = [
             type: { type: 'string', enum: ['strength', 'cardio', 'flexibility', 'sports'] },
             durationMinutes: { type: 'number' },
             notes: { type: 'string' },
+            exercises: {
+              type: 'array',
+              description: 'Full list of exercises (replaces existing). Each: name, sets, reps, weight (kg optional). Use when user asks to add, remove, or change an exercise.',
+              items: {
+                type: 'object',
+                properties: {
+                  name: { type: 'string' },
+                  sets: { type: 'number' },
+                  reps: { type: 'number' },
+                  weight: { type: 'number', description: 'Weight in kg (optional)' },
+                  notes: { type: 'string' },
+                },
+                required: ['name', 'sets', 'reps'],
+              },
+            },
           },
         },
       },

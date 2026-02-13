@@ -28,8 +28,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return null;
   }
 
+  const mergedSettings = { ...DEFAULT_SETTINGS, ...settings };
+
   return (
-    <AppContext.Provider value={{ user, settings, updateSettings }}>
+    <AppContext.Provider value={{ user, settings: mergedSettings, updateSettings }}>
       {children}
     </AppContext.Provider>
   );

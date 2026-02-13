@@ -33,19 +33,26 @@ import {
 } from 'date-fns';
 import { WEEK_SUNDAY } from '@/lib/dateRanges';
 
+type ConvertToDisplay = (amount: number, currency: string) => number;
+
 interface MonthlyChartProps {
   transactions: Transaction[];
   period?: 'daily' | 'weekly' | 'monthly' | 'yearly';
+  convertToDisplay?: ConvertToDisplay;
 }
 
 const COLORS = ['#10b981', '#ef4444', '#3b82f6', '#8b5cf6', '#f59e0b'];
 
+const noConvert: ConvertToDisplay = (amount) => amount;
+
 export const MonthlyChart = memo(function MonthlyChart({
   transactions,
   period = 'monthly',
+  convertToDisplay = noConvert,
 }: MonthlyChartProps) {
   const [chartType, setChartType] = useState<'bar' | 'line' | 'pie'>('bar');
   const now = new Date();
+  const conv = (t: Transaction) => convertToDisplay(t.amount, t.currency ?? 'USD');
 
   const { data, title, emptyMessage } = useMemo(() => {
     let chartData: { date: string; Income: number; Expenses: number }[] = [];
@@ -61,10 +68,10 @@ export const MonthlyChart = memo(function MonthlyChart({
       if (dayTransactions.length > 0) {
         const income = dayTransactions
           .filter((t) => t.type === 'income')
-          .reduce((sum, t) => sum + t.amount, 0);
+          .reduce((sum, t) => sum + conv(t), 0);
         const expenses = dayTransactions
           .filter((t) => t.type === 'expense')
-          .reduce((sum, t) => sum + t.amount, 0);
+          .reduce((sum, t) => sum + conv(t), 0);
         chartData = [{ date: format(now, 'dd/MM/yy'), Income: income, Expenses: expenses }];
       }
       chartTitle = 'Daily Overview';
@@ -81,10 +88,10 @@ export const MonthlyChart = memo(function MonthlyChart({
           });
           const income = dayTransactions
             .filter((t) => t.type === 'income')
-            .reduce((sum, t) => sum + t.amount, 0);
+            .reduce((sum, t) => sum + conv(t), 0);
           const expenses = dayTransactions
             .filter((t) => t.type === 'expense')
-            .reduce((sum, t) => sum + t.amount, 0);
+            .reduce((sum, t) => sum + conv(t), 0);
           return { date: format(day, 'dd/MM'), Income: income, Expenses: expenses };
         })
         .filter((d) => d.Income > 0 || d.Expenses > 0);
@@ -102,10 +109,10 @@ export const MonthlyChart = memo(function MonthlyChart({
           });
           const income = dayTransactions
             .filter((t) => t.type === 'income')
-            .reduce((sum, t) => sum + t.amount, 0);
+            .reduce((sum, t) => sum + conv(t), 0);
           const expenses = dayTransactions
             .filter((t) => t.type === 'expense')
-            .reduce((sum, t) => sum + t.amount, 0);
+            .reduce((sum, t) => sum + conv(t), 0);
           return { date: format(day, 'dd/MM'), Income: income, Expenses: expenses };
         })
         .filter((d) => d.Income > 0 || d.Expenses > 0);
@@ -123,10 +130,10 @@ export const MonthlyChart = memo(function MonthlyChart({
           });
           const income = monthTransactions
             .filter((t) => t.type === 'income')
-            .reduce((sum, t) => sum + t.amount, 0);
+            .reduce((sum, t) => sum + conv(t), 0);
           const expenses = monthTransactions
             .filter((t) => t.type === 'expense')
-            .reduce((sum, t) => sum + t.amount, 0);
+            .reduce((sum, t) => sum + conv(t), 0);
           return { date: format(month, 'MMM'), Income: income, Expenses: expenses };
         })
         .filter((d) => d.Income > 0 || d.Expenses > 0);
@@ -134,7 +141,7 @@ export const MonthlyChart = memo(function MonthlyChart({
       chartEmptyMessage = 'No transactions this year';
     }
     return { data: chartData, title: chartTitle, emptyMessage: chartEmptyMessage };
-  }, [transactions, period]);
+  }, [transactions, period, convertToDisplay]);
 
   if (data.length === 0) {
     return (

@@ -43,6 +43,18 @@ const trim = (v) => (v != null ? String(v).trim() : undefined);
 const trimOrUndefined = (v) => (v != null && String(v).trim() !== '' ? String(v).trim() : undefined);
 const num = (v) => (v != null && Number.isFinite(Number(v)) ? Number(v) : undefined);
 const passThrough = (v) => v;
+function normExercises(v) {
+  if (!Array.isArray(v)) return undefined;
+  return v
+    .filter((e) => e && typeof e.name === 'string' && e.name.trim())
+    .map((e) => ({
+      name: String(e.name).trim(),
+      sets: Math.max(0, Number(e.sets) || 0),
+      reps: Math.max(0, Number(e.reps) || 0),
+      weight: Number(e.weight) > 0 ? Number(e.weight) : undefined,
+      notes: e.notes ? String(e.notes).trim() : undefined,
+    }));
+}
 
 /** If name has no "uncooked"/"raw" or "cooked", append ", cooked" (default). Use "uncooked" consistently (not "raw"). Used only for fallback names (not from DB). */
 function withRawOrCooked(name) {
@@ -86,6 +98,7 @@ const EDIT_WORKOUT_SPEC = {
   type: passThrough,
   durationMinutes: num,
   notes: passThrough,
+  exercises: normExercises,
 };
 const DELETE_WORKOUT_SPEC = {
   workoutTitle: trimOrUndefined,
@@ -144,6 +157,7 @@ function buildAddTransaction(args, ctx) {
   return {
     type,
     amount: numAmount,
+    currency: 'USD',
     category,
     description,
     date: parseDate(args.date, ctx.todayStr),

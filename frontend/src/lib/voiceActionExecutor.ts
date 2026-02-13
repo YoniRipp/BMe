@@ -167,6 +167,7 @@ const handleEditWorkout: Handler = async (action, ctx) => {
   if (action.durationMinutes != null) updates.durationMinutes = action.durationMinutes;
   if (action.notes !== undefined) updates.notes = action.notes;
   if (action.date) updates.date = parseDateOrToday(action.date);
+  if (Array.isArray(action.exercises)) updates.exercises = action.exercises;
   if (Object.keys(updates).length > 0) await ctx.updateWorkout(target.id, updates);
   return { success: true };
 };
@@ -251,7 +252,7 @@ const handleDeleteCheckIn: Handler = async (action, ctx) => {
 
 const handleAddGoal: Handler = async (action, ctx) => {
   if (action.intent !== 'add_goal') return { success: false };
-  await ctx.addGoal({ type: action.type as 'calories' | 'workouts' | 'savings', target: action.target, period: action.period as 'weekly' | 'monthly' | 'yearly' });
+  await ctx.addGoal({ type: action.type as 'calories' | 'workouts' | 'savings', target: action.target, period: action.period as 'daily' | 'weekly' | 'monthly' | 'yearly' });
   return { success: true };
 };
 

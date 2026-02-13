@@ -30,7 +30,7 @@ export function GoalModal({ open, onOpenChange, onSave, goal }: GoalModalProps) 
   const [formData, setFormData] = useState({
     type: 'calories' as GoalType,
     target: '',
-    period: 'weekly' as GoalPeriod,
+    period: 'daily' as GoalPeriod,
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -45,7 +45,7 @@ export function GoalModal({ open, onOpenChange, onSave, goal }: GoalModalProps) 
       setFormData({
         type: 'calories',
         target: '',
-        period: 'weekly',
+        period: 'daily',
       });
     }
     setErrors({});
@@ -91,7 +91,11 @@ export function GoalModal({ open, onOpenChange, onSave, goal }: GoalModalProps) 
               <Label htmlFor="type">Goal Type</Label>
               <Select
                 value={formData.type}
-                onValueChange={(value) => setFormData({ ...formData, type: value as GoalType })}
+                onValueChange={(value) => {
+                  const newType = value as GoalType;
+                  const period = !goal && newType === 'calories' ? 'daily' : !goal && newType !== 'calories' ? 'weekly' : formData.period;
+                  setFormData({ ...formData, type: newType, period });
+                }}
               >
                 <SelectTrigger>
                   <SelectValue />

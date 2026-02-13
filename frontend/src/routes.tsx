@@ -8,6 +8,7 @@ import { LoadingSpinner } from './components/shared/LoadingSpinner';
 import { AppProviders } from './Providers';
 
 const Home = lazy(() => import('./pages/Home').then((m) => ({ default: m.Home })));
+const Schedule = lazy(() => import('./pages/Schedule').then((m) => ({ default: m.Schedule })));
 const Money = lazy(() => import('./pages/Money').then((m) => ({ default: m.Money })));
 const Body = lazy(() => import('./pages/Body').then((m) => ({ default: m.Body })));
 const Energy = lazy(() => import('./pages/Energy').then((m) => ({ default: m.Energy })));
@@ -44,7 +45,7 @@ function ProtectedRoutes() {
 
 function ProtectedAppRoutes() {
   const { settings } = useSettings();
-  useThemeEffect(settings.theme);
+  useThemeEffect(settings.theme, settings.balanceDisplayColor);
 
   return (
     <Routes>
@@ -54,6 +55,14 @@ function ProtectedAppRoutes() {
           element={
             <Suspense fallback={<LoadingSpinner text="Loading dashboard..." />}>
               <Home />
+            </Suspense>
+          }
+        />
+        <Route
+          path="schedule"
+          element={
+            <Suspense fallback={<LoadingSpinner text="Loading schedule..." />}>
+              <Schedule />
             </Suspense>
           }
         />

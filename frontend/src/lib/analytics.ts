@@ -4,6 +4,9 @@ import { FoodEntry, DailyCheckIn } from '@/types/energy';
 import { isWithinInterval, format, startOfWeek, endOfWeek, subWeeks, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 import { getTrendPeriodBounds, WEEK_SUNDAY } from '@/lib/dateRanges';
 
+/** Shared palette for pie/bar charts (insights and elsewhere). */
+export const CHART_COLORS = ['#10b981', '#3b82f6', '#8b5cf6', '#f59e0b', '#ef4444'];
+
 export interface TrendData {
   current: number;
   previous: number;

@@ -15,6 +15,11 @@ const GOAL_ICONS: Record<GoalType, React.ReactNode> = {
   workouts: <Dumbbell className="w-5 h-5 text-blue-600" />,
   savings: <DollarSign className="w-5 h-5 text-green-600" />,
 };
+const GOAL_TYPE_BORDER: Record<GoalType, string> = {
+  calories: 'border-l-4 border-l-amber-500',
+  workouts: 'border-l-4 border-l-green-500',
+  savings: 'border-l-4 border-l-emerald-500',
+};
 const GOAL_LABELS: Record<GoalType, string> = {
   calories: 'calories',
   workouts: 'workouts',
@@ -42,6 +47,7 @@ export function GoalCard({ goal, onEdit }: GoalCardProps) {
     <>
       <Card className={cn(
         "p-4",
+        GOAL_TYPE_BORDER[goal.type],
         progress.percentage >= 100 && "ring-2 ring-green-500"
       )}>
         <div className="flex items-start justify-between mb-3">

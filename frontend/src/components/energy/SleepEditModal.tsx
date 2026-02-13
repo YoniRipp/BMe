@@ -10,24 +10,36 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
+export interface SleepEditCheckIn {
+  id: string;
+  date: string;
+  sleepHours?: number;
+}
+
 interface SleepEditModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSave: (hours: number) => void;
+  /** When set, edit this check-in (show date, prefill hours). When not set, edit/add for today using currentHours. */
+  checkIn?: SleepEditCheckIn;
+  /** Used when checkIn is not set (today mode). */
   currentHours?: number;
 }
 
-export function SleepEditModal({ 
-  open, 
-  onOpenChange, 
-  onSave, 
-  currentHours 
+export function SleepEditModal({
+  open,
+  onOpenChange,
+  onSave,
+  checkIn,
+  currentHours,
 }: SleepEditModalProps) {
-  const [hours, setHours] = useState(currentHours?.toString() || '');
+  const initialHours = checkIn != null ? checkIn.sleepHours : currentHours;
+  const [hours, setHours] = useState(initialHours?.toString() || '');
 
   useEffect(() => {
-    setHours(currentHours?.toString() || '');
-  }, [currentHours, open]);
+    const value = checkIn != null ? checkIn.sleepHours : currentHours;
+    setHours(value?.toString() || '');
+  }, [checkIn, currentHours, open]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,10 +51,18 @@ export function SleepEditModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Edit Sleep</DialogTitle>
+          <DialogTitle>{checkIn ? 'Edit Sleep' : 'Log Sleep'}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit}>
           <div className="space-y-4">
+            {checkIn && (
+              <div>
+                <Label>Date</Label>
+                <p className="text-sm text-muted-foreground mt-1" aria-readonly>
+                  {checkIn.date}
+                </p>
+              </div>
+            )}
             <div>
               <Label htmlFor="hours">Sleep Hours</Label>
               <Input

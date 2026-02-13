@@ -2,6 +2,8 @@ import { useEffect } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Transaction, TRANSACTION_CATEGORIES } from '@/types/transaction';
+import { CURRENCIES, CURRENCY_LABELS } from '@/types/settings';
+import { useSettings } from '@/hooks/useSettings';
 import { transactionFormSchema, type TransactionFormValues } from '@/schemas/transaction';
 import {
   Dialog,
@@ -30,14 +32,17 @@ interface TransactionModalProps {
   transaction?: Transaction;
 }
 
-const defaultValues: TransactionFormValues = {
-  type: 'expense',
-  amount: '',
-  category: '',
-  description: '',
-  date: toLocalDateString(new Date()),
-  isRecurring: false,
-};
+function getDefaultValues(displayCurrency: string): TransactionFormValues {
+  return {
+    type: 'expense',
+    amount: '',
+    currency: displayCurrency,
+    category: '',
+    description: '',
+    date: toLocalDateString(new Date()),
+    isRecurring: false,
+  };
+}
 
 export function TransactionModal({
   open,
@@ -45,6 +50,8 @@ export function TransactionModal({
   onSave,
   transaction,
 }: TransactionModalProps) {
+  const { settings } = useSettings();
+  const defaultValues = getDefaultValues(settings.currency);
   const {
     register,
     control,
@@ -68,20 +75,22 @@ export function TransactionModal({
       reset({
         type: transaction.type,
         amount: transaction.amount.toString(),
+        currency: transaction.currency ?? settings.currency,
         category: transaction.category,
         description: transaction.description ?? '',
         date: toLocalDateString(new Date(transaction.date)),
         isRecurring: transaction.isRecurring,
       });
     } else {
-      reset({ ...defaultValues, date: toLocalDateString(new Date()) });
+      reset({ ...getDefaultValues(settings.currency), date: toLocalDateString(new Date()) });
     }
-  }, [open, transaction, reset]);
+  }, [open, transaction, reset, settings.currency]);
 
   const onSubmit = (data: TransactionFormValues) => {
     onSave({
       type: data.type,
       amount: parseFloat(data.amount),
+      currency: data.currency && data.currency.length === 3 ? data.currency.toUpperCase() : settings.currency,
       category: data.category,
       description: data.description,
       date: new Date(data.date),
@@ -137,6 +146,30 @@ export function TransactionModal({
                   {errors.amount.message}
                 </p>
               )}
+            </div>
+            <div>
+              <Label htmlFor="currency">Currency</Label>
+              <Controller
+                name="currency"
+                control={control}
+                render={({ field }) => (
+                  <Select
+                    value={field.value ?? settings.currency}
+                    onValueChange={field.onChange}
+                  >
+                    <SelectTrigger id="currency">
+                      <SelectValue placeholder="Currency" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {CURRENCIES.map((code) => (
+                        <SelectItem key={code} value={code}>
+                          {CURRENCY_LABELS[code] ?? code}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
             </div>
             <div>
               <Label htmlFor="category">Category</Label>

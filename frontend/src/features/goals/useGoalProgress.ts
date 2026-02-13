@@ -1,9 +1,12 @@
 import { useMemo } from 'react';
 import { useGoals } from '@/hooks/useGoals';
 import { useTransactions } from '@/hooks/useTransactions';
+import { useSettings } from '@/hooks/useSettings';
+import { useExchangeRates } from '@/features/money/useExchangeRates';
 import { useWorkouts } from '@/hooks/useWorkouts';
 import { useEnergy } from '@/hooks/useEnergy';
 import type { Goal, GoalType } from '@/types/goals';
+import type { Transaction } from '@/types/transaction';
 import { isWithinInterval } from 'date-fns';
 import { getPeriodRange } from '@/lib/dateRanges';
 
@@ -16,7 +19,8 @@ export interface GoalProgress {
 function buildGoalCurrentCalcs(deps: {
   foodEntries: { date: Date | string; calories: number }[];
   workouts: { date: Date }[];
-  transactions: { date: Date; type: string; amount: number }[];
+  transactions: Transaction[];
+  convertToDisplay: (amount: number, currency: string) => number;
 }) {
   return {
     calories: (_goal: Goal, dateRange: { start: Date; end: Date }) =>
@@ -33,10 +37,10 @@ function buildGoalCurrentCalcs(deps: {
       );
       const income = periodTransactions
         .filter((t) => t.type === 'income')
-        .reduce((sum, t) => sum + t.amount, 0);
+        .reduce((sum, t) => sum + deps.convertToDisplay(t.amount, t.currency ?? 'USD'), 0);
       const expenses = periodTransactions
         .filter((t) => t.type === 'expense')
-        .reduce((sum, t) => sum + t.amount, 0);
+        .reduce((sum, t) => sum + deps.convertToDisplay(t.amount, t.currency ?? 'USD'), 0);
       const balance = income - expenses;
       return income > 0 ? Math.round((balance / income) * 100) : 0;
     },
@@ -46,6 +50,13 @@ function buildGoalCurrentCalcs(deps: {
 export function useGoalProgress(goalId: string): GoalProgress {
   const { goals } = useGoals();
   const { transactions } = useTransactions();
+  const { settings } = useSettings();
+  const displayCurrency = settings.currency;
+  const fromCurrencies = useMemo(
+    () => Array.from(new Set(transactions.map((t) => t.currency ?? 'USD'))),
+    [transactions]
+  );
+  const { convertToDisplay } = useExchangeRates(displayCurrency, fromCurrencies);
   const { workouts } = useWorkouts();
   const { foodEntries } = useEnergy();
 
@@ -61,11 +72,12 @@ export function useGoalProgress(goalId: string): GoalProgress {
       foodEntries,
       workouts,
       transactions,
+      convertToDisplay,
     });
     const current = calcs[goal.type](goal, dateRange);
 
     const percentage =
       goal.target > 0 ? Math.min((current / goal.target) * 100, 100) : 0;
     return { current, target: goal.target, percentage };
-  }, [goalId, goals, transactions, workouts, foodEntries]);
+  }, [goalId, goals, transactions, convertToDisplay, workouts, foodEntries]);
 }

@@ -78,6 +78,7 @@ const editWorkoutSchema = z.object({
   type: z.string().optional(),
   durationMinutes: z.number().optional(),
   notes: z.union([z.string(), z.undefined()]).optional(),
+  exercises: z.array(voiceExerciseSchema).optional(),
 });
 const deleteWorkoutSchema = z.object({
   intent: z.literal('delete_workout'),

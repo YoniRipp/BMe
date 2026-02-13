@@ -1,9 +1,10 @@
-import { Home, DollarSign, Dumbbell, Zap, Settings, TrendingUp } from 'lucide-react';
+import { Home, Calendar, DollarSign, Dumbbell, Zap, Settings, TrendingUp } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 
 const navItems = [
   { path: '/', icon: Home, label: 'Home' },
+  { path: '/schedule', icon: Calendar, label: 'Schedule' },
   { path: '/money', icon: DollarSign, label: 'Money' },
   { path: '/body', icon: Dumbbell, label: 'Body' },
   { path: '/energy', icon: Zap, label: 'Energy' },
@@ -15,7 +16,7 @@ export function BottomNav() {
   const location = useLocation();
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-background border-t border-border z-40">
+    <nav className="fixed bottom-0 left-0 right-0 bg-background border-t border-border z-40 md:hidden">
       <div className="max-w-screen-xl mx-auto px-2 md:px-4">
         <div className="flex items-center justify-around h-16 gap-0.5 md:gap-1">
           {navItems.map(({ path, icon: Icon, label }) => {

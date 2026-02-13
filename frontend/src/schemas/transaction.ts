@@ -10,6 +10,7 @@ export const apiTransactionSchema = z.object({
   date: z.string(),
   type: z.enum(['income', 'expense']),
   amount: z.number(),
+  currency: z.string().optional(),
   category: z.string(),
   description: z.string().optional(),
   isRecurring: z.boolean(),
@@ -28,6 +29,7 @@ export const transactionFormSchema = z.object({
     },
     { message: 'Amount must be between 0.01 and 1,000,000' }
   ),
+  currency: z.string().min(3).max(3).optional(),
   category: z.string().min(1, 'Category is required'),
   description: z.string().optional(),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Invalid date'),

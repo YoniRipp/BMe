@@ -44,33 +44,33 @@ describe('Insights Page', () => {
     expect(screen.getByText(/insights/i)).toBeInTheDocument();
   });
 
-  it('displays financial overview section', () => {
+  it('displays financial insights section', () => {
     render(<Insights />, { wrapper });
-    expect(screen.getByText(/financial overview/i)).toBeInTheDocument();
+    expect(screen.getByText(/financial insights/i)).toBeInTheDocument();
   });
 
-  it('displays fitness overview section', () => {
+  it('displays fitness insights section', () => {
     render(<Insights />, { wrapper });
-    expect(screen.getByText(/fitness overview/i)).toBeInTheDocument();
+    expect(screen.getByText(/fitness insights/i)).toBeInTheDocument();
   });
 
-  it('displays health overview section', () => {
+  it('displays health insights section', () => {
     render(<Insights />, { wrapper });
-    expect(screen.getByText(/health & energy overview/i)).toBeInTheDocument();
+    expect(screen.getByText(/health insights/i)).toBeInTheDocument();
   });
 
-  it('displays spending trends chart', () => {
+  it('displays spending trend', () => {
     render(<Insights />, { wrapper });
-    expect(screen.getByText(/spending & income trends/i)).toBeInTheDocument();
+    expect(screen.getByText(/spending trend/i)).toBeInTheDocument();
   });
 
-  it('displays workout frequency chart', () => {
+  it('displays workout frequency', () => {
     render(<Insights />, { wrapper });
     expect(screen.getByText(/workout frequency/i)).toBeInTheDocument();
   });
 
-  it('displays calorie trends chart', () => {
+  it('displays calorie trend', () => {
     render(<Insights />, { wrapper });
-    expect(screen.getByText(/calorie intake trends/i)).toBeInTheDocument();
+    expect(screen.getByText(/calorie trend/i)).toBeInTheDocument();
   });
 });

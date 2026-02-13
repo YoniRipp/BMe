@@ -8,6 +8,7 @@ export function apiTransactionToTransaction(a: ApiTransaction): Transaction {
     date: parseLocalDateString(a.date),
     type: a.type,
     amount: a.amount,
+    currency: a.currency ?? 'USD',
     category: a.category,
     description: a.description,
     isRecurring: a.isRecurring,

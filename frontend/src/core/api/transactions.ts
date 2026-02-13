@@ -27,6 +27,7 @@ export const transactionsApi = {
     date?: string;
     type: 'income' | 'expense';
     amount: number;
+    currency?: string;
     category?: string;
     description?: string;
     isRecurring?: boolean;

@@ -52,6 +52,7 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
             : transaction.date,
         type: transaction.type,
         amount: transaction.amount,
+        currency: transaction.currency ?? 'USD',
         category: transaction.category,
         description: transaction.description,
         isRecurring: transaction.isRecurring,

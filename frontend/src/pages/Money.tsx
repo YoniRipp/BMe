@@ -1,5 +1,7 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Transaction } from '@/types/transaction';
+import { useSettings } from '@/hooks/useSettings';
+import { useExchangeRates } from '@/features/money/useExchangeRates';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { SearchBar } from '@/components/shared/SearchBar';
 import { Button } from '@/components/ui/button';
@@ -15,7 +17,7 @@ import {
 } from '@/components/ui/dialog';
 import { DollarSign, Filter, X } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
+import { ContentWithLoading } from '@/components/shared/ContentWithLoading';
 import { useTransactions } from '@/features/money/useTransactions';
 import { useTransactionFilters } from '@/features/money/useTransactionFilters';
 import { useBalanceByPeriod } from '@/features/money/useBalanceByPeriod';
@@ -33,8 +35,15 @@ export function Money() {
     updateTransaction,
     deleteTransaction,
   } = useTransactions();
+  const { settings } = useSettings();
+  const displayCurrency = settings.currency;
+  const fromCurrencies = useMemo(
+    () => Array.from(new Set(transactions.map((t) => t.currency ?? 'USD'))),
+    [transactions]
+  );
+  const { convertToDisplay } = useExchangeRates(displayCurrency, fromCurrencies);
   const { selectedPeriod, setSelectedPeriod, selectedPeriodTransactions, balances } =
-    useBalanceByPeriod(transactions);
+    useBalanceByPeriod(transactions, convertToDisplay);
   const {
     filter,
     setFilter,
@@ -83,15 +92,12 @@ export function Money() {
         iconColor="text-green-600"
       />
 
-      <div>
-        {transactionsError && (
-          <p className="text-sm text-destructive mb-2">{transactionsError}</p>
-        )}
-        {transactionsLoading ? (
-          <LoadingSpinner text="Loading transactions..." />
-        ) : (
-          <>
-            <div className="flex items-center gap-3 mb-4">
+      <ContentWithLoading
+        loading={transactionsLoading}
+        loadingText="Loading transactions..."
+        error={transactionsError}
+      >
+        <div className="flex items-center gap-3 mb-4">
               <div className="flex-1">
                 <SearchBar
                   value={searchQuery}
@@ -124,23 +130,28 @@ export function Money() {
               <TabsContent value={filter} className="mt-4">
                 <TransactionList
                   transactions={filteredTransactions}
+                  convertToDisplay={convertToDisplay}
+                  displayCurrency={displayCurrency}
                   onEdit={handleEdit}
                   onDelete={deleteTransaction}
                   onAdd={handleAddNew}
                 />
               </TabsContent>
             </Tabs>
-          </>
-        )}
-      </div>
+      </ContentWithLoading>
 
       <BalancePeriodCards
         balances={balances}
+        displayCurrency={displayCurrency}
         selectedPeriod={selectedPeriod}
         onSelectPeriod={setSelectedPeriod}
       />
 
-      <MonthlyChart transactions={selectedPeriodTransactions} period={selectedPeriod} />
+      <MonthlyChart
+        transactions={selectedPeriodTransactions}
+        period={selectedPeriod}
+        convertToDisplay={convertToDisplay}
+      />
 
       <TransactionModal
         open={modalOpen}

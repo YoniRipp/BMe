@@ -15,4 +15,4 @@ export const WORKOUT_TYPES = ['strength', 'cardio', 'flexibility', 'sports'];
 
 export const GOAL_TYPES = ['calories', 'workouts', 'savings'];
 
-export const GOAL_PERIODS = ['weekly', 'monthly', 'yearly'];
+export const GOAL_PERIODS = ['daily', 'weekly', 'monthly', 'yearly'];

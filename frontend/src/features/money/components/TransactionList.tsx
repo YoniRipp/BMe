@@ -5,6 +5,8 @@ import { Plus } from 'lucide-react';
 
 interface TransactionListProps {
   transactions: Transaction[];
+  convertToDisplay?: (amount: number, currency: string) => number;
+  displayCurrency?: string;
   onEdit?: (transaction: Transaction) => void;
   onDelete?: (id: string) => void;
   onAdd?: () => void;
@@ -12,6 +14,8 @@ interface TransactionListProps {
 
 export function TransactionList({
   transactions,
+  convertToDisplay,
+  displayCurrency,
   onEdit,
   onDelete,
   onAdd,
@@ -20,7 +24,7 @@ export function TransactionList({
     <div className="space-y-2">
       {transactions.length === 0 ? (
         <Card
-          className="p-8 border-2 border-dashed cursor-pointer hover:border-primary transition-colors text-center animate-in fade-in"
+          className="p-8 border-2 border-dashed cursor-pointer hover:border-primary transition-colors text-center"
           onClick={onAdd}
           role="button"
           tabIndex={0}
@@ -42,12 +46,14 @@ export function TransactionList({
             <TransactionCard
               key={transaction.id}
               transaction={transaction}
+              convertedAmount={convertToDisplay ? convertToDisplay(transaction.amount, transaction.currency ?? 'USD') : undefined}
+              displayCurrency={displayCurrency}
               onEdit={onEdit}
               onDelete={onDelete}
             />
           ))}
           <Card
-            className="p-6 border-2 border-dashed cursor-pointer hover:border-primary transition-colors text-center bg-muted/50 animate-in fade-in"
+            className="p-6 border-2 border-dashed cursor-pointer hover:border-primary transition-colors text-center bg-muted/50"
             onClick={onAdd}
             role="button"
             tabIndex={0}

@@ -19,7 +19,7 @@ export function PageHeader({
   rightContent
 }: PageHeaderProps) {
   return (
-    <div className={cn("flex items-center justify-between mb-6", className)}>
+    <div className={cn("flex items-center justify-between mb-8", className)}>
       <div className={cn("flex items-center gap-3")}>
         {Icon && (
           <div className={cn("p-3 rounded-lg bg-muted", iconColor)}>
@@ -27,8 +27,8 @@ export function PageHeader({
           </div>
         )}
         <div>
-          <h1 className="text-2xl font-bold">{title}</h1>
-          {subtitle && <p className="text-sm text-muted-foreground">{subtitle}</p>}
+          <h1 className="text-3xl font-bold tracking-tight">{title}</h1>
+          {subtitle && <p className="text-sm text-muted-foreground mt-1">{subtitle}</p>}
         </div>
       </div>
       {rightContent && (

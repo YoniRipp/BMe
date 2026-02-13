@@ -10,10 +10,13 @@ const allCategories = [...incomeCategories, ...expenseCategories];
 
 const dateString = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be YYYY-MM-DD');
 
+const currencyCode = z.string().length(3).optional().default('USD').transform((s) => (s || 'USD').toUpperCase());
+
 export const createTransactionSchema = z.object({
   date: dateString.optional(),
   type: z.enum(['income', 'expense']),
   amount: z.number().min(0, 'Amount must be non-negative').finite(),
+  currency: currencyCode.optional(),
   category: z.string().optional(),
   description: z.string().optional(),
   isRecurring: z.boolean().optional(),
@@ -32,6 +35,7 @@ export const updateTransactionSchema = z.object({
   date: dateString.optional(),
   type: z.enum(['income', 'expense']).optional(),
   amount: z.number().min(0).finite().optional(),
+  currency: z.string().length(3).optional(),
   category: z.string().optional(),
   description: z.string().optional(),
   isRecurring: z.boolean().optional(),

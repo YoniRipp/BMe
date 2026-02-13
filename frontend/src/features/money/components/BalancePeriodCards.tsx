@@ -19,12 +19,14 @@ interface BalancePeriodCardsProps {
     monthly: PeriodBalance;
     yearly: PeriodBalance;
   };
+  displayCurrency?: string;
   selectedPeriod: BalancePeriod;
   onSelectPeriod: (period: BalancePeriod) => void;
 }
 
 export function BalancePeriodCards({
   balances,
+  displayCurrency = 'USD',
   selectedPeriod,
   onSelectPeriod,
 }: BalancePeriodCardsProps) {
@@ -48,16 +50,16 @@ export function BalancePeriodCards({
                 b.balance >= 0 ? 'text-green-600' : 'text-red-600'
               }`}
             >
-              {formatCurrency(b.balance)}
+              {formatCurrency(b.balance, displayCurrency)}
             </p>
             <div className="grid grid-cols-2 gap-2 text-xs">
               <div>
                 <p className="text-muted-foreground">Income</p>
-                <p className="font-semibold text-green-600">{formatCurrency(b.income)}</p>
+                <p className="font-semibold text-green-600">{formatCurrency(b.income, displayCurrency)}</p>
               </div>
               <div>
                 <p className="text-muted-foreground">Expenses</p>
-                <p className="font-semibold text-red-600">{formatCurrency(b.expenses)}</p>
+                <p className="font-semibold text-red-600">{formatCurrency(b.expenses, displayCurrency)}</p>
               </div>
             </div>
           </Card>

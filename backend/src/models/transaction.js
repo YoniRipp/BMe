@@ -9,6 +9,7 @@ function rowToTransaction(row) {
     date: row.date,
     type: row.type,
     amount: Number(row.amount),
+    currency: row.currency ?? 'USD',
     category: row.category,
     description: row.description ?? undefined,
     isRecurring: row.is_recurring,
@@ -47,13 +48,14 @@ export async function findByUserId(userId, { month, type, limit = 500, offset = 
 
 export async function create(params) {
   const pool = getPool();
-  const { userId, date, type, amount, category, description, isRecurring, groupId } = params;
+  const { userId, date, type, amount, currency, category, description, isRecurring, groupId } = params;
   const d = date ? new Date(date) : new Date();
+  const curr = currency && String(currency).length === 3 ? String(currency).toUpperCase() : 'USD';
   const result = await pool.query(
-    `INSERT INTO transactions (date, type, amount, category, description, is_recurring, group_id, user_id)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+    `INSERT INTO transactions (date, type, amount, currency, category, description, is_recurring, group_id, user_id)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
      RETURNING *`,
-    [d.toISOString().slice(0, 10), type, amount, category ?? 'Other', description ?? null, isRecurring === true, groupId ?? null, userId]
+    [d.toISOString().slice(0, 10), type, amount, curr, category ?? 'Other', description ?? null, isRecurring === true, groupId ?? null, userId]
   );
   return rowToTransaction(result.rows[0]);
 }
@@ -70,6 +72,7 @@ export async function update(id, userId, updates) {
   if (updates.description !== undefined) { entries.push('description = $' + i); values.push(updates.description ?? null); i++; }
   if (updates.isRecurring !== undefined) { entries.push('is_recurring = $' + i); values.push(!!updates.isRecurring); i++; }
   if (updates.groupId !== undefined) { entries.push('group_id = $' + i); values.push(updates.groupId ?? null); i++; }
+  if (updates.currency !== undefined) { entries.push('currency = $' + i); values.push(updates.currency && String(updates.currency).length === 3 ? String(updates.currency).toUpperCase() : 'USD'); i++; }
   if (entries.length === 0) return null;
   values.push(id, userId);
   const result = await pool.query(

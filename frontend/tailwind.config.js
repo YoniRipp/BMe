@@ -7,6 +7,20 @@ export default {
   ],
   theme: {
     extend: {
+      keyframes: {
+        "slide-in-from-left": {
+          from: { transform: "translateX(-100%)" },
+          to: { transform: "translateX(0)" },
+        },
+        "slide-out-to-left": {
+          from: { transform: "translateX(0)" },
+          to: { transform: "translateX(-100%)" },
+        },
+      },
+      animation: {
+        "slide-in-from-left": "slide-in-from-left 0.3s ease-out",
+        "slide-out-to-left": "slide-out-to-left 0.3s ease-in",
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",

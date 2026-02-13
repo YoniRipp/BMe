@@ -6,16 +6,22 @@ import { Button } from '@/components/ui/button';
 
 interface TransactionCardProps {
   transaction: Transaction;
+  convertedAmount?: number;
+  displayCurrency?: string;
   onEdit?: (transaction: Transaction) => void;
   onDelete?: (id: string) => void;
 }
 
 export const TransactionCard = memo(function TransactionCard({
   transaction,
+  convertedAmount,
+  displayCurrency,
   onEdit,
   onDelete,
 }: TransactionCardProps) {
   const isIncome = transaction.type === 'income';
+  const amount = convertedAmount ?? transaction.amount;
+  const currency = displayCurrency ?? 'USD';
 
   return (
     <div
@@ -50,7 +56,7 @@ export const TransactionCard = memo(function TransactionCard({
             className={cn('font-semibold', isIncome ? 'text-green-600' : 'text-red-600')}
           >
             {isIncome ? '+' : '-'}
-            {formatCurrency(transaction.amount)}
+            {formatCurrency(amount, currency)}
           </p>
         </div>
       </div>

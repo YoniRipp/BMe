@@ -1,4 +1,4 @@
-import { ScheduleItem as ScheduleItemType } from '@/types/schedule';
+import { ScheduleItem as ScheduleItemType, CATEGORY_COLORS } from '@/types/schedule';
 import { formatTime } from '@/lib/utils';
 import { Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -12,13 +12,13 @@ interface ScheduleItemProps {
 }
 
 export function ScheduleItem({ item, isPast, onEdit, onDelete }: ScheduleItemProps) {
+  const categoryStyle = CATEGORY_COLORS[item.category] ?? 'border-l-slate-500 bg-slate-500/5';
   return (
     <div 
       className={cn(
-        'flex items-center justify-between p-3 rounded-lg cursor-pointer transition-colors',
-        isPast
-          ? 'bg-muted/50 text-muted-foreground opacity-75 hover:bg-muted/70'
-          : 'bg-muted hover:bg-muted/80'
+        'flex items-center justify-between p-3 rounded-lg cursor-pointer transition-colors border-l-4',
+        categoryStyle,
+        isPast && 'text-muted-foreground opacity-75 hover:opacity-90'
       )}
       onClick={() => onEdit && onEdit(item)}
       role="button"

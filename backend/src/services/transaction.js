@@ -30,7 +30,7 @@ export async function list(userId, query = {}) {
 }
 
 export async function create(userId, body) {
-  const { date, type, amount, category, description, isRecurring, groupId } = body ?? {};
+  const { date, type, amount, currency, category, description, isRecurring, groupId } = body ?? {};
   normOneOf(type, ['income', 'expense'], { errorMessage: TYPE_ERROR });
   const cat = TRANSACTION_CATEGORIES[type]?.includes(category) ? category : 'Other';
   return transactionModel.create({
@@ -38,6 +38,7 @@ export async function create(userId, body) {
     date: parseDate(date),
     type,
     amount: validateNonNegative(amount, 'amount'),
+    currency: currency && String(currency).length === 3 ? String(currency).toUpperCase() : 'USD',
     category: cat,
     description,
     isRecurring,
@@ -52,6 +53,7 @@ export async function update(userId, id, body) {
     date: (v) => v,
     type: (v) => normOneOf(v, ['income', 'expense'], { errorMessage: TYPE_ERROR }),
     amount: (v) => validateNonNegative(v, 'amount'),
+    currency: (v) => (v && String(v).length === 3 ? String(v).toUpperCase() : undefined),
     category: (v) => normTransactionCategory(v, input),
     description: (v) => v,
     isRecurring: (v) => !!v,
