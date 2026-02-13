@@ -329,6 +329,13 @@ This section records changes added in this revision. The main README body (Featu
 
 - **Sunday as first day, Saturday as last**. All weekly logic (workout streak, weekly balance, workout frequency charts, “workouts this week” on the dashboard) uses this. Implemented via `WEEK_SUNDAY` and `getPeriodRange('weekly')` in [frontend/src/lib/dateRanges.ts](frontend/src/lib/dateRanges.ts) and used in [WeeklyWorkoutGrid](frontend/src/components/body/WeeklyWorkoutGrid.tsx), analytics, useBalanceByPeriod, WorkoutFrequencyChart, MonthlyChart, and Home.
 
+### Layout and UI
+
+- **Sidebar**: The left navigation is a toggleable sidebar built with the shadcn **Sheet** component ([frontend/src/components/ui/sheet.tsx](frontend/src/components/ui/sheet.tsx)). When open, it slides in from the left at 256px width; when closed, it is fully hidden (no thin strip). The user can hide it via the collapse icon (PanelLeftClose) in the sidebar header and reopen it via the panel icon (PanelLeft) in the TopBar. The preference is stored in `localStorage` under `beme-sidebar-open`. On small screens the sidebar is not shown; navigation uses the bottom nav.
+- **Loading**: A single **ContentWithLoading** component ([frontend/src/components/shared/ContentWithLoading.tsx](frontend/src/components/shared/ContentWithLoading.tsx)) is used for all sections that fetch data (Money, Home schedule/goals, Schedule, Body workouts, Energy). It shows the same spinner and optional error message everywhere, with configurable `loadingText` per section.
+- **Money empty state**: The "Add your first transaction" and "Add another transaction" cards in [TransactionList](frontend/src/features/money/components/TransactionList.tsx) no longer use `animate-in fade-in`, so navigating to the Money screen does not show an entrance animation and matches the rest of the app.
+- **TopBar**: The top bar spans full width; the inner container no longer uses `max-w-screen-xl mx-auto`, so the header extends across the viewport (with existing horizontal padding). The main page content below still uses `max-w-screen-xl` for readability.
+
 ## Update 6.0
 
 This section records changes added in this revision and planned library adoptions that are not yet fully reflected in the body of the README.
