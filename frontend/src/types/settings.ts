@@ -34,6 +34,8 @@ export interface AppSettings {
   theme: Theme;
   balanceDisplayColor: BalanceDisplayColor;
   balanceDisplayLayout: BalanceDisplayLayout;
+  /** Category name → schedule color preset id (e.g. Work → 'blue'). Optional; defaults use built-in category colors. */
+  scheduleCategoryColors?: Record<string, string>;
 }
 
 export const CURRENCIES: Currency[] = [

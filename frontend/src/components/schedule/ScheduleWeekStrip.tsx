@@ -13,6 +13,7 @@ interface ScheduleWeekStripProps {
   onEdit?: (item: ScheduleItemType) => void;
   onDelete?: (id: string) => void;
   readOnly?: boolean;
+  categoryColors?: Record<string, string>;
 }
 
 export function ScheduleWeekStrip({
@@ -22,6 +23,7 @@ export function ScheduleWeekStrip({
   onEdit,
   onDelete,
   readOnly = false,
+  categoryColors,
 }: ScheduleWeekStripProps) {
   const weekStart = startOfWeek(currentDate, WEEK_SUNDAY);
   const weekEnd = endOfWeek(currentDate, WEEK_SUNDAY);
@@ -93,6 +95,7 @@ export function ScheduleWeekStrip({
                   isPast={true}
                   onEdit={readOnly ? undefined : onEdit}
                   onDelete={readOnly ? undefined : onDelete}
+                  categoryColors={categoryColors}
                 />
               ))}
             </div>

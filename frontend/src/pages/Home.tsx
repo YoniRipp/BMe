@@ -152,6 +152,7 @@ export function Home() {
                     isPast={isScheduleItemPast(item.endTime)}
                     onEdit={handleScheduleEdit}
                     onDelete={deleteScheduleItem}
+                    categoryColors={settings.scheduleCategoryColors}
                   />
                 ))}
                 <Card

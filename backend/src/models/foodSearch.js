@@ -35,14 +35,21 @@ function rowToResult(row) {
   };
 }
 
+/** Approximate grams per unit for countable/portion items (e.g. eggs, bananas). */
+const PORTION_GRAMS = {
+  egg: 50, eggs: 50, banana: 120, bananas: 120, apple: 180, apples: 180,
+  slice: 30, slices: 30, piece: 50, pieces: 50, serving: 100, servings: 100,
+};
+
 export function unitToGrams(amount, unit) {
-  const u = (unit || 'g').toLowerCase();
+  const u = (unit || 'g').toLowerCase().replace(/\s+/g, '');
   const n = Number(amount);
   const num = Number.isFinite(n) && n > 0 ? n : 100;
   if (u === 'g') return num;
   if (u === 'kg') return num * 1000;
   if (u === 'ml' || u === 'l') return num * (u === 'l' ? 1000 : 1);
-  if (['cup', 'tbsp', 'tsp', 'slice', 'piece', 'serving'].includes(u)) return 100 * num;
+  if (['cup', 'tbsp', 'tsp'].includes(u)) return (u === 'cup' ? 240 : u === 'tbsp' ? 15 : 5) * num;
+  if (PORTION_GRAMS[u] != null) return PORTION_GRAMS[u] * num;
   return num;
 }
 

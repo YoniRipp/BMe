@@ -186,17 +186,25 @@ const handleAddFood: Handler = async (action, ctx) => {
   fetch('http://127.0.0.1:7246/ingest/e2e403c5-3c70-4f1e-adfb-38e8c147c460', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'voiceActionExecutor.ts:handleAddFood:entry', message: 'add_food received', data: { name: action.name, calories: action.calories, willBail: !action.name && action.calories == null }, timestamp: Date.now(), hypothesisId: 'H3' }) }).catch(() => {});
   // #endregion
   if (!action.name && action.calories == null) return { success: false, message: 'Food not found' };
+  const portionAmount = action.portionAmount ?? action.amount;
+  const portionUnit = action.portionUnit ?? action.unit;
+  const payload = {
+    date: parseDateOrToday(action.date),
+    name: action.name ?? 'Unknown',
+    calories: action.calories ?? 0,
+    protein: action.protein ?? 0,
+    carbs: action.carbs ?? 0,
+    fats: action.fats ?? 0,
+    startTime: action.startTime,
+    endTime: action.endTime,
+    ...(portionAmount != null && Number.isFinite(portionAmount) && { portionAmount: Number(portionAmount) }),
+    ...(portionUnit != null && String(portionUnit).trim() !== '' && { portionUnit: String(portionUnit).trim() }),
+  };
+  // #region agent log
+  fetch('http://127.0.0.1:7246/ingest/e2e403c5-3c70-4f1e-adfb-38e8c147c460', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'voiceActionExecutor.ts:handleAddFood:payload', message: 'addFoodEntry payload', data: { portionAmount: payload.portionAmount, portionUnit: payload.portionUnit }, timestamp: Date.now(), hypothesisId: 'H2' }) }).catch(() => {});
+  // #endregion
   try {
-    await ctx.addFoodEntry({
-      date: parseDateOrToday(action.date),
-      name: action.name ?? 'Unknown',
-      calories: action.calories ?? 0,
-      protein: action.protein ?? 0,
-      carbs: action.carbs ?? 0,
-      fats: action.fats ?? 0,
-      startTime: action.startTime,
-      endTime: action.endTime,
-    });
+    await ctx.addFoodEntry(payload);
     // #region agent log
     fetch('http://127.0.0.1:7246/ingest/e2e403c5-3c70-4f1e-adfb-38e8c147c460', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'voiceActionExecutor.ts:handleAddFood:afterAdd', message: 'addFoodEntry resolved', data: {}, timestamp: Date.now(), hypothesisId: 'H4' }) }).catch(() => {});
     // #endregion

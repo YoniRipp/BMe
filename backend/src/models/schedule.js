@@ -16,6 +16,7 @@ function rowToItem(row) {
     isActive: row.is_active,
     groupId: row.group_id ?? undefined,
     recurrence: row.recurrence ?? undefined,
+    color: row.color ?? undefined,
   };
 }
 
@@ -44,17 +45,18 @@ export async function findByUserId(userId) {
  * @param {boolean} [params.isActive]
  * @param {string} [params.groupId]
  * @param {string} [params.recurrence]
+ * @param {string} [params.color]
  */
 export async function create(params) {
   const pool = getPool();
-  const { userId, title, startTime = '09:00', endTime = '10:00', category = 'Other', emoji, order, isActive = true, groupId, recurrence } = params;
+  const { userId, title, startTime = '09:00', endTime = '10:00', category = 'Other', emoji, order, isActive = true, groupId, recurrence, color } = params;
   const countResult = await pool.query('SELECT COALESCE(MAX("order"), -1) + 1 AS next_order FROM schedule_items WHERE user_id = $1', [userId]);
   const nextOrder = order !== undefined ? Number(order) : countResult.rows[0]?.next_order ?? 0;
   const result = await pool.query(
-    `INSERT INTO schedule_items (title, start_time, end_time, category, emoji, "order", is_active, group_id, user_id, recurrence)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+    `INSERT INTO schedule_items (title, start_time, end_time, category, emoji, "order", is_active, group_id, user_id, recurrence, color)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
      RETURNING *`,
-    [title.trim(), startTime, endTime, category, emoji ?? null, nextOrder, isActive, groupId ?? null, userId, recurrence ?? null]
+    [title.trim(), startTime, endTime, category, emoji ?? null, nextOrder, isActive, groupId ?? null, userId, recurrence ?? null, color ?? null]
   );
   return rowToItem(result.rows[0]);
 }
@@ -69,6 +71,7 @@ export async function create(params) {
  * @param {string} [items[].emoji]
  * @param {string} [items[].groupId]
  * @param {string} [items[].recurrence]
+ * @param {string} [items[].color]
  */
 export async function createBatch(userId, items) {
   const pool = getPool();
@@ -82,6 +85,7 @@ export async function createBatch(userId, items) {
       emoji: it.emoji ?? null,
       groupId: it.groupId ?? null,
       recurrence: it.recurrence ?? null,
+      color: it.color ?? null,
     }));
   if (valid.length === 0) return [];
   const countResult = await pool.query('SELECT COALESCE(MAX("order"), -1) + 1 AS next_order FROM schedule_items WHERE user_id = $1', [userId]);
@@ -90,12 +94,12 @@ export async function createBatch(userId, items) {
   const placeholders = [];
   let i = 1;
   for (const it of valid) {
-    placeholders.push(`($${i}, $${i + 1}, $${i + 2}, $${i + 3}, $${i + 4}, $${i + 5}, true, $${i + 6}, $${i + 7}, $${i + 8})`);
-    values.push(it.title, it.startTime, it.endTime, it.category, it.emoji, order++, it.groupId, userId, it.recurrence);
-    i += 9;
+    placeholders.push(`($${i}, $${i + 1}, $${i + 2}, $${i + 3}, $${i + 4}, $${i + 5}, true, $${i + 6}, $${i + 7}, $${i + 8}, $${i + 9})`);
+    values.push(it.title, it.startTime, it.endTime, it.category, it.emoji, order++, it.groupId, userId, it.recurrence, it.color);
+    i += 10;
   }
   const result = await pool.query(
-    `INSERT INTO schedule_items (title, start_time, end_time, category, emoji, "order", is_active, group_id, user_id, recurrence)
+    `INSERT INTO schedule_items (title, start_time, end_time, category, emoji, "order", is_active, group_id, user_id, recurrence, color)
      VALUES ${placeholders.join(', ')}
      RETURNING *`,
     values
@@ -110,7 +114,7 @@ export async function createBatch(userId, items) {
  */
 export async function update(id, userId, updates) {
   const pool = getPool();
-  const { title, startTime, endTime, category, emoji, order, isActive, groupId, recurrence } = updates;
+  const { title, startTime, endTime, category, emoji, order, isActive, groupId, recurrence, color } = updates;
   const updatesList = [];
   const values = [];
   let i = 1;
@@ -123,6 +127,7 @@ export async function update(id, userId, updates) {
   if (isActive !== undefined) { updatesList.push(`is_active = $${i}`); values.push(!!isActive); i++; }
   if (groupId !== undefined) { updatesList.push(`group_id = $${i}`); values.push(groupId ?? null); i++; }
   if (recurrence !== undefined) { updatesList.push(`recurrence = $${i}`); values.push(recurrence ?? null); i++; }
+  if (color !== undefined) { updatesList.push(`color = $${i}`); values.push(color ?? null); i++; }
   if (updatesList.length === 0) return null;
   values.push(id, userId);
   const result = await pool.query(

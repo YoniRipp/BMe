@@ -55,6 +55,7 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
         isActive: item.isActive,
         groupId: item.groupId,
         recurrence: item.recurrence,
+        color: item.color,
       }),
     onSuccess: (created) => {
       queryClient.setQueryData(queryKeys.schedule, (prev: ScheduleItem[] | undefined) =>
@@ -74,6 +75,7 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
           emoji: it.emoji,
           groupId: it.groupId,
           recurrence: it.recurrence,
+          color: it.color,
         }))
       ),
     onSuccess: (created) => {

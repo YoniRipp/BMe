@@ -1,4 +1,4 @@
-import { ScheduleItem as ScheduleItemType, CATEGORY_COLORS } from '@/types/schedule';
+import { ScheduleItem as ScheduleItemType, getScheduleItemClasses } from '@/types/schedule';
 import { formatTime } from '@/lib/utils';
 import { Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -9,10 +9,12 @@ interface ScheduleItemProps {
   isPast?: boolean;
   onEdit?: (item: ScheduleItemType) => void;
   onDelete?: (id: string) => void;
+  /** Optional category → preset id (from settings). Used when item has no per-item color. */
+  categoryColors?: Record<string, string>;
 }
 
-export function ScheduleItem({ item, isPast, onEdit, onDelete }: ScheduleItemProps) {
-  const categoryStyle = CATEGORY_COLORS[item.category] ?? 'border-l-slate-500 bg-slate-500/5';
+export function ScheduleItem({ item, isPast, onEdit, onDelete, categoryColors }: ScheduleItemProps) {
+  const categoryStyle = getScheduleItemClasses(item, categoryColors);
   return (
     <div 
       className={cn(

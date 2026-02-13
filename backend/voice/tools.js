@@ -174,13 +174,13 @@ export const VOICE_TOOLS = [
       },
       {
         name: 'add_food',
-        description: 'Log food or drink consumed. If the user says ONLY a food or drink name (e.g. "Diet Coke", "coffee", "ate an apple") or "had X" without mentioning buying or a price, call ONLY add_food—do not call add_transaction. When the user explicitly says they bought X for Y money, call BOTH add_transaction and add_food. When the user says they ate or had a meal WITH a time range (e.g. "ate from 6 to 8", "had dinner 18:00-20:00", "I ate at 6-7"), call BOTH add_schedule (one item: title "Meal" or the meal description, category "Meal", startTime/endTime in HH:MM 24h) AND add_food with the same startTime and endTime and the food name. When they say they ate something without a time range (e.g. "I ate today XYZ"), call ONLY add_food—no add_schedule. Output food name in English. Times in HH:MM 24h (e.g. 18:00, 06:00).',
+        description: 'Log food or drink consumed. Always pass amount and unit when the user says a quantity: e.g. "I ate three eggs" → food=eggs, amount=3, unit=eggs; "100g chicken" → food=chicken, amount=100, unit=g; "two apples" → food=apple, amount=2, unit=apples. For countable items use unit=egg/eggs, apple/apples, slice/slices, piece/pieces, serving/servings so the app can show "3 eggs" not "100g". If the user says ONLY a food or drink name with no quantity (e.g. "coffee"), use amount=1 and unit=serving or leave default. When the user explicitly says they bought X for Y money, call BOTH add_transaction and add_food. When they say they ate with a time range, also call add_schedule. Output food name in English. Times in HH:MM 24h.',
         parameters: {
           type: 'object',
           properties: {
             food: { type: 'string', description: 'Food name in English' },
-            amount: { type: 'number', description: 'Quantity' },
-            unit: { type: 'string', description: 'g, kg, ml, L, cup, slice, serving, etc.' },
+            amount: { type: 'number', description: 'Quantity (e.g. 3 for three eggs, 100 for 100g)' },
+            unit: { type: 'string', description: 'Unit: g, kg, ml, L, cup, slice, serving, egg/eggs, apple/apples, piece/pieces, etc. Use egg/eggs for eggs so it shows "3 eggs".' },
             date: { type: 'string', description: 'YYYY-MM-DD, default today' },
             startTime: { type: 'string', description: 'Optional. Meal start time HH:MM 24h (e.g. 18:00). Use when user gives a time range for the meal.' },
             endTime: { type: 'string', description: 'Optional. Meal end time HH:MM 24h (e.g. 20:00). Use when user gives a time range for the meal.' },

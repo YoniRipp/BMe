@@ -100,6 +100,8 @@ const addFoodSchema = z.object({
   date: z.string().optional(),
   startTime: z.string().optional(),
   endTime: z.string().optional(),
+  portionAmount: z.number().optional(),
+  portionUnit: z.string().optional(),
 });
 const editFoodEntrySchema = z.object({
   intent: z.literal('edit_food_entry'),

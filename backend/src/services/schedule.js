@@ -14,7 +14,7 @@ export async function list(userId) {
 }
 
 export async function create(userId, body) {
-  const { title, startTime, endTime, category, emoji, order, isActive, groupId, recurrence } = body ?? {};
+  const { title, startTime, endTime, category, emoji, order, isActive, groupId, recurrence, color } = body ?? {};
   const cat = normOneOf(category, SCHEDULE_CATEGORIES, { default: 'Other' });
   const rec = normOneOf(recurrence, VALID_RECURRENCE, { default: null });
   return scheduleModel.create({
@@ -28,6 +28,7 @@ export async function create(userId, body) {
     isActive,
     groupId,
     recurrence: rec,
+    color: color != null && typeof color === 'string' ? color.trim() || null : null,
   });
 }
 
@@ -61,6 +62,7 @@ export async function update(userId, id, body) {
     isActive: (v) => !!v,
     groupId: (v) => v ?? null,
     recurrence: (v) => normOneOf(v, VALID_RECURRENCE, { default: null }),
+    color: (v) => (v != null && typeof v === 'string' ? v.trim() || null : null),
   });
   const updated = await scheduleModel.update(id, userId, updates);
   requireFound(updated, 'Schedule item');

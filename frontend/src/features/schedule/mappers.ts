@@ -11,6 +11,7 @@ export function apiScheduleItemToScheduleItem(a: {
   isActive: boolean;
   groupId?: string;
   recurrence?: string;
+  color?: string;
 }): ScheduleItem {
   return {
     id: a.id,
@@ -23,5 +24,6 @@ export function apiScheduleItemToScheduleItem(a: {
     isActive: a.isActive,
     groupId: a.groupId,
     recurrence: a.recurrence as ScheduleItem['recurrence'] | undefined,
+    color: a.color,
   };
 }

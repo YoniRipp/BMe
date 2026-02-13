@@ -301,7 +301,12 @@ export function Energy() {
                     className="flex-1 cursor-pointer"
                     onClick={() => handleEditFood(entry)}
                   >
-                    <p className="font-medium">{entry.name}</p>
+                    <p className="font-medium">
+                      {entry.name}
+                      {entry.portionAmount != null
+                        ? ` • ${entry.portionAmount}${entry.portionUnit ? ` ${entry.portionUnit}` : ''}`
+                        : ''}
+                    </p>
                     {mealTime && (
                       <p className="text-sm text-muted-foreground">{mealTime}</p>
                     )}

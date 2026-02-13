@@ -224,7 +224,7 @@ async function buildAddFood(args, ctx) {
   const numAmount = Number.isFinite(amount) && amount > 0 ? amount : 100;
   const unit = args.unit ? String(args.unit).trim().toLowerCase() : 'g';
   // #region agent log
-  fetch('http://127.0.0.1:7246/ingest/e2e403c5-3c70-4f1e-adfb-38e8c147c460', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'voice.js:buildAddFood:entry', message: 'buildAddFood args', data: { food, numAmount, unit }, timestamp: Date.now(), hypothesisId: 'H1' }) }).catch(() => {});
+  fetch('http://127.0.0.1:7246/ingest/e2e403c5-3c70-4f1e-adfb-38e8c147c460', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'voice.js:buildAddFood:entry', message: 'buildAddFood args', data: { food, rawAmount: args.amount, numAmount, unit }, timestamp: Date.now(), hypothesisId: 'H1' }) }).catch(() => {});
   // #endregion
   const action = {
     food,
@@ -233,6 +233,8 @@ async function buildAddFood(args, ctx) {
     date: parseDate(args.date, ctx.todayStr),
     startTime: normTime(args.startTime) ?? undefined,
     endTime: normTime(args.endTime) ?? undefined,
+    portionAmount: numAmount,
+    portionUnit: unit,
   };
   if (isDbConfigured()) {
     try {
@@ -289,7 +291,7 @@ async function buildAddFood(args, ctx) {
     action.fats = 0;
   }
   // #region agent log
-  fetch('http://127.0.0.1:7246/ingest/e2e403c5-3c70-4f1e-adfb-38e8c147c460', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'voice.js:buildAddFood:return', message: 'add_food action out', data: { hasName: 'name' in action, hasCalories: 'calories' in action, name: action.name, calories: action.calories }, timestamp: Date.now(), hypothesisId: 'H1' }) }).catch(() => {});
+  fetch('http://127.0.0.1:7246/ingest/e2e403c5-3c70-4f1e-adfb-38e8c147c460', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'voice.js:buildAddFood:return', message: 'add_food action out', data: { name: action.name, calories: action.calories, portionAmount: action.portionAmount, portionUnit: action.portionUnit }, timestamp: Date.now(), hypothesisId: 'H2' }) }).catch(() => {});
   // #endregion
   return action;
 }

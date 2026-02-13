@@ -72,6 +72,9 @@ export async function initSchema() {
       ALTER TABLE schedule_items ADD COLUMN IF NOT EXISTS recurrence text;
     `).catch(() => {});
     await client.query(`
+      ALTER TABLE schedule_items ADD COLUMN IF NOT EXISTS color text;
+    `).catch(() => {});
+    await client.query(`
       ALTER TABLE transactions ADD COLUMN IF NOT EXISTS user_id uuid REFERENCES users(id);
     `).catch(() => {});
     await client.query(`

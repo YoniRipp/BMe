@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useSchedule } from '@/hooks/useSchedule';
+import { useSettings } from '@/hooks/useSettings';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { ScheduleItem } from '@/components/home/ScheduleItem';
 import { ScheduleModal } from '@/components/home/ScheduleModal';
@@ -23,6 +24,7 @@ const PERIOD_DAYS: Record<PeriodKey, number> = {
 };
 
 export function Schedule() {
+  const { settings } = useSettings();
   const { scheduleItems, scheduleLoading, scheduleError, addScheduleItem, updateScheduleItem, deleteScheduleItem } = useSchedule();
   const [viewMode, setViewMode] = useState<ViewMode>('today');
   const [selectedDate, setSelectedDate] = useState(() => new Date());
@@ -100,6 +102,7 @@ export function Schedule() {
                 isPast={!editable}
                 onEdit={editable ? handleScheduleEdit : undefined}
                 onDelete={editable ? deleteScheduleItem : undefined}
+                categoryColors={settings.scheduleCategoryColors}
               />
             ))}
             {editable && (
@@ -153,6 +156,7 @@ export function Schedule() {
             onEdit={handleScheduleEdit}
             onDelete={deleteScheduleItem}
             readOnly={false}
+            categoryColors={settings.scheduleCategoryColors}
           />
         </TabsContent>
 
@@ -195,6 +199,7 @@ export function Schedule() {
                             key={`${date.toISOString()}-${item.id}`}
                             item={item}
                             isPast={true}
+                            categoryColors={settings.scheduleCategoryColors}
                           />
                         ))}
                       </div>

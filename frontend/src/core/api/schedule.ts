@@ -11,6 +11,7 @@ export interface ApiScheduleItem {
   isActive: boolean;
   groupId?: string;
   recurrence?: 'daily' | 'weekdays' | 'weekends';
+  color?: string;
 }
 
 export const scheduleApi = {
@@ -25,6 +26,7 @@ export const scheduleApi = {
     isActive?: boolean;
     groupId?: string;
     recurrence?: 'daily' | 'weekdays' | 'weekends';
+    color?: string;
   }) => request<ApiScheduleItem>('/api/schedule', { method: 'POST', body: item }),
   addBatch: (
     items: {
@@ -35,6 +37,7 @@ export const scheduleApi = {
       emoji?: string;
       groupId?: string;
       recurrence?: 'daily' | 'weekdays' | 'weekends';
+      color?: string;
     }[]
   ) => request<ApiScheduleItem[]>('/api/schedule/batch', { method: 'POST', body: { items } }),
   update: (
@@ -49,6 +52,7 @@ export const scheduleApi = {
       isActive: boolean;
       groupId: string;
       recurrence: 'daily' | 'weekdays' | 'weekends';
+      color: string;
     }>
   ) => request<ApiScheduleItem>(`/api/schedule/${id}`, { method: 'PATCH', body: updates }),
   delete: (id: string) => request<void>(`/api/schedule/${id}`, { method: 'DELETE' }),

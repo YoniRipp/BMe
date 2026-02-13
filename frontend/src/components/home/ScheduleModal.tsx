@@ -1,5 +1,10 @@
 import { useState, useEffect } from 'react';
-import { ScheduleItem, SCHEDULE_CATEGORIES, CATEGORY_EMOJIS } from '@/types/schedule';
+import {
+  ScheduleItem,
+  SCHEDULE_CATEGORIES,
+  CATEGORY_EMOJIS,
+  SCHEDULE_COLOR_PRESET_IDS,
+} from '@/types/schedule';
 import {
   Dialog,
   DialogContent,
@@ -33,6 +38,7 @@ export function ScheduleModal({ open, onOpenChange, onSave, item }: ScheduleModa
     category: '',
     order: 0,
     isActive: true,
+    color: '' as string,
   });
 
   useEffect(() => {
@@ -44,6 +50,7 @@ export function ScheduleModal({ open, onOpenChange, onSave, item }: ScheduleModa
         category: item.category,
         order: item.order,
         isActive: item.isActive,
+        color: item.color ?? '',
       });
     } else {
       setFormData({
@@ -53,6 +60,7 @@ export function ScheduleModal({ open, onOpenChange, onSave, item }: ScheduleModa
         category: '',
         order: 0,
         isActive: true,
+        color: '',
       });
     }
   }, [item, open]);
@@ -67,6 +75,7 @@ export function ScheduleModal({ open, onOpenChange, onSave, item }: ScheduleModa
       emoji: CATEGORY_EMOJIS[formData.category],
       order: formData.order,
       isActive: formData.isActive,
+      color: formData.color || undefined,
     });
     // Parent closes modal after successful save (add or update)
   };
@@ -102,6 +111,26 @@ export function ScheduleModal({ open, onOpenChange, onSave, item }: ScheduleModa
                   {SCHEDULE_CATEGORIES.map((cat) => (
                     <SelectItem key={cat} value={cat}>
                       {CATEGORY_EMOJIS[cat]} {cat}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label htmlFor="color">Color</Label>
+              <Select
+                value={formData.color || 'default'}
+                onValueChange={(value) => setFormData({ ...formData, color: value === 'default' ? '' : value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Default (use category)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="default">Default (use category)</SelectItem>
+                  {SCHEDULE_COLOR_PRESET_IDS.map((presetId) => (
+                    <SelectItem key={presetId} value={presetId}>
+                      {presetId.charAt(0).toUpperCase() + presetId.slice(1)}
                     </SelectItem>
                   ))}
                 </SelectContent>
