@@ -33,11 +33,10 @@ import { Plus } from 'lucide-react';
 function groupTransactionsByDate(transactions: Transaction[]): { date: string; label: string; transactions: Transaction[] }[] {
   const byDate = new Map<string, Transaction[]>();
   for (const t of transactions) {
-    const d = typeof t.date === 'string' ? t.date.slice(0, 10) : format(new Date(t.date), 'yyyy-MM-dd');
+    const d = format(new Date(t.date), 'yyyy-MM-dd');
     if (!byDate.has(d)) byDate.set(d, []);
     byDate.get(d)!.push(t);
   }
-  const todayStr = format(new Date(), 'yyyy-MM-dd');
   const sortedDates = Array.from(byDate.keys()).sort((a, b) => b.localeCompare(a));
   return sortedDates.map((dateStr) => {
     const d = parseISO(dateStr);

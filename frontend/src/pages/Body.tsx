@@ -13,7 +13,7 @@ import { format, isToday, isYesterday, parseISO } from 'date-fns';
 function groupWorkoutsByDate(workouts: Workout[]): { date: string; label: string; workouts: Workout[] }[] {
   const byDate = new Map<string, Workout[]>();
   for (const w of workouts) {
-    const d = typeof w.date === 'string' ? w.date.slice(0, 10) : format(new Date(w.date), 'yyyy-MM-dd');
+    const d = format(new Date(w.date), 'yyyy-MM-dd');
     if (!byDate.has(d)) byDate.set(d, []);
     byDate.get(d)!.push(w);
   }
