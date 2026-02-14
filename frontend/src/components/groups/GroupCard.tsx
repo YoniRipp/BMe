@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom';
 import { Group } from '@/types/group';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -11,8 +12,13 @@ interface GroupCardProps {
 }
 
 export function GroupCard({ group, onSettings }: GroupCardProps) {
+  const navigate = useNavigate();
+
   return (
-    <Card className="p-4">
+    <Card
+      className="p-4 cursor-pointer hover:border-primary/50 transition-colors"
+      onClick={() => navigate(`/groups/${group.id}`)}
+    >
       <div className="flex items-start justify-between mb-3">
         <div className="flex-1">
           <div className="flex items-center gap-2 mb-1">
@@ -27,7 +33,11 @@ export function GroupCard({ group, onSettings }: GroupCardProps) {
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => onSettings(group)}
+            onClick={(e) => {
+              e.stopPropagation();
+              onSettings(group);
+            }}
+            aria-label="Group settings"
           >
             <Settings className="w-4 h-4" />
           </Button>

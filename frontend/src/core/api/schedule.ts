@@ -2,6 +2,7 @@ import { request } from './client';
 
 export interface ApiScheduleItem {
   id: string;
+  date: string;
   title: string;
   startTime: string;
   endTime: string;
@@ -18,6 +19,7 @@ export const scheduleApi = {
   list: () => request<ApiScheduleItem[]>('/api/schedule'),
   add: (item: {
     title: string;
+    date?: string;
     startTime?: string;
     endTime?: string;
     category?: string;
@@ -31,6 +33,7 @@ export const scheduleApi = {
   addBatch: (
     items: {
       title: string;
+      date?: string;
       startTime?: string;
       endTime?: string;
       category?: string;
@@ -43,6 +46,7 @@ export const scheduleApi = {
   update: (
     id: string,
     updates: Partial<{
+      date: string;
       title: string;
       startTime: string;
       endTime: string;

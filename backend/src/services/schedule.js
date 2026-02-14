@@ -13,10 +13,17 @@ export async function list(userId) {
   return scheduleModel.findByUserId(userId);
 }
 
+function normDate(v) {
+  if (v == null || v === '') return null;
+  const d = new Date(v);
+  return isNaN(d.getTime()) ? null : d.toISOString().slice(0, 10);
+}
+
 export async function create(userId, body) {
-  const { title, startTime, endTime, category, emoji, order, isActive, groupId, recurrence, color } = body ?? {};
+  const { title, startTime, endTime, category, emoji, order, isActive, groupId, recurrence, color, date } = body ?? {};
   const cat = normOneOf(category, SCHEDULE_CATEGORIES, { default: 'Other' });
   const rec = normOneOf(recurrence, VALID_RECURRENCE, { default: null });
+  const dateStr = normDate(date) ?? new Date().toISOString().slice(0, 10);
   return scheduleModel.create({
     userId,
     title: requireNonEmptyString(title, 'title'),
@@ -29,6 +36,7 @@ export async function create(userId, body) {
     groupId,
     recurrence: rec,
     color: color != null && typeof color === 'string' ? color.trim() || null : null,
+    date: dateStr,
   });
 }
 
@@ -36,6 +44,7 @@ export async function createBatch(userId, items) {
   if (!Array.isArray(items) || items.length === 0) {
     throw new ValidationError('items array is required');
   }
+  const todayStr = new Date().toISOString().slice(0, 10);
   const normalized = items
     .filter((it) => it?.title && typeof it.title === 'string' && it.title.trim())
     .map((it) => ({
@@ -43,6 +52,7 @@ export async function createBatch(userId, items) {
       title: String(it.title).trim(),
       category: normOneOf(it?.category, SCHEDULE_CATEGORIES, { default: 'Other' }),
       recurrence: normOneOf(it?.recurrence, VALID_RECURRENCE, { default: null }),
+      date: normDate(it?.date) ?? todayStr,
     }));
   if (normalized.length === 0) {
     throw new ValidationError('At least one valid item with title is required');
@@ -53,6 +63,7 @@ export async function createBatch(userId, items) {
 export async function update(userId, id, body) {
   requireId(id);
   const updates = buildUpdates(body ?? {}, {
+    date: (v) => (normDate(v) ?? undefined),
     title: (v) => (typeof v === 'string' ? v.trim() : v),
     startTime: (v) => normTimeRequired(v, 'startTime'),
     endTime: (v) => normTimeRequired(v, 'endTime'),

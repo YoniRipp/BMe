@@ -10,6 +10,7 @@ import workoutRouter from './workout.js';
 import foodEntryRouter from './foodEntry.js';
 import dailyCheckInRouter from './dailyCheckIn.js';
 import goalRouter from './goal.js';
+import groupRouter from './group.js';
 import foodSearchRouter from './foodSearch.js';
 import voiceRouter from './voice.js';
 import adminRouter from './admin.js';
@@ -25,6 +26,7 @@ router.use(workoutRouter);
 router.use(foodEntryRouter);
 router.use(dailyCheckInRouter);
 router.use(goalRouter);
+router.use(groupRouter);
 router.use(foodSearchRouter);
 router.use(voiceRouter);
 

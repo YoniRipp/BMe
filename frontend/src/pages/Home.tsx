@@ -47,8 +47,9 @@ export function Home() {
     return latest?.sleepHours;
   }, [checkIns]);
 
+  const todayStr = format(new Date(), 'yyyy-MM-dd');
   const activeSchedule = scheduleItems
-    .filter(item => item.isActive)
+    .filter((item) => item.isActive && item.date === todayStr)
     .sort((a, b) => {
       const aStart = a.startTime || '00:00';
       const bStart = b.startTime || '00:00';
@@ -193,6 +194,7 @@ export function Home() {
         onOpenChange={setScheduleModalOpen}
         onSave={handleScheduleSave}
         item={editingSchedule}
+        initialDate={todayStr}
       />
 
       <GoalModal

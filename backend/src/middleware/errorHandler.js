@@ -1,13 +1,14 @@
 /**
  * Centralized error handler. Maps domain errors to HTTP status codes.
  */
-import { ValidationError, NotFoundError, UnauthorizedError, ConflictError } from '../errors.js';
+import { ValidationError, NotFoundError, UnauthorizedError, ConflictError, ForbiddenError } from '../errors.js';
 
 const ERROR_STATUS_MAP = [
   [ValidationError, 400],
   [NotFoundError, 404],
   [UnauthorizedError, 401],
   [ConflictError, 409],
+  [ForbiddenError, 403],
 ];
 
 /**

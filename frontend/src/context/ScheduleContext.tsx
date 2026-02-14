@@ -44,9 +44,11 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
   }, [refetchScheduleQuery]);
 
   const addMutation = useMutation({
-    mutationFn: (item: Omit<ScheduleItem, 'id'>) =>
-      scheduleApi.add({
+    mutationFn: (item: Omit<ScheduleItem, 'id'>) => {
+      const today = new Date().toISOString().slice(0, 10);
+      return scheduleApi.add({
         title: item.title,
+        date: item.date ?? today,
         startTime: item.startTime,
         endTime: item.endTime,
         category: item.category,
@@ -56,7 +58,8 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
         groupId: item.groupId,
         recurrence: item.recurrence,
         color: item.color,
-      }),
+      });
+    },
     onSuccess: (created) => {
       queryClient.setQueryData(queryKeys.schedule, (prev: ScheduleItem[] | undefined) =>
         prev ? [...prev, apiScheduleItemToScheduleItem(created)] : [apiScheduleItemToScheduleItem(created)]
@@ -65,10 +68,12 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
   });
 
   const addBatchMutation = useMutation({
-    mutationFn: (items: Omit<ScheduleItem, 'id'>[]) =>
-      scheduleApi.addBatch(
+    mutationFn: (items: Omit<ScheduleItem, 'id'>[]) => {
+      const today = new Date().toISOString().slice(0, 10);
+      return scheduleApi.addBatch(
         items.map((it) => ({
           title: it.title,
+          date: it.date ?? today,
           startTime: it.startTime,
           endTime: it.endTime,
           category: it.category,
@@ -77,7 +82,8 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
           recurrence: it.recurrence,
           color: it.color,
         }))
-      ),
+      );
+    },
     onSuccess: (created) => {
       queryClient.setQueryData(queryKeys.schedule, (prev: ScheduleItem[] | undefined) =>
         prev ? [...prev, ...created.map(apiScheduleItemToScheduleItem)] : created.map(apiScheduleItemToScheduleItem)

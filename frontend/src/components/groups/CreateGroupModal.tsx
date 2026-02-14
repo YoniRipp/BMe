@@ -18,7 +18,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useApp } from '@/context/AppContext';
 import { STORAGE_KEYS, storage } from '@/lib/storage';
 
 interface CreateGroupModalProps {
@@ -28,7 +27,6 @@ interface CreateGroupModalProps {
 }
 
 export function CreateGroupModal({ open, onOpenChange, onSave }: CreateGroupModalProps) {
-  const { user } = useApp();
   const [customTypes, setCustomTypes] = useState<string[]>([]);
   const [formData, setFormData] = useState({
     name: '',
@@ -75,13 +73,7 @@ export function CreateGroupModal({ open, onOpenChange, onSave }: CreateGroupModa
       name: formData.name,
       description: formData.description,
       type: finalType,
-      members: [
-        {
-          userId: user.id,
-          email: user.email,
-          role: 'admin' as const,
-        },
-      ],
+      members: [],
       invitations: [],
     });
     onOpenChange(false);

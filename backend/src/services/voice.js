@@ -205,6 +205,8 @@ function buildDeleteWorkout(args) {
 }
 
 function buildAddSchedule(args, ctx) {
+  const todayStr = ctx?.todayStr ?? new Date().toISOString().slice(0, 10);
+  const dateStr = parseDate(args.date, todayStr);
   let items = Array.isArray(args.items) ? args.items : [];
   items = items
     .filter((it) => it && typeof it.title === 'string' && it.title.trim())
@@ -214,6 +216,7 @@ function buildAddSchedule(args, ctx) {
       endTime: normTime(it.endTime) ?? '10:00',
       category: normCat(it.category, SCHEDULE_CATEGORIES),
       recurrence: VALID_RECURRENCE.includes(it.recurrence) ? it.recurrence : undefined,
+      date: dateStr,
     }));
   return { items };
 }

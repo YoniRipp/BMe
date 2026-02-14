@@ -22,16 +22,27 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { useGroups } from '@/hooks/useGroups';
+
+function todayStr() {
+  return new Date().toISOString().slice(0, 10);
+}
 
 interface ScheduleModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSave: (item: Omit<ScheduleItem, 'id'>) => void;
   item?: ScheduleItem;
+  /** When adding a new item, use this as the default date (YYYY-MM-DD). */
+  initialDate?: string;
+  /** When adding a new item, preselect this group. */
+  initialGroupId?: string;
 }
 
-export function ScheduleModal({ open, onOpenChange, onSave, item }: ScheduleModalProps) {
+export function ScheduleModal({ open, onOpenChange, onSave, item, initialDate, initialGroupId }: ScheduleModalProps) {
+  const { groups } = useGroups();
   const [formData, setFormData] = useState({
+    date: todayStr(),
     title: '',
     startTime: '',
     endTime: '',
@@ -39,11 +50,13 @@ export function ScheduleModal({ open, onOpenChange, onSave, item }: ScheduleModa
     order: 0,
     isActive: true,
     color: '' as string,
+    groupId: '' as string,
   });
 
   useEffect(() => {
     if (item) {
       setFormData({
+        date: item.date ?? todayStr(),
         title: item.title,
         startTime: item.startTime,
         endTime: item.endTime,
@@ -51,9 +64,11 @@ export function ScheduleModal({ open, onOpenChange, onSave, item }: ScheduleModa
         order: item.order,
         isActive: item.isActive,
         color: item.color ?? '',
+        groupId: item.groupId ?? '',
       });
     } else {
       setFormData({
+        date: initialDate ?? todayStr(),
         title: '',
         startTime: '',
         endTime: '',
@@ -61,13 +76,15 @@ export function ScheduleModal({ open, onOpenChange, onSave, item }: ScheduleModa
         order: 0,
         isActive: true,
         color: '',
+        groupId: initialGroupId ?? '',
       });
     }
-  }, [item, open]);
+  }, [item, open, initialDate, initialGroupId]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSave({
+      date: formData.date,
       title: formData.title,
       startTime: formData.startTime,
       endTime: formData.endTime,
@@ -76,6 +93,7 @@ export function ScheduleModal({ open, onOpenChange, onSave, item }: ScheduleModa
       order: formData.order,
       isActive: formData.isActive,
       color: formData.color || undefined,
+      groupId: formData.groupId || undefined,
     });
     // Parent closes modal after successful save (add or update)
   };
@@ -88,6 +106,16 @@ export function ScheduleModal({ open, onOpenChange, onSave, item }: ScheduleModa
         </DialogHeader>
         <form onSubmit={handleSubmit}>
           <div className="space-y-4">
+            <div>
+              <Label htmlFor="date">Date</Label>
+              <Input
+                id="date"
+                type="date"
+                required
+                value={formData.date}
+                onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+              />
+            </div>
             <div>
               <Label htmlFor="title">Title</Label>
               <Input
@@ -131,6 +159,26 @@ export function ScheduleModal({ open, onOpenChange, onSave, item }: ScheduleModa
                   {SCHEDULE_COLOR_PRESET_IDS.map((presetId) => (
                     <SelectItem key={presetId} value={presetId}>
                       {presetId.charAt(0).toUpperCase() + presetId.slice(1)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label htmlFor="group">Group (optional)</Label>
+              <Select
+                value={formData.groupId || 'none'}
+                onValueChange={(value) => setFormData({ ...formData, groupId: value === 'none' ? '' : value })}
+              >
+                <SelectTrigger id="group">
+                  <SelectValue placeholder="None" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">None</SelectItem>
+                  {groups.map((g) => (
+                    <SelectItem key={g.id} value={g.id}>
+                      {g.name}
                     </SelectItem>
                   ))}
                 </SelectContent>

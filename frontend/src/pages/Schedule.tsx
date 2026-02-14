@@ -13,6 +13,18 @@ import { Calendar, Plus, CalendarDays, CalendarRange, List } from 'lucide-react'
 import { format, subDays, isSameDay } from 'date-fns';
 import { ScheduleItem as ScheduleItemType } from '@/types/schedule';
 
+function getItemsForDate(items: ScheduleItemType[], date: Date): ScheduleItemType[] {
+  const dateStr = format(date, 'yyyy-MM-dd');
+  return items
+    .filter((item) => item.date === dateStr)
+    .sort((a, b) => {
+      const aStart = a.startTime || '00:00';
+      const bStart = b.startTime || '00:00';
+      if (aStart !== bStart) return aStart.localeCompare(bStart);
+      return (a.endTime || '00:00').localeCompare(b.endTime || '00:00');
+    });
+}
+
 type ViewMode = 'today' | 'week' | 'month' | 'history';
 type PeriodKey = '1m' | '3m' | '6m' | '1y';
 
@@ -32,16 +44,10 @@ export function Schedule() {
   const [scheduleModalOpen, setScheduleModalOpen] = useState(false);
   const [editingSchedule, setEditingSchedule] = useState<ScheduleItemType | undefined>(undefined);
 
-  const activeSchedule = useMemo(() => {
-    return scheduleItems
-      .filter((item) => item.isActive)
-      .sort((a, b) => {
-        const aStart = a.startTime || '00:00';
-        const bStart = b.startTime || '00:00';
-        if (aStart !== bStart) return aStart.localeCompare(bStart);
-        return (a.endTime || '00:00').localeCompare(b.endTime || '00:00');
-      });
-  }, [scheduleItems]);
+  const activeItems = useMemo(
+    () => scheduleItems.filter((item) => item.isActive),
+    [scheduleItems]
+  );
 
   const datesInRange = useMemo(() => {
     const days = PERIOD_DAYS[period];
@@ -78,47 +84,50 @@ export function Schedule() {
     setScheduleModalOpen(true);
   };
 
-  const renderTodaySection = (date: Date, editable: boolean) => (
-    <div>
-      <h2 className="text-lg font-semibold mb-3">
-        {isSameDay(date, new Date()) ? 'Today' : format(date, 'EEE, MMM d, yyyy')}
-      </h2>
-      <ContentWithLoading loading={scheduleLoading} loadingText="Loading schedule..." error={scheduleError}>
-        {activeSchedule.length === 0 ? (
-          <Card
-            className="p-6 border-2 border-dashed cursor-pointer hover:border-primary transition-colors text-center"
-            onClick={editable ? () => { setEditingSchedule(undefined); setScheduleModalOpen(true); } : undefined}
-          >
-            <Plus className="w-10 h-10 mx-auto mb-2 text-muted-foreground" />
-            <p className="font-medium mb-1">Add your first schedule item</p>
-            <p className="text-sm text-muted-foreground">Tap to create a daily routine</p>
-          </Card>
-        ) : (
-          <>
-            {activeSchedule.map((item) => (
-              <ScheduleItem
-                key={item.id}
-                item={item}
-                isPast={!editable}
-                onEdit={editable ? handleScheduleEdit : undefined}
-                onDelete={editable ? deleteScheduleItem : undefined}
-                categoryColors={settings.scheduleCategoryColors}
-              />
-            ))}
-            {editable && (
-              <Card
-                className="p-4 border-2 border-dashed cursor-pointer hover:border-primary transition-colors text-center bg-muted/50 mt-2"
-                onClick={() => { setEditingSchedule(undefined); setScheduleModalOpen(true); }}
-              >
-                <Plus className="w-6 h-6 mx-auto text-primary" />
-                <p className="text-sm font-medium mt-1 text-muted-foreground">Add another</p>
-              </Card>
-            )}
-          </>
-        )}
-      </ContentWithLoading>
-    </div>
-  );
+  const renderTodaySection = (date: Date, editable: boolean) => {
+    const itemsForDate = getItemsForDate(activeItems, date);
+    return (
+      <div>
+        <h2 className="text-lg font-semibold mb-3">
+          {isSameDay(date, new Date()) ? 'Today' : format(date, 'EEE, MMM d, yyyy')}
+        </h2>
+        <ContentWithLoading loading={scheduleLoading} loadingText="Loading schedule..." error={scheduleError}>
+          {itemsForDate.length === 0 ? (
+            <Card
+              className="p-6 border-2 border-dashed cursor-pointer hover:border-primary transition-colors text-center"
+              onClick={editable ? () => { setEditingSchedule(undefined); setScheduleModalOpen(true); } : undefined}
+            >
+              <Plus className="w-10 h-10 mx-auto mb-2 text-muted-foreground" />
+              <p className="font-medium mb-1">Add your first schedule item</p>
+              <p className="text-sm text-muted-foreground">Tap to create a daily routine</p>
+            </Card>
+          ) : (
+            <>
+              {itemsForDate.map((item) => (
+                <ScheduleItem
+                  key={item.id}
+                  item={item}
+                  isPast={!editable}
+                  onEdit={editable ? handleScheduleEdit : undefined}
+                  onDelete={editable ? deleteScheduleItem : undefined}
+                  categoryColors={settings.scheduleCategoryColors}
+                />
+              ))}
+              {editable && (
+                <Card
+                  className="p-4 border-2 border-dashed cursor-pointer hover:border-primary transition-colors text-center bg-muted/50 mt-2"
+                  onClick={() => { setEditingSchedule(undefined); setScheduleModalOpen(true); }}
+                >
+                  <Plus className="w-6 h-6 mx-auto text-primary" />
+                  <p className="text-sm font-medium mt-1 text-muted-foreground">Add another</p>
+                </Card>
+              )}
+            </>
+          )}
+        </ContentWithLoading>
+      </div>
+    );
+  };
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
@@ -163,7 +172,7 @@ export function Schedule() {
             onSelectDate={setSelectedDate}
           />
           <div className="pt-4 border-t border-border">
-            <p className="text-sm text-muted-foreground mb-2">Schedule for selected day (template)</p>
+            <p className="text-sm text-muted-foreground mb-2">Schedule for selected day</p>
             {renderTodaySection(selectedDate, false)}
           </div>
         </TabsContent>
@@ -178,31 +187,34 @@ export function Schedule() {
             </TabsList>
             <TabsContent value={period} className="mt-4">
               <p className="text-sm text-muted-foreground mb-4">
-                Your current schedule template for each day in the past {period === '1m' ? 'month' : period === '3m' ? '3 months' : period === '6m' ? '6 months' : 'year'}.
+                Schedule items for each day in the past {period === '1m' ? 'month' : period === '3m' ? '3 months' : period === '6m' ? '6 months' : 'year'}.
               </p>
-              {activeSchedule.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Add schedule items in Today view to see them here.</p>
-              ) : (
-                <div className="space-y-6">
-                  {datesInRange.map((date) => (
+              <div className="space-y-6">
+                {datesInRange.map((date) => {
+                  const itemsForDate = getItemsForDate(scheduleItems, date);
+                  return (
                     <div key={date.toISOString()}>
                       <h3 className="text-sm font-medium text-muted-foreground mb-2 sticky top-0 bg-background py-1">
                         {format(date, 'EEE, MMM d, yyyy')}
                       </h3>
                       <div className="space-y-2">
-                        {activeSchedule.map((item) => (
-                          <ScheduleItem
-                            key={`${date.toISOString()}-${item.id}`}
-                            item={item}
-                            isPast={true}
-                            categoryColors={settings.scheduleCategoryColors}
-                          />
-                        ))}
+                        {itemsForDate.length === 0 ? (
+                          <p className="text-sm text-muted-foreground">No items</p>
+                        ) : (
+                          itemsForDate.map((item) => (
+                            <ScheduleItem
+                              key={item.id}
+                              item={item}
+                              isPast={true}
+                              categoryColors={settings.scheduleCategoryColors}
+                            />
+                          ))
+                        )}
                       </div>
                     </div>
-                  ))}
-                </div>
-              )}
+                  );
+                })}
+              </div>
             </TabsContent>
           </Tabs>
         </TabsContent>
@@ -213,6 +225,7 @@ export function Schedule() {
         onOpenChange={setScheduleModalOpen}
         onSave={handleScheduleSave}
         item={editingSchedule}
+        initialDate={format(selectedDate, 'yyyy-MM-dd')}
       />
     </div>
   );

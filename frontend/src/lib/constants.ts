@@ -130,6 +130,7 @@ export const SAMPLE_ENERGY: DailyCheckIn[] = [
 export const SAMPLE_SCHEDULE: ScheduleItem[] = [
   {
     id: 'schedule-001',
+    date: '2025-02-14',
     title: 'Morning Routine',
     startTime: '07:00',
     endTime: '07:30',
@@ -140,6 +141,7 @@ export const SAMPLE_SCHEDULE: ScheduleItem[] = [
   },
   {
     id: 'schedule-002',
+    date: '2025-02-14',
     title: 'Work',
     startTime: '09:00',
     endTime: '17:00',
@@ -150,6 +152,7 @@ export const SAMPLE_SCHEDULE: ScheduleItem[] = [
   },
   {
     id: 'schedule-003',
+    date: '2025-02-14',
     title: 'Workout',
     startTime: '18:00',
     endTime: '19:30',
@@ -160,6 +163,7 @@ export const SAMPLE_SCHEDULE: ScheduleItem[] = [
   },
   {
     id: 'schedule-004',
+    date: '2025-02-14',
     title: 'Sleep',
     startTime: '23:00',
     endTime: '07:00',

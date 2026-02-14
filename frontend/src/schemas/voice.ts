@@ -2,6 +2,7 @@ import { z } from 'zod';
 
 const voiceScheduleItemSchema = z.object({
   title: z.string(),
+  date: z.string().optional(),
   startTime: z.string().default('09:00'),
   endTime: z.string().default('10:00'),
   category: z.string().default('Other'),

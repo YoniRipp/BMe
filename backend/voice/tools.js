@@ -4,10 +4,11 @@ export const VOICE_TOOLS = [
     functionDeclarations: [
       {
         name: 'add_schedule',
-        description: 'Add one or more items to the daily schedule. User may say work 8-18, eat 18-22, exercise at 7, etc. Hebrew or English.',
+        description: 'Add one or more items to the daily schedule. User may say work 8-18, eat 18-22, exercise at 7, etc. Use date for "work 10-6 today" or "tomorrow". Hebrew or English.',
         parameters: {
           type: 'object',
           properties: {
+            date: { type: 'string', description: 'YYYY-MM-DD; default today. Use when user says today, tomorrow, or a specific date.' },
             items: {
               type: 'array',
               items: {

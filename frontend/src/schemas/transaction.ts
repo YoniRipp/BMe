@@ -34,6 +34,7 @@ export const transactionFormSchema = z.object({
   description: z.string().optional(),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Invalid date'),
   isRecurring: z.boolean(),
+  groupId: z.string().optional(),
 }).refine(
   (data) => {
     const allowed = data.type === 'income' ? incomeCategories : expenseCategories;

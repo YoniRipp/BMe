@@ -13,6 +13,7 @@ const Money = lazy(() => import('./pages/Money').then((m) => ({ default: m.Money
 const Body = lazy(() => import('./pages/Body').then((m) => ({ default: m.Body })));
 const Energy = lazy(() => import('./pages/Energy').then((m) => ({ default: m.Energy })));
 const Groups = lazy(() => import('./pages/Groups').then((m) => ({ default: m.Groups })));
+const GroupDetail = lazy(() => import('./pages/GroupDetail').then((m) => ({ default: m.GroupDetail })));
 const Admin = lazy(() => import('./pages/Admin').then((m) => ({ default: m.Admin })));
 const Settings = lazy(() => import('./pages/Settings').then((m) => ({ default: m.Settings })));
 const Insights = lazy(() => import('./pages/Insights').then((m) => ({ default: m.Insights })));
@@ -109,6 +110,14 @@ function ProtectedAppRoutes() {
           element={
             <Suspense fallback={<LoadingSpinner text="Loading groups page..." />}>
               <Groups />
+            </Suspense>
+          }
+        />
+        <Route
+          path="groups/:id"
+          element={
+            <Suspense fallback={<LoadingSpinner text="Loading group..." />}>
+              <GroupDetail />
             </Suspense>
           }
         />

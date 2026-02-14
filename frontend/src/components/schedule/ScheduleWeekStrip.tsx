@@ -36,13 +36,12 @@ export function ScheduleWeekStrip({
     d.setDate(d.getDate() + 1);
   }
 
-  const activeSchedule = [...scheduleItems]
-    .filter((item) => item.isActive)
-    .sort((a, b) => {
-      const aStart = a.startTime || '00:00';
-      const bStart = b.startTime || '00:00';
-      return aStart.localeCompare(bStart);
-    });
+  const getItemsForDay = (day: Date) => {
+    const dateStr = format(day, 'yyyy-MM-dd');
+    return [...scheduleItems]
+      .filter((item) => item.isActive && item.date === dateStr)
+      .sort((a, b) => (a.startTime || '00:00').localeCompare(b.startTime || '00:00'));
+  };
 
   return (
     <div className="space-y-4">
@@ -88,7 +87,7 @@ export function ScheduleWeekStrip({
             </p>
             <p className="text-xs text-muted-foreground mb-2">{format(day, 'MMM d')}</p>
             <div className="space-y-1">
-              {activeSchedule.map((item) => (
+              {getItemsForDay(day).map((item) => (
                 <ScheduleItem
                   key={item.id}
                   item={item}

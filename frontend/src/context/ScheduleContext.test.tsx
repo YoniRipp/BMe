@@ -5,9 +5,10 @@ import { useSchedule } from '@/hooks/useSchedule';
 import { ScheduleItem } from '@/types/schedule';
 
 const mockList = vi.fn().mockResolvedValue([]);
-const mockAdd = vi.fn().mockImplementation((item: { title: string }) =>
+const mockAdd = vi.fn().mockImplementation((item: { title: string; date?: string }) =>
   Promise.resolve({
     id: 'new-id',
+    date: item.date ?? '2025-02-14',
     title: item.title,
     startTime: '09:00',
     endTime: '10:00',
@@ -17,7 +18,7 @@ const mockAdd = vi.fn().mockImplementation((item: { title: string }) =>
   })
 );
 const mockUpdate = vi.fn().mockImplementation((id: string, updates: Partial<ScheduleItem>) =>
-  Promise.resolve({ id, title: 'Updated', startTime: '09:00', endTime: '10:00', category: 'Other', order: 0, isActive: true, ...updates })
+  Promise.resolve({ id, date: '2025-02-14', title: 'Updated', startTime: '09:00', endTime: '10:00', category: 'Other', order: 0, isActive: true, ...updates })
 );
 const mockDelete = vi.fn().mockResolvedValue(undefined);
 
@@ -57,6 +58,7 @@ describe('ScheduleContext', () => {
     await waitFor(() => expect(result.current.scheduleLoading).toBe(false));
 
     const newItem: Omit<ScheduleItem, 'id'> = {
+      date: '2025-02-14',
       title: 'Test Schedule',
       startTime: '09:00',
       endTime: '10:00',
@@ -77,7 +79,7 @@ describe('ScheduleContext', () => {
   });
 
   it('updates schedule item via API', async () => {
-    mockList.mockResolvedValue([{ id: 'test-id', title: 'Test', startTime: '09:00', endTime: '10:00', category: 'Work', order: 0, isActive: true }]);
+    mockList.mockResolvedValue([{ id: 'test-id', date: '2025-02-14', title: 'Test', startTime: '09:00', endTime: '10:00', category: 'Work', order: 0, isActive: true }]);
     const { result } = renderHook(() => useSchedule(), { wrapper });
 
     await waitFor(() => expect(result.current.scheduleLoading).toBe(false));
@@ -92,7 +94,7 @@ describe('ScheduleContext', () => {
   });
 
   it('deletes schedule item via API', async () => {
-    mockList.mockResolvedValue([{ id: 'test-id', title: 'Test', startTime: '09:00', endTime: '10:00', category: 'Work', order: 0, isActive: true }]);
+    mockList.mockResolvedValue([{ id: 'test-id', date: '2025-02-14', title: 'Test', startTime: '09:00', endTime: '10:00', category: 'Work', order: 0, isActive: true }]);
     const { result } = renderHook(() => useSchedule(), { wrapper });
 
     await waitFor(() => expect(result.current.scheduleLoading).toBe(false));
@@ -108,7 +110,7 @@ describe('ScheduleContext', () => {
 
   it('gets schedule item by id', async () => {
     mockList.mockResolvedValue([
-      { id: 'test-id', title: 'Test Schedule', startTime: '09:00', endTime: '10:00', category: 'Work', order: 0, isActive: true },
+      { id: 'test-id', date: '2025-02-14', title: 'Test Schedule', startTime: '09:00', endTime: '10:00', category: 'Work', order: 0, isActive: true },
     ]);
     const { result } = renderHook(() => useSchedule(), { wrapper });
 

@@ -24,15 +24,18 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { toLocalDateString } from '@/lib/dateRanges';
+import { useGroups } from '@/hooks/useGroups';
 
 interface TransactionModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSave: (transaction: Omit<Transaction, 'id'>) => void;
   transaction?: Transaction;
+  /** When adding a new transaction, preselect this group. */
+  initialGroupId?: string;
 }
 
-function getDefaultValues(displayCurrency: string): TransactionFormValues {
+function getDefaultValues(displayCurrency: string, groupId?: string): TransactionFormValues {
   return {
     type: 'expense',
     amount: '',
@@ -41,6 +44,7 @@ function getDefaultValues(displayCurrency: string): TransactionFormValues {
     description: '',
     date: toLocalDateString(new Date()),
     isRecurring: false,
+    groupId: groupId ?? '',
   };
 }
 
@@ -49,8 +53,10 @@ export function TransactionModal({
   onOpenChange,
   onSave,
   transaction,
+  initialGroupId,
 }: TransactionModalProps) {
   const { settings } = useSettings();
+  const { groups } = useGroups();
   const defaultValues = getDefaultValues(settings.currency);
   const {
     register,
@@ -80,11 +86,15 @@ export function TransactionModal({
         description: transaction.description ?? '',
         date: toLocalDateString(new Date(transaction.date)),
         isRecurring: transaction.isRecurring,
+        groupId: transaction.groupId ?? '',
       });
     } else {
-      reset({ ...getDefaultValues(settings.currency), date: toLocalDateString(new Date()) });
+      reset({
+        ...getDefaultValues(settings.currency, initialGroupId),
+        date: toLocalDateString(new Date()),
+      });
     }
-  }, [open, transaction, reset, settings.currency]);
+  }, [open, transaction, reset, settings.currency, initialGroupId]);
 
   const onSubmit = (data: TransactionFormValues) => {
     onSave({
@@ -95,6 +105,7 @@ export function TransactionModal({
       description: data.description,
       date: new Date(data.date),
       isRecurring: data.isRecurring,
+      groupId: data.groupId && data.groupId.trim() ? data.groupId : undefined,
     });
     onOpenChange(false);
   };
@@ -218,6 +229,31 @@ export function TransactionModal({
             <div>
               <Label htmlFor="description">Description (Optional)</Label>
               <Textarea id="description" {...register('description')} />
+            </div>
+            <div>
+              <Label htmlFor="group">Group (optional)</Label>
+              <Controller
+                name="groupId"
+                control={control}
+                render={({ field }) => (
+                  <Select
+                    value={field.value && field.value.trim() ? field.value : 'none'}
+                    onValueChange={(v) => field.onChange(v === 'none' ? '' : v)}
+                  >
+                    <SelectTrigger id="group">
+                      <SelectValue placeholder="None" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">None</SelectItem>
+                      {groups.map((g) => (
+                        <SelectItem key={g.id} value={g.id}>
+                          {g.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
             </div>
             <div className="flex items-center space-x-2">
               <Controller

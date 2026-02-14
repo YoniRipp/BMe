@@ -1,5 +1,7 @@
 export interface ScheduleItem {
   id: string;
+  /** Date for this item (YYYY-MM-DD). */
+  date: string;
   title: string;
   startTime: string; // HH:MM format
   endTime: string; // HH:MM format
