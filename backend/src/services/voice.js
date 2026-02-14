@@ -11,7 +11,7 @@ import { getNutritionForFoodName, unitToGrams } from '../models/foodSearch.js';
 import { lookupAndCreateFood } from './foodLookupGemini.js';
 import { logError } from './appLog.js';
 
-const VOICE_PROMPT = `You are a voice assistant for a life management app. The user speaks in Hebrew or English.
+export const VOICE_PROMPT = `You are a voice assistant for a life management app. The user speaks in Hebrew or English.
 Parse their message and call the appropriate function(s) for each action they want to take.
 
 Food and drink rules:
@@ -20,7 +20,7 @@ Food and drink rules:
 - When the user says they ate or had a meal WITH a time range (e.g. "ate from 6 to 8", "had dinner 18:00-20:00", "I ate at 6-7" and describes what they ate), call BOTH add_schedule (one item: title "Meal" or the meal description, category "Meal", startTime/endTime in HH:MM 24h) AND add_food with the same startTime and endTime and the food name. When they say they ate something without a time range (e.g. "I ate today XYZ"), call ONLY add_food—no add_schedule.
 Examples: "Diet Coke" or "had a Diet Coke" → add_food only. "Bought Diet Coke for 5" → add_transaction (expense, 5, Food, Diet Coke) + add_food (Diet Coke). "work 8-18, eat 18-22" → add_schedule twice. "I ate from 6 to 8, had pasta" → add_schedule (Meal 18:00-20:00) + add_food (pasta, startTime 18:00, endTime 20:00). "bought coke for 10, slept 8 hours" → add_transaction (expense, 10, Food, Coke) + add_food (Coke) + log_sleep.
 Sleep: When the user talks about sleep or waking up, use log_sleep (hours) or add_schedule with category Sleep. E.g. "slept 7 hours" → log_sleep(sleepHours: 7). "woke up from 6 to 8" or "slept from 6 to 8" → log_sleep(sleepHours: 2) or add_schedule with Sleep 06:00-08:00. Do NOT use add_food for sleep-related phrases.
-Workouts: When the user says they worked out and gives exercises with sets/reps/weight, call add_workout with type "strength". Use title "Workout" when they do not give a workout name; when they say a program name (e.g. SS, Starting Strength) use that as title. Do not use an exercise name as the workout title. Each exercise in the exercises array must use the exact exercise name the user said (e.g. Squat, Deadlift). Sets and reps: use sets × reps (e.g. 3 reps 5 sets = 5 sets of 3 reps; 3x3 = 3 sets, 3 reps). durationMinutes is optional (default 30).
+Workouts: When the user says they worked out and gives exercises with sets/reps/weight, call add_workout with type "strength". Use title "Workout" when they do not give a workout name; when they say a program name (e.g. SS, Starting Strength) use that as title. When the user says they did a SAVED or NAMED workout without listing exercises (e.g. "I did Yoni's workout", "did my Monday routine") call add_workout with title = that workout name and exercises = [] (empty array) so the app can copy from the user's saved workout. If they add overrides (e.g. "I did Yoni's workout with 150kg squat") pass title and only the override in exercises (e.g. one exercise: Squat, weight 150). Do not use an exercise name as the workout title. Each exercise in the exercises array must use the exact exercise name the user said (e.g. Squat, Deadlift). Sets and reps: use sets × reps (e.g. 3 reps 5 sets = 5 sets of 3 reps; 3x3 = 3 sets, 3 reps). durationMinutes is optional (default 30).
 Call all relevant functions; the user may combine multiple actions in one message.`;
 
 const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
@@ -333,8 +333,8 @@ function buildDeleteGoal(args) {
   return mapArgs(args, DELETE_GOAL_SPEC);
 }
 
-/** Handlers return { merge } or { items }. All invoked via Promise.resolve for uniform async/sync. */
-const HANDLERS = {
+/** Handlers return { merge } or { items }. All invoked via Promise.resolve for uniform async/sync. Exported for Live API tool execution. */
+export const HANDLERS = {
   add_schedule: (args, ctx) => Promise.resolve(buildAddSchedule(args, ctx)),
   edit_schedule: (args, ctx) => Promise.resolve({ merge: buildEditSchedule(args, ctx) }),
   delete_schedule: (args, ctx) => Promise.resolve({ merge: buildDeleteSchedule(args, ctx) }),

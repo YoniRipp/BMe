@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useGroups } from '@/hooks/useGroups';
 import { Group } from '@/types/group';
-import { PageHeader } from '@/components/shared/PageHeader';
+import { PageTitle } from '@/components/layout/PageTitle';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { GroupCard } from '@/components/groups/GroupCard';
 import { CreateGroupModal } from '@/components/groups/CreateGroupModal';
@@ -21,13 +21,8 @@ export function Groups() {
   };
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title="My Groups"
-        subtitle="Manage shared groups, expenses and tasks"
-        icon={Users}
-        iconColor="text-indigo-600"
-      />
+    <div className="max-w-6xl mx-auto space-y-6">
+      <PageTitle title="My Groups" subtitle="Manage shared groups, expenses and tasks" />
 
       <div className="flex justify-end">
         <Button onClick={() => setCreateModalOpen(true)}>

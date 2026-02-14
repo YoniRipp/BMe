@@ -1,45 +1,34 @@
-import { useState, useEffect } from 'react';
+import { useMemo } from 'react';
 import { Outlet } from 'react-router-dom';
+import { SidebarProvider, SidebarInset, SidebarRail } from '@/components/ui/sidebar';
+import { AppSidebar } from './AppSidebar';
 import { TopBar } from './TopBar';
-import { Sidebar } from './Sidebar';
-import { BottomNav } from './BottomNav';
 import { VoiceAgentButton } from '../voice/VoiceAgentButton';
 
-const SIDEBAR_STORAGE_KEY = 'beme-sidebar-open';
+const SIDEBAR_COOKIE_NAME = 'sidebar_state';
 
-function getStoredSidebarOpen(): boolean {
-  try {
-    const v = localStorage.getItem(SIDEBAR_STORAGE_KEY);
-    return v === null ? true : v === 'true';
-  } catch {
-    return true;
-  }
+function getSidebarDefaultOpen(): boolean {
+  if (typeof document === 'undefined') return true;
+  const match = document.cookie.match(new RegExp(`(?:^|; )${SIDEBAR_COOKIE_NAME}=([^;]*)`));
+  const value = match?.[1];
+  if (value === 'true') return true;
+  if (value === 'false') return false;
+  return true;
 }
 
 export function Layout() {
-  const [sidebarOpen, setSidebarOpen] = useState(getStoredSidebarOpen);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(SIDEBAR_STORAGE_KEY, String(sidebarOpen));
-    } catch {
-      // ignore
-    }
-  }, [sidebarOpen]);
-
-  const toggleSidebar = () => setSidebarOpen((prev) => !prev);
-
+  const defaultOpen = useMemo(() => getSidebarDefaultOpen(), []);
   return (
-    <div className="min-h-screen bg-background">
-      <Sidebar open={sidebarOpen} onOpenChange={setSidebarOpen} />
-      <div className="flex flex-col min-h-screen">
-        <TopBar sidebarOpen={sidebarOpen} onSidebarToggle={toggleSidebar} />
-        <main className="flex-1 max-w-screen-xl w-full mx-auto px-4 py-6 pb-24 md:pb-6">
+    <SidebarProvider defaultOpen={defaultOpen}>
+      <AppSidebar />
+      <SidebarRail />
+      <SidebarInset>
+        <TopBar />
+        <main className="flex-1 max-w-screen-xl w-full mx-auto px-4 py-6">
           <Outlet />
         </main>
-      </div>
-      <BottomNav />
+      </SidebarInset>
       <VoiceAgentButton />
-    </div>
+    </SidebarProvider>
   );
 }

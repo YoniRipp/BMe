@@ -1,14 +1,14 @@
 import { useState, useMemo } from 'react';
 import { useEnergy } from '@/hooks/useEnergy';
 import { FoodEntry, type DailyCheckIn } from '@/types/energy';
-import { PageHeader } from '@/components/shared/PageHeader';
+import { PageTitle } from '@/components/layout/PageTitle';
 import { ContentWithLoading } from '@/components/shared/ContentWithLoading';
 import { SleepEditModal } from '@/components/energy/SleepEditModal';
 import { FoodEntryModal } from '@/components/energy/FoodEntryModal';
 import { ConfirmationDialog } from '@/components/shared/ConfirmationDialog';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Zap, Moon, Plus, Trash2, Pencil } from 'lucide-react';
+import { Moon, Plus, Trash2, Pencil } from 'lucide-react';
 import { isSameDay, startOfDay, endOfDay, isWithinInterval, format } from 'date-fns';
 import { getPeriodRange, toLocalDateString } from '@/lib/dateRanges';
 
@@ -213,13 +213,8 @@ export function Energy() {
   };
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Energy"
-        subtitle="Track your daily energy"
-        icon={Zap}
-        iconColor="text-purple-600"
-      />
+    <div className="max-w-6xl mx-auto space-y-6">
+      <PageTitle title="Energy" subtitle="Track your daily energy" />
 
       <ContentWithLoading loading={energyLoading} loadingText="Loading energy...">
       {/* Calories Balance Card */}
@@ -239,7 +234,7 @@ export function Energy() {
               <Card
                 key={period}
                 className={`p-2 cursor-pointer transition-all hover:scale-105 ${
-                  caloriePeriod === period ? 'ring-2 ring-purple-500 shadow-lg' : ''
+                  caloriePeriod === period ? 'ring-2 ring-primary shadow-lg' : ''
                 }`}
                 onClick={() => setCaloriePeriod(period)}
               >
@@ -352,7 +347,7 @@ export function Energy() {
               <Card
                 key={period}
                 className={`p-2 cursor-pointer transition-all hover:scale-105 ${
-                  sleepPeriod === period ? 'ring-2 ring-blue-500 shadow-lg' : ''
+                  sleepPeriod === period ? 'ring-2 ring-primary shadow-lg' : ''
                 }`}
                 onClick={() => setSleepPeriod(period)}
               >

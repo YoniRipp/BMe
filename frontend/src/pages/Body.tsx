@@ -1,14 +1,32 @@
 import { useState, useMemo } from 'react';
 import { useWorkouts } from '@/hooks/useWorkouts';
 import { Workout } from '@/types/workout';
-import { PageHeader } from '@/components/shared/PageHeader';
+import { PageTitle } from '@/components/layout/PageTitle';
 import { WorkoutCard } from '@/components/body/WorkoutCard';
 import { WorkoutModal } from '@/components/body/WorkoutModal';
-import { WeeklyWorkoutGrid } from '@/components/body/WeeklyWorkoutGrid';
 import { ContentWithLoading } from '@/components/shared/ContentWithLoading';
 import { SearchBar } from '@/components/shared/SearchBar';
 import { Card } from '@/components/ui/card';
-import { Dumbbell, Plus } from 'lucide-react';
+import { Plus } from 'lucide-react';
+import { format, isToday, isYesterday, parseISO } from 'date-fns';
+
+function groupWorkoutsByDate(workouts: Workout[]): { date: string; label: string; workouts: Workout[] }[] {
+  const byDate = new Map<string, Workout[]>();
+  for (const w of workouts) {
+    const d = typeof w.date === 'string' ? w.date.slice(0, 10) : format(new Date(w.date), 'yyyy-MM-dd');
+    if (!byDate.has(d)) byDate.set(d, []);
+    byDate.get(d)!.push(w);
+  }
+  const sortedDates = Array.from(byDate.keys()).sort((a, b) => b.localeCompare(a));
+  return sortedDates.map((dateStr) => {
+    const d = parseISO(dateStr);
+    let label: string;
+    if (isToday(d)) label = 'Today';
+    else if (isYesterday(d)) label = 'Yesterday';
+    else label = format(d, 'EEEE, MMM d');
+    return { date: dateStr, label, workouts: byDate.get(dateStr)! };
+  });
+}
 
 export function Body() {
   const { workouts, workoutsLoading, addWorkout, updateWorkout, deleteWorkout } = useWorkouts();
@@ -18,8 +36,6 @@ export function Body() {
 
   const filteredWorkouts = useMemo(() => {
     let filtered = workouts;
-    
-    // Search filter
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(w =>
@@ -29,9 +45,10 @@ export function Body() {
         w.exercises.some(e => e.name.toLowerCase().includes(query))
       );
     }
-    
     return filtered.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [workouts, searchQuery]);
+
+  const groupedByDate = useMemo(() => groupWorkoutsByDate(filteredWorkouts), [filteredWorkouts]);
 
   const handleSave = (workout: Omit<Workout, 'id'>) => {
     if (editingWorkout) {
@@ -53,13 +70,8 @@ export function Body() {
   };
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Body"
-        subtitle="Workouts & Tracking"
-        icon={Dumbbell}
-        iconColor="text-blue-600"
-      />
+    <div className="max-w-6xl mx-auto space-y-6">
+      <PageTitle title="Body" subtitle="Workouts & Tracking" />
 
       <div>
         <div className="flex items-center gap-3 mb-4">
@@ -73,8 +85,8 @@ export function Body() {
           </div>
         </div>
         <ContentWithLoading loading={workoutsLoading} loadingText="Loading workouts...">
-          <div className="space-y-2">
-            {filteredWorkouts.length === 0 ? (
+          <div className="space-y-6">
+            {groupedByDate.length === 0 ? (
               <Card 
                 className="p-8 border-2 border-dashed cursor-pointer hover:border-primary transition-colors text-center"
                 onClick={handleAddNew}
@@ -85,13 +97,22 @@ export function Body() {
               </Card>
             ) : (
               <>
-                {filteredWorkouts.map((workout) => (
-                  <WorkoutCard
-                    key={workout.id}
-                    workout={workout}
-                    onEdit={handleEdit}
-                    onDelete={deleteWorkout}
-                  />
+                {groupedByDate.map(({ date: dateStr, label, workouts: dayWorkouts }) => (
+                  <section key={dateStr}>
+                    <h3 className="text-sm font-medium text-muted-foreground mb-2 sticky top-0 bg-background/95 py-1">
+                      {label}
+                    </h3>
+                    <div className="space-y-2">
+                      {dayWorkouts.map((workout) => (
+                        <WorkoutCard
+                          key={workout.id}
+                          workout={workout}
+                          onEdit={handleEdit}
+                          onDelete={deleteWorkout}
+                        />
+                      ))}
+                    </div>
+                  </section>
                 ))}
                 <Card 
                   className="p-6 border-2 border-dashed cursor-pointer hover:border-primary transition-colors text-center bg-muted/50"
@@ -105,8 +126,6 @@ export function Body() {
           </div>
         </ContentWithLoading>
       </div>
-
-      <WeeklyWorkoutGrid workouts={workouts} />
 
       <WorkoutModal
         open={modalOpen}

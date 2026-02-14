@@ -4,7 +4,6 @@ import { useAuth } from '@/context/AuthContext';
 import { Settings as SettingsIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { SettingsSection } from './SettingsSection';
-import { AdminUsersSection } from './AdminUsersSection';
 
 export function AccountSection() {
   const navigate = useNavigate();
@@ -23,7 +22,6 @@ export function AccountSection() {
         <Button variant="outline" onClick={handleSignOut}>
           Sign out
         </Button>
-        {user.role === 'admin' && <AdminUsersSection />}
       </div>
     </SettingsSection>
   );

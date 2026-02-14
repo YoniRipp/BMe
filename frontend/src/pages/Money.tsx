@@ -2,12 +2,12 @@ import { useMemo, useState } from 'react';
 import { Transaction } from '@/types/transaction';
 import { useSettings } from '@/hooks/useSettings';
 import { useExchangeRates } from '@/features/money/useExchangeRates';
-import { PageHeader } from '@/components/shared/PageHeader';
+import { PageTitle } from '@/components/layout/PageTitle';
 import { SearchBar } from '@/components/shared/SearchBar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Dialog,
   DialogContent,
@@ -15,16 +15,46 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { DollarSign, Filter, X } from 'lucide-react';
+import { Filter, X } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { Card } from '@/components/ui/card';
 import { ContentWithLoading } from '@/components/shared/ContentWithLoading';
 import { useTransactions } from '@/features/money/useTransactions';
 import { useTransactionFilters } from '@/features/money/useTransactionFilters';
 import { useBalanceByPeriod } from '@/features/money/useBalanceByPeriod';
-import { TransactionList } from '@/features/money/components/TransactionList';
+import { TransactionCard } from '@/features/money/components/TransactionCard';
 import { TransactionModal } from '@/features/money/components/TransactionModal';
 import { MonthlyChart } from '@/features/money/components/MonthlyChart';
-import { BalancePeriodCards } from '@/features/money/components/BalancePeriodCards';
+import { formatCurrency } from '@/lib/utils';
+import { format, isToday, isYesterday, parseISO } from 'date-fns';
+import type { BalancePeriod } from '@/features/money/useBalanceByPeriod';
+import { Plus } from 'lucide-react';
+
+function groupTransactionsByDate(transactions: Transaction[]): { date: string; label: string; transactions: Transaction[] }[] {
+  const byDate = new Map<string, Transaction[]>();
+  for (const t of transactions) {
+    const d = typeof t.date === 'string' ? t.date.slice(0, 10) : format(new Date(t.date), 'yyyy-MM-dd');
+    if (!byDate.has(d)) byDate.set(d, []);
+    byDate.get(d)!.push(t);
+  }
+  const todayStr = format(new Date(), 'yyyy-MM-dd');
+  const sortedDates = Array.from(byDate.keys()).sort((a, b) => b.localeCompare(a));
+  return sortedDates.map((dateStr) => {
+    const d = parseISO(dateStr);
+    let label: string;
+    if (isToday(d)) label = 'Today';
+    else if (isYesterday(d)) label = 'Yesterday';
+    else label = format(d, 'EEEE, MMM d');
+    return { date: dateStr, label, transactions: byDate.get(dateStr)! };
+  });
+}
+
+const PERIOD_LABELS: Record<BalancePeriod, string> = {
+  daily: 'Today',
+  weekly: 'This week',
+  monthly: 'This month',
+  yearly: 'This year',
+};
 
 export function Money() {
   const {
@@ -64,6 +94,13 @@ export function Money() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | undefined>(undefined);
 
+  const balanceForPeriod = balances[selectedPeriod];
+
+  const groupedByDate = useMemo(
+    () => groupTransactionsByDate(filteredTransactions),
+    [filteredTransactions]
+  );
+
   const handleSave = (transaction: Omit<Transaction, 'id'>) => {
     if (editingTransaction) {
       updateTransaction(editingTransaction.id, transaction);
@@ -84,68 +121,138 @@ export function Money() {
   };
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Money"
-        subtitle="Where does the money go?"
-        icon={DollarSign}
-        iconColor="text-green-600"
-      />
+    <div className="max-w-6xl mx-auto space-y-6">
+      <PageTitle title="Money" subtitle="Where does the money go?" />
+
+      {/* Balance / summary at top (bank-style) */}
+      <Card className="p-5 bg-muted/40">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <p className="text-sm text-muted-foreground mb-1">Balance ({PERIOD_LABELS[selectedPeriod]})</p>
+            <p
+              className={`text-2xl sm:text-3xl font-semibold tabular-nums ${
+                balanceForPeriod.balance >= 0 ? 'text-green-600' : 'text-red-600'
+              }`}
+            >
+              {formatCurrency(balanceForPeriod.balance, displayCurrency)}
+            </p>
+            <div className="flex gap-4 mt-2 text-sm">
+              <span className="text-green-600">+{formatCurrency(balanceForPeriod.income, displayCurrency)}</span>
+              <span className="text-red-600">−{formatCurrency(balanceForPeriod.expenses, displayCurrency)}</span>
+            </div>
+          </div>
+          <Tabs value={selectedPeriod} onValueChange={(v) => setSelectedPeriod(v as BalancePeriod)} className="w-auto">
+            <TabsList className="grid grid-cols-4 h-9">
+              <TabsTrigger value="daily" className="text-xs">Day</TabsTrigger>
+              <TabsTrigger value="weekly" className="text-xs">Week</TabsTrigger>
+              <TabsTrigger value="monthly" className="text-xs">Month</TabsTrigger>
+              <TabsTrigger value="yearly" className="text-xs">Year</TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
+      </Card>
 
       <ContentWithLoading
         loading={transactionsLoading}
         loadingText="Loading transactions..."
         error={transactionsError}
       >
-        <div className="flex items-center gap-3 mb-4">
-              <div className="flex-1">
-                <SearchBar
-                  value={searchQuery}
-                  onChange={setSearchQuery}
-                  placeholder="Search transactions..."
-                />
-              </div>
-              <FilterDialog
-                dateRange={dateRange}
-                setDateRange={setDateRange}
-                amountRange={amountRange}
-                setAmountRange={setAmountRange}
-                allCategories={allCategories}
-                selectedCategories={selectedCategories}
-                toggleCategory={toggleCategory}
-                activeFiltersCount={activeFiltersCount}
-                clearFilters={clearFilters}
-              />
-            </div>
-            <Tabs
-              value={filter}
-              onValueChange={(v) => setFilter(v as 'all' | 'income' | 'expense')}
-              className="w-full"
-            >
-              <TabsList className="grid w-full grid-cols-3">
-                <TabsTrigger value="all">All</TabsTrigger>
-                <TabsTrigger value="income">Income</TabsTrigger>
-                <TabsTrigger value="expense">Expenses</TabsTrigger>
-              </TabsList>
-              <TabsContent value={filter} className="mt-4">
-                <TransactionList
-                  transactions={filteredTransactions}
-                  convertToDisplay={convertToDisplay}
-                  displayCurrency={displayCurrency}
-                  onEdit={handleEdit}
-                  onDelete={deleteTransaction}
-                  onAdd={handleAddNew}
-                />
-              </TabsContent>
-            </Tabs>
-      </ContentWithLoading>
+        {/* Search + filters */}
+        <div className="flex items-center gap-3">
+          <div className="flex-1">
+            <SearchBar
+              value={searchQuery}
+              onChange={setSearchQuery}
+              placeholder="Search transactions..."
+            />
+          </div>
+          <FilterDialog
+            dateRange={dateRange}
+            setDateRange={setDateRange}
+            amountRange={amountRange}
+            setAmountRange={setAmountRange}
+            allCategories={allCategories}
+            selectedCategories={selectedCategories}
+            toggleCategory={toggleCategory}
+            activeFiltersCount={activeFiltersCount}
+            clearFilters={clearFilters}
+          />
+        </div>
 
-      <BalancePeriodCards
-        balances={balances}
-        displayCurrency={displayCurrency}
-        selectedPeriod={selectedPeriod}
-        onSelectPeriod={setSelectedPeriod}
-      />
+        {/* Filter tabs: All / Income / Expenses */}
+        <Tabs
+          value={filter}
+          onValueChange={(v) => setFilter(v as 'all' | 'income' | 'expense')}
+          className="w-full"
+        >
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="all">All</TabsTrigger>
+            <TabsTrigger value="income">Income</TabsTrigger>
+            <TabsTrigger value="expense">Expenses</TabsTrigger>
+          </TabsList>
+
+          {/* Date-grouped transaction list */}
+          <div className="mt-4 space-y-6">
+            {groupedByDate.length === 0 ? (
+              <Card
+                className="p-8 border-2 border-dashed cursor-pointer hover:border-primary transition-colors text-center"
+                onClick={handleAddNew}
+                role="button"
+                tabIndex={0}
+                aria-label="Add your first transaction"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    handleAddNew();
+                  }
+                }}
+              >
+                <Plus className="w-12 h-12 mx-auto mb-3 text-muted-foreground" aria-hidden />
+                <p className="text-lg font-medium mb-1">Add your first transaction</p>
+                <p className="text-sm text-muted-foreground">Tap to start tracking your finances</p>
+              </Card>
+            ) : (
+              <>
+                {groupedByDate.map(({ date: dateStr, label, transactions: dayTransactions }) => (
+                  <section key={dateStr}>
+                    <h3 className="text-sm font-medium text-muted-foreground mb-2 sticky top-0 bg-background/95 py-1">
+                      {label}
+                    </h3>
+                    <div className="space-y-2">
+                      {dayTransactions.map((transaction) => (
+                        <TransactionCard
+                          key={transaction.id}
+                          transaction={transaction}
+                          convertedAmount={convertToDisplay ? convertToDisplay(transaction.amount, transaction.currency ?? 'USD') : undefined}
+                          displayCurrency={displayCurrency}
+                          onEdit={handleEdit}
+                          onDelete={deleteTransaction}
+                        />
+                      ))}
+                    </div>
+                  </section>
+                ))}
+                <Card
+                  className="p-6 border-2 border-dashed cursor-pointer hover:border-primary transition-colors text-center bg-muted/50"
+                  onClick={handleAddNew}
+                  role="button"
+                  tabIndex={0}
+                  aria-label="Add another transaction"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      handleAddNew();
+                    }
+                  }}
+                >
+                  <Plus className="w-8 h-8 mx-auto text-primary" aria-hidden />
+                  <p className="text-sm font-medium mt-2 text-muted-foreground">Add another transaction</p>
+                </Card>
+              </>
+            )}
+          </div>
+        </Tabs>
+      </ContentWithLoading>
 
       <MonthlyChart
         transactions={selectedPeriodTransactions}

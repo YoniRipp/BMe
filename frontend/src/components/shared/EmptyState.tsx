@@ -5,14 +5,18 @@ interface EmptyStateProps {
   icon: LucideIcon;
   title: string;
   description?: string;
+  /** Use either action or actionLabel+onAction (base44-style). */
   action?: {
     label: string;
     onClick: () => void;
   };
+  actionLabel?: string;
+  onAction?: () => void;
   tips?: string[];
 }
 
-export function EmptyState({ icon: Icon, title, description, action, tips }: EmptyStateProps) {
+export function EmptyState({ icon: Icon, title, description, action, actionLabel, onAction, tips }: EmptyStateProps) {
+  const resolvedAction = action ?? (actionLabel != null && onAction != null ? { label: actionLabel, onClick: onAction } : undefined);
   return (
     <div className="flex flex-col items-center justify-center p-12 text-center" role="status" aria-live="polite">
       <div className="p-4 rounded-full bg-muted mb-4 animate-in fade-in duration-300">
@@ -37,9 +41,9 @@ export function EmptyState({ icon: Icon, title, description, action, tips }: Emp
           </ul>
         </div>
       )}
-      {action && (
-        <Button onClick={action.onClick} className="mt-4" aria-label={action.label}>
-          {action.label}
+      {resolvedAction && (
+        <Button onClick={resolvedAction.onClick} className="mt-4" aria-label={resolvedAction.label}>
+          {resolvedAction.label}
         </Button>
       )}
     </div>

@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useSettings } from '@/hooks/useSettings';
-import { PageHeader } from '@/components/shared/PageHeader';
-import { Settings as SettingsIcon } from 'lucide-react';
+import { PageTitle } from '@/components/layout/PageTitle';
 import { toast } from 'sonner';
 import { ConfirmationDialog } from '@/components/shared/ConfirmationDialog';
 import { DEFAULT_SETTINGS } from '@/types/settings';
@@ -39,13 +38,8 @@ export function Settings() {
   };
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Settings"
-        subtitle="Manage your preferences"
-        icon={SettingsIcon}
-        iconColor="text-gray-600"
-      />
+    <div className="max-w-6xl mx-auto space-y-6">
+      <PageTitle title="Settings" subtitle="Manage your preferences" />
 
       <AccountSection />
       <CurrencySection />

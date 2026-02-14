@@ -48,7 +48,7 @@ frontend/
 │   │   ├── ui/             # Shadcn primitives (button, card, dialog, input, label, tabs, etc.)
 │   │   ├── home/           # Dashboard stats, FinancialSummary, ScheduleItem, ScheduleModal
 │   │   ├── money/          # TransactionCard, TransactionList, TransactionModal, MonthlyChart
-│   │   ├── body/           # WorkoutCard, WorkoutModal, ExerciseList, WeeklyWorkoutGrid, charts
+│   │   ├── body/           # WorkoutCard, WorkoutModal, ExerciseList, charts
 │   │   ├── energy/         # WellnessCard, DailyCheckInModal, FoodEntryModal, CalorieTrendChart, etc.
 │   │   ├── goals/          # GoalCard, GoalModal
 │   │   ├── groups/         # GroupCard, CreateGroupModal, MemberList, GroupSettingsModal

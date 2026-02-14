@@ -101,22 +101,22 @@ export const VOICE_TOOLS = [
       },
       {
         name: 'add_workout',
-        description: 'Log a workout. When the user does not give a workout name use title "Workout". When they say a program name (e.g. SS, Starting Strength) use that as title. Do not use an exercise name as the workout title. Examples: "ran 45 minutes", "did squats 5 sets of 3 at 140 kilos", "SS: squat 5x3 140kg deadlift 3x3 160kg". For strength with sets/reps/weight use type "strength" and fill the exercises array. durationMinutes is optional (default 30).',
+        description: 'Log a workout. When the user does not give a workout name use title "Workout". When they say a program name (e.g. SS, Starting Strength) use that as title. When the user says they did a SAVED/NAMED workout without listing exercises (e.g. "I did Yoni\'s workout", "did my Monday routine") call add_workout with title set to that workout name and exercises: [] (empty array) so the app can copy from the user\'s saved workout. When they give overrides (e.g. "I did Yoni\'s workout with 150kg squat") use title = workout name and exercises = only the overrides (e.g. one exercise with name "Squat", weight: 150). Do not use an exercise name as the workout title. Examples: "ran 45 minutes", "did squats 5 sets of 3 at 140 kilos", "SS: squat 5x3 140kg deadlift 3x3 160kg". For strength with sets/reps/weight use type "strength" and fill the exercises array. durationMinutes is optional (default 30).',
         parameters: {
           type: 'object',
           properties: {
             date: { type: 'string', description: 'YYYY-MM-DD, default today' },
-            title: { type: 'string', description: 'Workout name: "Workout" when none given, or user\'s program name (e.g. SS)' },
+            title: { type: 'string', description: 'Workout name: "Workout" when none given, or user\'s program/saved workout name (e.g. SS, Yoni\'s workout)' },
             type: { type: 'string', enum: ['strength', 'cardio', 'flexibility', 'sports'], description: 'Use strength when user mentions sets/reps/weight' },
             durationMinutes: { type: 'number', description: 'Optional; default 30' },
             notes: { type: 'string' },
             exercises: {
               type: 'array',
-              description: 'For strength: list each exercise with name, sets, reps, weight (kg). Use sets × reps: "5 sets of 3 reps" or "3 reps 5 sets" → sets: 5, reps: 3. Notation "3x3" means 3 sets of 3 reps → sets: 3, reps: 3.',
+              description: 'For strength: list each exercise with name, sets, reps, weight (kg). For "I did [saved workout name]" with no exercises, use []. For overrides only (e.g. "with 150kg squat") include only the overridden exercise(s). Use sets × reps: "5 sets of 3 reps" → sets: 5, reps: 3. Notation "3x3" means 3 sets of 3 reps.',
               items: {
                 type: 'object',
                 properties: {
-                  name: { type: 'string', description: 'Use the exact exercise name the user said, capitalized (e.g. Squat, Deadlift, Bench Press). Do not use the workout title here; each exercise has its own name.' },
+                  name: { type: 'string', description: 'Use the exact exercise name the user said, capitalized (e.g. Squat, Deadlift). Do not use the workout title here.' },
                   sets: { type: 'number', description: 'Number of sets' },
                   reps: { type: 'number', description: 'Reps per set' },
                   weight: { type: 'number', description: 'Weight in kg (optional)' },

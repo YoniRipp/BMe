@@ -1,6 +1,6 @@
 # BeMe – Life Management Application
 
-A comprehensive life-management application for tracking money, body, energy, schedule, goals, and groups—with an optional voice agent and full backend API. Built with React, TypeScript, and Node/Express.
+**BeMe** (BMe) is a full-stack life-management app for tracking **money**, **body**, **energy**, **schedule**, **goals**, and **groups**—with an optional **voice agent** (text and real-time voice) and a full REST + WebSocket backend. Built with **React**, **TypeScript**, **Vite**, and **Node/Express**; data is stored in **PostgreSQL** and voice is powered by **Google Gemini**.
 
 ## Features
 
@@ -40,6 +40,8 @@ A comprehensive life-management application for tracking money, body, energy, sc
 
 ### Voice Agent
 - Speak in natural language to add or edit schedule, transactions, workouts, food, sleep, and goals. Powered by Google Gemini; requires backend with `GEMINI_API_KEY`. Supports Hebrew and English.
+- **Text mode**: `POST /api/voice/understand` — send typed or transcribed text; backend returns parsed actions (add/edit/delete schedule, transaction, workout, food, sleep, goals) and the frontend applies them.
+- **Live voice** (optional): WebSocket at `/api/voice/live` — real-time two-way audio with Gemini Live. The client streams microphone audio; the backend forwards it to Gemini and streams responses back. Same intents and tool execution (add_food, add_schedule, etc.) as text mode; requires JWT in the connection (e.g. `?token=...`).
 - **Intents**: add/edit/delete for schedule, transaction, workout, food, sleep (check-in), and goals. When the user says only a food or drink name (e.g. “Diet Coke”) with no price, only **add_food** is called; **add_transaction** is used only when the user explicitly states an amount (e.g. “bought coffee for 5”), so no phantom transactions are created.
 - **Workouts**: You can say e.g. “I did SS training today, 3x3 150kg squat, 3x3 165kg deadlift.” The workout title defaults to “Workout” when no name is given, or uses the program name (e.g. “SS”). Exercise names (Squat, Deadlift) and sets×reps (e.g. 3x3 = 3 sets of 3 reps; “5 sets of 3 reps”) are parsed and stored. Weight is in kg.
 - **Robustness**: If Gemini blocks the request (e.g. safety filter), the backend still returns a single add_food action with the user’s phrase as name and zero nutrition so the user is never blocked from adding an item. Voice and food-lookup calls use relaxed Gemini safety settings to reduce false blocks on benign item names.

@@ -4,7 +4,7 @@ import { useSettings } from '@/hooks/useSettings';
 import { useExchangeRates } from '@/features/money/useExchangeRates';
 import { useWorkouts } from '@/hooks/useWorkouts';
 import { useEnergy } from '@/hooks/useEnergy';
-import { PageHeader } from '@/components/shared/PageHeader';
+import { PageTitle } from '@/components/layout/PageTitle';
 import {
   getSpendingInsights,
   getFitnessInsights,
@@ -15,7 +15,6 @@ import {
   calculateTrends,
   CHART_COLORS,
 } from '@/lib/analytics';
-import { TrendingUp } from 'lucide-react';
 import { FinancialInsightsSection } from '@/components/insights/FinancialInsightsSection';
 import { FitnessInsightsSection } from '@/components/insights/FitnessInsightsSection';
 import { HealthInsightsSection } from '@/components/insights/HealthInsightsSection';
@@ -92,13 +91,8 @@ export function Insights() {
   }, [workouts]);
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Insights"
-        subtitle="Analytics and trends"
-        icon={TrendingUp}
-        iconColor="text-purple-600"
-      />
+    <div className="max-w-6xl mx-auto space-y-6">
+      <PageTitle title="Insights" subtitle="Analytics and trends" />
       <FinancialInsightsSection
         spendingTrend={spendingTrend}
         spendingTrendData={spendingTrendData}

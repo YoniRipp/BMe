@@ -14,8 +14,8 @@ export const ACCENT_PALETTE: Record<
   { light: PrimaryPalette; dark: PrimaryPalette }
 > = {
   green: {
-    light: { primary: '142 76% 36%', primaryForeground: '0 0% 100%' },
-    dark: { primary: '142 71% 45%', primaryForeground: '222.2 47.4% 11.2%' },
+    light: { primary: '138 15% 54%', primaryForeground: '0 0% 100%' },
+    dark: { primary: '130 16% 42%', primaryForeground: '0 0% 100%' },
   },
   blue: {
     light: { primary: '221 83% 53%', primaryForeground: '0 0% 100%' },

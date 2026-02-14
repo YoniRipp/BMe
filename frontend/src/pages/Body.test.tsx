@@ -5,11 +5,6 @@ import { Body } from './Body';
 import { WorkoutProvider } from '@/context/WorkoutContext';
 import { AppProvider } from '@/context/AppContext';
 
-// Mock WeeklyWorkoutGrid
-vi.mock('@/components/body/WeeklyWorkoutGrid', () => ({
-  WeeklyWorkoutGrid: () => <div data-testid="workout-grid">Grid</div>,
-}));
-
 const wrapper = ({ children }: { children: React.ReactNode }) => (
   <BrowserRouter>
     <AppProvider>

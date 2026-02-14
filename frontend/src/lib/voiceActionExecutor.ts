@@ -134,10 +134,37 @@ const handleDeleteTransaction: Handler = async (action, ctx) => {
   return { success: true };
 };
 
+function findWorkoutByTitle(workouts: Workout[], title: string): Workout | undefined {
+  const lower = title.toLowerCase().trim();
+  const matches = workouts.filter((w) => w.title.toLowerCase().includes(lower) || lower.includes(w.title.toLowerCase()));
+  if (matches.length === 0) return undefined;
+  return matches.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+}
+
+function mergeExerciseOverrides(
+  templateExercises: Workout['exercises'],
+  overrides: { name: string; sets?: number; reps?: number; weight?: number; notes?: string }[]
+): Workout['exercises'] {
+  if (!overrides.length) return templateExercises;
+  return templateExercises.map((ex) => {
+    const override = overrides.find(
+      (o) => o.name && ex.name.toLowerCase().includes(o.name.toLowerCase())
+    );
+    if (!override) return ex;
+    return {
+      name: ex.name,
+      sets: Number(override.sets) > 0 ? Number(override.sets) : ex.sets,
+      reps: Number(override.reps) > 0 ? Number(override.reps) : ex.reps,
+      weight: Number(override.weight) > 0 ? Number(override.weight) : ex.weight,
+      notes: override.notes !== undefined ? override.notes : ex.notes,
+    };
+  });
+}
+
 const handleAddWorkout: Handler = async (action, ctx) => {
   if (action.intent !== 'add_workout') return { success: false };
   const rawExercises = Array.isArray(action.exercises) ? action.exercises : [];
-  const exercises = rawExercises
+  const exercisesFromAction = rawExercises
     .filter((e: { name?: string }) => e?.name && String(e.name).trim())
     .map((e: { name?: string; sets?: number; reps?: number; weight?: number; notes?: string }) => ({
       name: String(e.name).trim(),
@@ -146,13 +173,39 @@ const handleAddWorkout: Handler = async (action, ctx) => {
       weight: Number(e.weight) > 0 ? Number(e.weight) : undefined,
       notes: e.notes ? String(e.notes).trim() : undefined,
     }));
+
+  const title = action.title ?? 'Workout';
+  const useTemplate = exercisesFromAction.length === 0 && title !== 'Workout';
+  const template = useTemplate ? findWorkoutByTitle(ctx.workouts, title) : undefined;
+
+  let exercises: Workout['exercises'];
+  let type: WorkoutType;
+  let durationMinutes: number;
+  let notes: string | undefined;
+
+  if (template) {
+    exercises = mergeExerciseOverrides(template.exercises ?? [], rawExercises);
+    type = (VALID_WORKOUT_TYPES.includes(template.type as (typeof VALID_WORKOUT_TYPES)[number])
+      ? template.type
+      : 'cardio') as WorkoutType;
+    durationMinutes = template.durationMinutes ?? 30;
+    notes = template.notes ?? action.notes;
+  } else {
+    exercises = exercisesFromAction;
+    type = (VALID_WORKOUT_TYPES.includes(action.type as (typeof VALID_WORKOUT_TYPES)[number])
+      ? action.type
+      : 'cardio') as WorkoutType;
+    durationMinutes = action.durationMinutes ?? 30;
+    notes = action.notes;
+  }
+
   await ctx.addWorkout({
     date: parseDateOrToday(action.date),
-    title: action.title ?? 'Workout',
-    type: (VALID_WORKOUT_TYPES.includes(action.type as (typeof VALID_WORKOUT_TYPES)[number]) ? action.type : 'cardio') as WorkoutType,
-    durationMinutes: action.durationMinutes ?? 30,
+    title,
+    type,
+    durationMinutes,
     exercises,
-    notes: action.notes,
+    notes,
   });
   return { success: true };
 };

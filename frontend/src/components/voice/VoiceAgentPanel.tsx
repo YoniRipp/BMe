@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -22,12 +22,16 @@ import { useWorkouts } from '@/hooks/useWorkouts';
 import { useGoals } from '@/hooks/useGoals';
 import { understandTranscript } from '@/lib/voiceApi';
 import { executeVoiceAction, type VoiceExecutorContext } from '@/lib/voiceActionExecutor';
+import { getVoiceLiveWsUrl, VOICE_LIVE_AUDIO, type VoiceLiveMessage } from '@/lib/voiceLiveApi';
+import { type JarvisState } from '@/components/voice/JarvisLiveVisual';
 import { toast } from '@/components/shared/ToastProvider';
 
 interface VoiceAgentPanelProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
+
+type VoiceMode = 'transcript' | 'live';
 
 const LANG_OPTIONS = [
   { value: 'he-IL', label: 'עברית' },
@@ -46,6 +50,8 @@ export function VoiceAgentPanel({ open, onOpenChange }: VoiceAgentPanelProps) {
   const { workouts, addWorkout, updateWorkout, deleteWorkout } = useWorkouts();
   const { goals, addGoal, updateGoal, deleteGoal } = useGoals();
 
+  const [, setMode] = useState<VoiceMode>('transcript');
+  void setMode; // reserved for future mode switch UI
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -53,6 +59,16 @@ export function VoiceAgentPanel({ open, onOpenChange }: VoiceAgentPanelProps) {
   const [lang, setLang] = useState<string>('he-IL');
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const committedTranscriptRef = useRef('');
+
+  // Live mode state
+  const [, setLiveConnected] = useState(false);
+  const [, setLiveState] = useState<JarvisState>('idle');
+  const wsRef = useRef<WebSocket | null>(null);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const processorRef = useRef<ScriptProcessorNode | null>(null);
+  const sourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
+  const nextPlayTimeRef = useRef(0);
 
   const SpeechRecognitionClass = getSpeechRecognition();
   const isSupported = !!SpeechRecognitionClass;
@@ -144,6 +160,137 @@ export function VoiceAgentPanel({ open, onOpenChange }: VoiceAgentPanelProps) {
   }, [open]);
 
   useEffect(() => () => stopListening(), []);
+
+  const stopLiveSession = useCallback(() => {
+    if (processorRef.current && sourceRef.current && mediaStreamRef.current) {
+      try {
+        sourceRef.current.disconnect();
+        processorRef.current.disconnect();
+      } catch {}
+      mediaStreamRef.current.getTracks().forEach((t) => t.stop());
+    }
+    mediaStreamRef.current = null;
+    sourceRef.current = null;
+    processorRef.current = null;
+    if (audioContextRef.current) {
+      audioContextRef.current.close().catch(() => {});
+      audioContextRef.current = null;
+    }
+    if (wsRef.current) {
+      wsRef.current.close();
+      wsRef.current = null;
+    }
+    setLiveConnected(false);
+    setLiveState('idle');
+  }, []);
+
+  useEffect(() => {
+    if (!open) stopLiveSession();
+  }, [open, stopLiveSession]);
+
+  const playLiveAudioChunk = useCallback((base64Data: string) => {
+    const ctx = audioContextRef.current;
+    if (!ctx) return;
+    try {
+      const binary = atob(base64Data);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+      const int16 = new Int16Array(bytes.buffer);
+      const float32 = new Float32Array(int16.length);
+      for (let i = 0; i < int16.length; i++) float32[i] = int16[i] / 32768;
+      const buffer = ctx.createBuffer(1, float32.length, VOICE_LIVE_AUDIO.RECV_SAMPLE_RATE);
+      buffer.copyToChannel(float32, 0);
+      const source = ctx.createBufferSource();
+      source.buffer = buffer;
+      source.connect(ctx.destination);
+      const now = ctx.currentTime;
+      const start = Math.max(now, nextPlayTimeRef.current);
+      source.start(start);
+      source.stop(start + buffer.duration);
+      nextPlayTimeRef.current = start + buffer.duration;
+    } catch (e) {
+      console.error('Play live audio failed', e);
+    }
+  }, []);
+
+  const _startLiveSession = useCallback(async () => {
+    setError(null);
+    setLiveState('connecting');
+    const url = getVoiceLiveWsUrl();
+    const ws = new WebSocket(url);
+    wsRef.current = ws;
+
+    ws.onopen = () => {
+      setLiveConnected(true);
+      setLiveState('listening');
+    };
+    ws.onmessage = (event) => {
+      try {
+        const msg = JSON.parse(event.data as string) as VoiceLiveMessage;
+        if (msg.type === 'connected') {
+          setLiveState('listening');
+        } else if (msg.type === 'audio') {
+          setLiveState('speaking');
+          if (!audioContextRef.current) {
+            audioContextRef.current = new AudioContext({ sampleRate: VOICE_LIVE_AUDIO.RECV_SAMPLE_RATE });
+          }
+          playLiveAudioChunk(msg.data);
+        } else if (msg.type === 'turnComplete') {
+          setLiveState('listening');
+        } else if (msg.type === 'error') {
+          setError(msg.error);
+          toast.error('Voice Live', { description: msg.error });
+        } else if (msg.type === 'closed') {
+          setLiveState('idle');
+        }
+      } catch {
+        // ignore non-JSON
+      }
+    };
+    ws.onerror = () => {
+      setError('WebSocket error');
+      setLiveState('idle');
+    };
+    ws.onclose = () => {
+      setLiveConnected(false);
+      setLiveState('idle');
+    };
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: { channelCount: 1, sampleRate: VOICE_LIVE_AUDIO.SEND_SAMPLE_RATE },
+      });
+      mediaStreamRef.current = stream;
+      const sampleRate = stream.getAudioTracks()[0]?.getSettings?.()?.sampleRate ?? 48000;
+      const ctx = new AudioContext({ sampleRate });
+      audioContextRef.current = ctx;
+      const source = ctx.createMediaStreamSource(stream);
+      sourceRef.current = source;
+      const bufferSize = 4096;
+      const processor = ctx.createScriptProcessor(bufferSize, 1, 1);
+      processorRef.current = processor;
+      processor.onaudioprocess = (e) => {
+        if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
+        const input = e.inputBuffer.getChannelData(0);
+        const int16 = new Int16Array(input.length);
+        for (let i = 0; i < input.length; i++) {
+          const s = Math.max(-1, Math.min(1, input[i]));
+          int16[i] = s < 0 ? s * 32768 : s * 32767;
+        }
+        const base64 = btoa(String.fromCharCode(...new Uint8Array(int16.buffer)));
+        wsRef.current.send(JSON.stringify({ type: 'audio', data: base64, sampleRate: ctx.sampleRate }));
+      };
+      source.connect(processor);
+      processor.connect(ctx.destination);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Failed to access microphone';
+      setError(msg);
+      setLiveState('idle');
+      ws.close();
+      toast.error('Microphone', { description: msg });
+    }
+  }, [playLiveAudioChunk]);
+  void _startLiveSession; // reserved for future live mode UI
 
   const handleExecute = async () => {
     const text = transcript.trim();

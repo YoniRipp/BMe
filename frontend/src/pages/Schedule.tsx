@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useSchedule } from '@/hooks/useSchedule';
 import { useSettings } from '@/hooks/useSettings';
-import { PageHeader } from '@/components/shared/PageHeader';
+import { PageTitle } from '@/components/layout/PageTitle';
 import { ScheduleItem } from '@/components/home/ScheduleItem';
 import { ScheduleModal } from '@/components/home/ScheduleModal';
 import { ScheduleCalendarMonth } from '@/components/schedule/ScheduleCalendarMonth';
@@ -121,12 +121,8 @@ export function Schedule() {
   );
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Schedule"
-        subtitle="Today, week, month, and history"
-        icon={Calendar}
-      />
+    <div className="max-w-6xl mx-auto space-y-6">
+      <PageTitle title="Schedule" subtitle="Today, week, month, and history" />
 
       <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as ViewMode)}>
         <TabsList className="grid w-full grid-cols-4">
