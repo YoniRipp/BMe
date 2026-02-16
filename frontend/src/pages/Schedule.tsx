@@ -7,16 +7,18 @@ import { ScheduleModal } from '@/components/home/ScheduleModal';
 import { ScheduleCalendarMonth } from '@/components/schedule/ScheduleCalendarMonth';
 import { ScheduleWeekStrip } from '@/components/schedule/ScheduleWeekStrip';
 import { ContentWithLoading } from '@/components/shared/ContentWithLoading';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Card } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Calendar, Plus, CalendarDays, CalendarRange, List } from 'lucide-react';
 import { format, subDays, isSameDay } from 'date-fns';
 import { ScheduleItem as ScheduleItemType } from '@/types/schedule';
+import { utcScheduleToLocalDateStr } from '@/lib/utils';
 
 function getItemsForDate(items: ScheduleItemType[], date: Date): ScheduleItemType[] {
   const dateStr = format(date, 'yyyy-MM-dd');
   return items
-    .filter((item) => item.date === dateStr)
+    .filter((item) => utcScheduleToLocalDateStr(item.date, item.startTime ?? '00:00') === dateStr)
     .sort((a, b) => {
       const aStart = a.startTime || '00:00';
       const bStart = b.startTime || '00:00';
@@ -91,7 +93,24 @@ export function Schedule() {
         <h2 className="text-lg font-semibold mb-3">
           {isSameDay(date, new Date()) ? 'Today' : format(date, 'EEE, MMM d, yyyy')}
         </h2>
-        <ContentWithLoading loading={scheduleLoading} loadingText="Loading schedule..." error={scheduleError}>
+        <ContentWithLoading
+          loading={scheduleLoading}
+          loadingText="Loading schedule..."
+          error={scheduleError}
+          skeleton={
+            <div className="space-y-2">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="flex items-center gap-3 p-3 rounded-lg border bg-card">
+                  <Skeleton className="h-9 w-16" />
+                  <div className="flex-1 space-y-1">
+                    <Skeleton className="h-4 w-32" />
+                    <Skeleton className="h-3 w-24" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          }
+        >
           {itemsForDate.length === 0 ? (
             <Card
               className="p-6 border-2 border-dashed cursor-pointer hover:border-primary transition-colors text-center"

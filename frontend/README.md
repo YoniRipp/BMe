@@ -28,7 +28,7 @@ The frontend is a TypeScript React app built with Vite. It uses React Router for
 
 The API client ([src/core/api/client.ts](src/core/api/client.ts)) stores the JWT in localStorage (via [src/lib/storage.ts](src/lib/storage.ts)) and attaches it as `Authorization: Bearer <token>` to every request. On 401, it clears the token and dispatches an `auth:logout` event so the UI can redirect to login.
 
-For app-wide conventions (dates, week, voice behavior) and Update 7.0, see the root [README.md](../README.md).
+For app-wide conventions and the full changelog (Updates 1–11, latest first), see the root [README.md](../README.md) and [UPDATE_11.0.md](../UPDATE_11.0.md).
 
 ## Project Structure
 
@@ -179,24 +179,19 @@ Run: `npm run test` (or `test:ui` / `test:coverage`) from `frontend/` or `npm ru
 
 The project uses the `@` alias for `src/` (see [vite.config.ts](vite.config.ts)), so imports like `@/components/...` and `@/lib/...` resolve to `src/`.
 
-## Update 6.0
+## Changelog (latest first)
 
-This section records changes added in this revision and planned library adoptions that are not yet fully reflected in the body of the frontend README.
-
-### Already in the repo (documentation catch-up)
-
-- **lib/dateRanges.ts**: New module for period and trend date ranges using date-fns. Exports `getPeriodRange(period, refDate)` for daily/weekly/monthly/yearly bounds and `getTrendPeriodBounds(period, refDate)` for current vs previous period (week/month/year). Used for balance and trend views.
-- **hooks/useThemeEffect.ts**: Hook that applies the selected theme (light/dark/system) to `document.documentElement`. When theme is `system`, it subscribes to `prefers-color-scheme` and re-applies on change. Used in a single place (e.g. protected routes) so theme is applied once. The “Theming” section above still correctly describes behavior; this hook is the implementation detail.
-- **TransactionContext**: Implemented in [features/money/TransactionContext.tsx](src/features/money/TransactionContext.tsx) and re-exported from [context/TransactionContext.tsx](src/context/TransactionContext.tsx). Aligns with the note that feature contexts are re-exported from features.
-- **Docker**: The frontend has a [Dockerfile](Dockerfile); the root README describes building and running the frontend with Docker and Docker Compose.
-
-### Library adoption (implemented)
-
-The following have been implemented to reduce boilerplate and improve type safety:
-
-- **Zod**: Schemas for form payloads (transaction, workout, food, schedule), API response shapes (e.g. `ApiGoal`, `ApiTransaction`), and voice API actions. Will replace or complement [src/lib/validation.ts](src/lib/validation.ts) and the manual parsers in [src/lib/voiceApi.ts](src/lib/voiceApi.ts). API client may parse responses with `schema.safeParse()` instead of trusting `res.json() as T`.
-- **TanStack Query (React Query)**: Server state (goals, transactions, schedule, workouts, energy, groups) via `useQuery` and `useMutation`, with cache invalidation on mutations. Feature providers may become thin wrappers around query/mutation hooks or be replaced by a single `QueryClientProvider` and per-domain hooks.
-- **React Hook Form + @hookform/resolvers (zod)**: Forms such as TransactionModal, WorkoutModal, and FoodEntryModal will use `useForm({ resolver: zodResolver(schema) })` instead of manual `formData`/`errors` state and per-field validation.
-- **Zustand (optional)**: Optional store for auth or UI state (e.g. theme, modals) to reduce Context nesting after server state moves to TanStack Query.
-
-The frontend README **Tech Stack**, **Provider Order**, **Data Flow**, and **Project Structure** have been updated accordingly. Zustand remains optional for future client-state consolidation.
+- **Update 11.0** — Infrastructure, resilience & security audit (Layers 3, 4, 5). See root README **Update 11.0** and [UPDATE_11.0.md](../UPDATE_11.0.md).
+- **Update 10.0** — Voice Live (JarvisLiveVisual, VoiceAgentPanel, voiceLiveApi), layout (AppSidebar, Base44Layout, TopBar, PageTitle), DashboardHero, Admin (AdminLogs, AdminUsersTable), shared UI (StatCard, SectionHeader, skeleton, tooltip). See root README **Update 10.0**.
+- **Update 9.0** — Schedule recurrence, AppearanceSection, voice executor, schedule types. See root README **Update 9.0**.
+- **Update 8.0** — FoodEntryModal, VoiceAgentButton/Panel, voiceActionExecutor, Energy page, voice schema. See root README **Update 8.0**.
+- **Update 7.0** — Voice/food, dates, workouts, week, layout. See root README **Update 7.0**.
+- **Update 6.2** — Dockerfile. See root README **Update 6.2**.
+- **Update 6.1** — Docker. See root README **Update 6.1**.
+- **Update 6.0** — dateRanges, useThemeEffect, TransactionContext, Docker; Zod, TanStack Query, React Hook Form. See root README **Update 6.0**.
+- **Update 5.0** — Monorepo (frontend in `frontend/`). See root README **Update 5.0**.
+- **Update 4.1** — Logo. See root README **Update 4.1**.
+- **Update 4.0** — Feature modules (money, schedule, body, energy, goals), core API client, routes, AuthCallback, voice. See root README **Update 4.0**.
+- **Update 3.0** — Auth, voice panel, API client, contexts. See root README **Update 3.0**.
+- **Version 1.2** — Body, Energy, Home, Insights, Settings refactors; utils, BottomNav, settings types. See root README **Version 1.2**.
+- **Version 1** — README. See root README **Version 1**.

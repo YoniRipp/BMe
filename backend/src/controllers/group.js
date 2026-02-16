@@ -6,7 +6,7 @@ import { asyncHandler } from '../middleware/errorHandler.js';
 import { getEffectiveUserId } from '../middleware/auth.js';
 import * as groupService from '../services/group.js';
 import { sendJson, sendCreated, sendNoContent } from '../utils/response.js';
-import { NotFoundError } from '../errors.js';
+import { NotFoundError, ValidationError } from '../errors.js';
 
 export const list = asyncHandler(async (req, res) => {
   const userId = getEffectiveUserId(req);
@@ -71,4 +71,22 @@ export const removeMember = asyncHandler(async (req, res) => {
   const { id, userId: targetUserId } = req.params;
   await groupService.removeMember(id, userId, targetUserId);
   sendNoContent(res);
+});
+
+/** Public: resolve invite token for join page. No auth. */
+export const getInvitationByToken = asyncHandler(async (req, res) => {
+  const { token } = req.params;
+  const invitation = await groupService.getInvitationByToken(token);
+  if (!invitation) throw new NotFoundError('Invitation not found or expired');
+  sendJson(res, invitation);
+});
+
+/** Authenticated: accept invite by token (from email link). */
+export const acceptInviteByToken = asyncHandler(async (req, res) => {
+  const userId = getEffectiveUserId(req);
+  const token = req.body?.token;
+  if (!token) throw new ValidationError('token is required');
+  const userEmail = req.user?.email;
+  const group = await groupService.acceptInviteByToken(token, userId, userEmail);
+  sendJson(res, group);
 });

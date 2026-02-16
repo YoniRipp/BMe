@@ -60,10 +60,37 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
       };
       return transactionsApi.add(body);
     },
-    onSuccess: (created) => {
+    onMutate: async (transaction) => {
+      await queryClient.cancelQueries({ queryKey: queryKeys.transactions });
+      const previous = queryClient.getQueryData<Transaction[]>(queryKeys.transactions);
+      const optimisticId = `opt-${Date.now()}`;
+      const optimistic: Transaction = {
+        id: optimisticId,
+        date: typeof transaction.date === 'string' ? transaction.date : (transaction.date instanceof Date ? toLocalDateString(transaction.date) : new Date().toISOString().slice(0, 10)),
+        type: transaction.type,
+        amount: transaction.amount,
+        currency: transaction.currency ?? 'USD',
+        category: transaction.category ?? 'Other',
+        description: transaction.description,
+        isRecurring: transaction.isRecurring ?? false,
+        groupId: transaction.groupId,
+      };
       queryClient.setQueryData(queryKeys.transactions, (prev: Transaction[] | undefined) =>
-        prev ? [...prev, apiTransactionToTransaction(created)] : [apiTransactionToTransaction(created)]
+        prev ? [...prev, optimistic] : [optimistic]
       );
+      return { previous };
+    },
+    onError: (_err, _transaction, context) => {
+      if (context?.previous != null) {
+        queryClient.setQueryData(queryKeys.transactions, context.previous);
+      }
+    },
+    onSuccess: (created) => {
+      queryClient.setQueryData(queryKeys.transactions, (prev: Transaction[] | undefined) => {
+        if (!prev) return [apiTransactionToTransaction(created)];
+        const withoutOptimistic = prev.filter((t) => !t.id.startsWith('opt-'));
+        return [...withoutOptimistic, apiTransactionToTransaction(created)];
+      });
     },
   });
 

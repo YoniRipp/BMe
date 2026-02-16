@@ -14,7 +14,7 @@ import { SectionHeader } from '@/components/shared/SectionHeader';
 import { Card, CardContent } from '@/components/ui/card';
 import { Plus } from 'lucide-react';
 import { isWithinInterval, format } from 'date-fns';
-import { isScheduleItemPast } from '@/lib/utils';
+import { isScheduleItemPastUtc, utcScheduleToLocalDateStr } from '@/lib/utils';
 import { getPeriodRange } from '@/lib/dateRanges';
 import { ScheduleItem as ScheduleItemType } from '@/types/schedule';
 import { Goal } from '@/types/goals';
@@ -49,7 +49,7 @@ export function Home() {
 
   const todayStr = format(new Date(), 'yyyy-MM-dd');
   const activeSchedule = scheduleItems
-    .filter((item) => item.isActive && item.date === todayStr)
+    .filter((item) => item.isActive && utcScheduleToLocalDateStr(item.date, item.startTime ?? '00:00') === todayStr)
     .sort((a, b) => {
       const aStart = a.startTime || '00:00';
       const bStart = b.startTime || '00:00';
@@ -126,7 +126,7 @@ export function Home() {
                       <ScheduleItem
                         key={item.id}
                         item={item}
-                        isPast={isScheduleItemPast(item.endTime)}
+                        isPast={isScheduleItemPastUtc(item.date, item.endTime ?? '00:00')}
                         onEdit={handleScheduleEdit}
                         onDelete={deleteScheduleItem}
                         categoryColors={settings.scheduleCategoryColors}

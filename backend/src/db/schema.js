@@ -196,6 +196,13 @@ export async function initSchema() {
       CREATE INDEX IF NOT EXISTS idx_app_logs_level_created_at
       ON app_logs (level, created_at DESC);
     `).catch(() => {});
+
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_schedule_items_user_date ON schedule_items(user_id, date);`).catch(() => {});
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_transactions_user_date ON transactions(user_id, date DESC);`).catch(() => {});
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_goals_user ON goals(user_id);`).catch(() => {});
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_workouts_user_date ON workouts(user_id, date DESC);`).catch(() => {});
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_food_entries_user_date ON food_entries(user_id, date DESC);`).catch(() => {});
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_daily_check_ins_user_date ON daily_check_ins(user_id, date DESC);`).catch(() => {});
   } finally {
     client.release();
   }

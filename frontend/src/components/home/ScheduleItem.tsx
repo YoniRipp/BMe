@@ -1,5 +1,5 @@
 import { ScheduleItem as ScheduleItemType, getScheduleItemClasses } from '@/types/schedule';
-import { formatTime } from '@/lib/utils';
+import { utcScheduleTimeToLocal } from '@/lib/utils';
 import { Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -25,7 +25,7 @@ export function ScheduleItem({ item, isPast, onEdit, onDelete, categoryColors }:
       onClick={() => onEdit && onEdit(item)}
       role="button"
       tabIndex={0}
-      aria-label={`Schedule item: ${item.title}, ${item.startTime} to ${item.endTime}`}
+      aria-label={`Schedule item: ${item.title}, ${utcScheduleTimeToLocal(item.date, item.startTime)} to ${utcScheduleTimeToLocal(item.date, item.endTime)}`}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
@@ -40,7 +40,7 @@ export function ScheduleItem({ item, isPast, onEdit, onDelete, categoryColors }:
         <div className="flex-1">
           <p className="font-medium">{item.title}</p>
           <p className="text-sm text-muted-foreground">
-            {formatTime(item.startTime)} - {formatTime(item.endTime)}
+            {utcScheduleTimeToLocal(item.date, item.startTime)} - {utcScheduleTimeToLocal(item.date, item.endTime)}
           </p>
         </div>
       </div>

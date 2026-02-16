@@ -18,7 +18,7 @@ function rowToWorkout(row) {
 export async function findByUserId(userId) {
   const pool = getPool();
   const result = await pool.query(
-    'SELECT * FROM workouts WHERE user_id = $1 ORDER BY date DESC, created_at DESC',
+    'SELECT id, date, title, type, duration_minutes, exercises, notes FROM workouts WHERE user_id = $1 ORDER BY date DESC, created_at DESC',
     [userId]
   );
   return result.rows.map(rowToWorkout);
@@ -32,7 +32,7 @@ export async function create(params) {
   const result = await pool.query(
     `INSERT INTO workouts (user_id, date, title, type, duration_minutes, exercises, notes)
      VALUES ($1, $2, $3, $4, $5, $6, $7)
-     RETURNING *`,
+     RETURNING id, date, title, type, duration_minutes, exercises, notes`,
     [userId, d.toISOString().slice(0, 10), title.trim(), type, durationMinutes, JSON.stringify(ex), notes ?? null]
   );
   return rowToWorkout(result.rows[0]);
@@ -52,7 +52,7 @@ export async function update(id, userId, updates) {
   if (entries.length === 0) return null;
   values.push(id, userId);
   const result = await pool.query(
-    `UPDATE workouts SET ${entries.join(', ')} WHERE id = $${i} AND user_id = $${i + 1} RETURNING *`,
+    `UPDATE workouts SET ${entries.join(', ')} WHERE id = $${i} AND user_id = $${i + 1} RETURNING id, date, title, type, duration_minutes, exercises, notes`,
     values
   );
   return result.rowCount > 0 ? rowToWorkout(result.rows[0]) : null;

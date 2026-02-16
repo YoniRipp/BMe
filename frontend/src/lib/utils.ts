@@ -44,13 +44,56 @@ export function formatTime(time: string): string {
   return `${displayHour}:${minutes} ${ampm}`;
 }
 
-/** True if the given end time (HH:MM) has already passed today. */
+/**
+ * Treat (dateStr, timeStr) as UTC and return the same time formatted in the user's local timezone (e.g. "10:00 AM").
+ * Used for schedule items stored in UTC so we display "true time ± offset".
+ */
+export function utcScheduleTimeToLocal(dateStr: string, timeStr: string, timeZone?: string): string {
+  const utc = new Date(`${dateStr}T${timeStr}:00.000Z`);
+  if (isNaN(utc.getTime())) return formatTime(timeStr);
+  const tz = timeZone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: tz,
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  });
+  const result = formatter.format(utc);
+  // #region agent log
+  fetch('http://127.0.0.1:7246/ingest/e2e403c5-3c70-4f1e-adfb-38e8c147c460', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'utils.ts:utcScheduleTimeToLocal', message: 'UTC to local display', data: { dateStr, timeStr, timeZone: tz, result }, timestamp: Date.now(), hypothesisId: 'H2' }) }).catch(() => {});
+  // #endregion
+  return result;
+}
+
+/**
+ * Treat (dateStr, timeStr) as UTC and return the local calendar date (YYYY-MM-DD) in the user's timezone.
+ * Used to group schedule items by day in week/list views.
+ */
+export function utcScheduleToLocalDateStr(dateStr: string, timeStr: string, timeZone?: string): string {
+  const utc = new Date(`${dateStr}T${timeStr}:00.000Z`);
+  if (isNaN(utc.getTime())) return dateStr;
+  const tz = timeZone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const formatter = new Intl.DateTimeFormat('en-US', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' });
+  const parts = formatter.formatToParts(utc);
+  const y = parts.find((p) => p.type === 'year')?.value ?? '';
+  const m = parts.find((p) => p.type === 'month')?.value.padStart(2, '0') ?? '';
+  const d = parts.find((p) => p.type === 'day')?.value.padStart(2, '0') ?? '';
+  return `${y}-${m}-${d}`;
+}
+
+/** True if the given end time (HH:MM) has already passed today (legacy: treats endTime as local). */
 export function isScheduleItemPast(endTime: string): boolean {
   const now = new Date();
   const [h, m] = endTime.split(':').map(Number);
   const endMinutes = (h ?? 0) * 60 + (m ?? 0);
   const nowMinutes = now.getHours() * 60 + now.getMinutes();
   return nowMinutes > endMinutes;
+}
+
+/** True if the UTC moment (dateStr + endTime) has already passed. Use for schedule items stored in UTC. */
+export function isScheduleItemPastUtc(dateStr: string, endTime: string): boolean {
+  const utc = new Date(`${dateStr}T${endTime}:00.000Z`);
+  return !isNaN(utc.getTime()) && Date.now() > utc.getTime();
 }
 
 export function getMonthName(date: Date): string {

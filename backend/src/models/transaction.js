@@ -40,7 +40,7 @@ export async function findByUserId(userId, { month, type, limit = 500, offset = 
   const total = countResult.rows[0]?.total ?? 0;
   params.push(limit, offset);
   const result = await pool.query(
-    `SELECT * FROM transactions WHERE ${where} ORDER BY date DESC, created_at DESC LIMIT $${i} OFFSET $${i + 1}`,
+    `SELECT id, date, type, amount, currency, category, description, is_recurring, group_id FROM transactions WHERE ${where} ORDER BY date DESC, created_at DESC LIMIT $${i} OFFSET $${i + 1}`,
     params
   );
   return { items: result.rows.map(rowToTransaction), total };
@@ -54,7 +54,7 @@ export async function create(params) {
   const result = await pool.query(
     `INSERT INTO transactions (date, type, amount, currency, category, description, is_recurring, group_id, user_id)
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-     RETURNING *`,
+     RETURNING id, date, type, amount, currency, category, description, is_recurring, group_id`,
     [d.toISOString().slice(0, 10), type, amount, curr, category ?? 'Other', description ?? null, isRecurring === true, groupId ?? null, userId]
   );
   return rowToTransaction(result.rows[0]);
@@ -76,7 +76,7 @@ export async function update(id, userId, updates) {
   if (entries.length === 0) return null;
   values.push(id, userId);
   const result = await pool.query(
-    `UPDATE transactions SET ${entries.join(', ')} WHERE id = $${i} AND user_id = $${i + 1} RETURNING *`,
+    `UPDATE transactions SET ${entries.join(', ')} WHERE id = $${i} AND user_id = $${i + 1} RETURNING id, date, type, amount, currency, category, description, is_recurring, group_id`,
     values
   );
   return result.rowCount > 0 ? rowToTransaction(result.rows[0]) : null;

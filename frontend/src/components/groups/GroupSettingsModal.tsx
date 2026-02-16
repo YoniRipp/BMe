@@ -102,45 +102,49 @@ export function GroupSettingsModal({ open, onOpenChange, group }: GroupSettingsM
           <DialogTitle>{currentGroup.name} – Settings</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
-          <div>
-            <Label htmlFor="group-name">Name</Label>
-            <Input
-              id="group-name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Group name"
-            />
-          </div>
-          <div>
-            <Label htmlFor="group-type">Type</Label>
-            <Select value={type} onValueChange={setType}>
-              <SelectTrigger id="group-type">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {GROUP_TYPES.map((t) => (
-                  <SelectItem key={t} value={t}>
-                    {t === 'other' ? 'Other' : t.charAt(0).toUpperCase() + t.slice(1)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label htmlFor="group-desc">Description (optional)</Label>
-            <Textarea
-              id="group-desc"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="What's this group for?"
-              rows={2}
-            />
-          </div>
-          <DialogFooter className="sm:justify-start">
-            <Button type="button" onClick={handleSave}>
-              Save changes
-            </Button>
-          </DialogFooter>
+          {isAdmin && (
+            <>
+              <div>
+                <Label htmlFor="group-name">Name</Label>
+                <Input
+                  id="group-name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Group name"
+                />
+              </div>
+              <div>
+                <Label htmlFor="group-type">Type</Label>
+                <Select value={type} onValueChange={setType}>
+                  <SelectTrigger id="group-type">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {GROUP_TYPES.map((t) => (
+                      <SelectItem key={t} value={t}>
+                        {t === 'other' ? 'Other' : t.charAt(0).toUpperCase() + t.slice(1)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="group-desc">Description (optional)</Label>
+                <Textarea
+                  id="group-desc"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="What's this group for?"
+                  rows={2}
+                />
+              </div>
+              <DialogFooter className="sm:justify-start">
+                <Button type="button" onClick={handleSave}>
+                  Save changes
+                </Button>
+              </DialogFooter>
+            </>
+          )}
 
           <div>
             <Label>Members ({currentGroup.members.length})</Label>

@@ -115,7 +115,7 @@ export async function attachLiveSession(clientWs, userId) {
   }
 
   const todayStr = new Date().toISOString().slice(0, 10);
-  const ctx = { todayStr, userId };
+  const ctx = { todayStr, userId, timezone: undefined };
 
   const ai = new GoogleGenAI({ apiKey: config.geminiApiKey });
   let liveSession = null;
@@ -193,6 +193,21 @@ export async function attachLiveSession(clientWs, userId) {
     return;
   }
 
+  function isValidDateStr(str) {
+    if (!str || typeof str !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(str)) return false;
+    const d = new Date(str + 'T12:00:00Z');
+    return !isNaN(d.getTime()) && d.toISOString().slice(0, 10) === str;
+  }
+  function isValidTimezone(tz) {
+    if (!tz || typeof tz !== 'string' || tz.length > 64) return false;
+    try {
+      Intl.DateTimeFormat(undefined, { timeZone: tz });
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   clientWs.on('message', (data) => {
     if (!liveSession) return;
     try {
@@ -203,6 +218,14 @@ export async function attachLiveSession(clientWs, userId) {
       } else if (typeof data === 'string') {
         try {
           const parsed = JSON.parse(data);
+          if (parsed?.type === 'context') {
+            if (parsed.today != null && isValidDateStr(parsed.today)) ctx.todayStr = parsed.today;
+            if (parsed.timezone != null && isValidTimezone(parsed.timezone)) ctx.timezone = parsed.timezone;
+            // #region agent log
+            fetch('http://127.0.0.1:7246/ingest/e2e403c5-3c70-4f1e-adfb-38e8c147c460', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'voiceLive.js:context', message: 'live context applied', data: { todayStr: ctx.todayStr, timezone: ctx.timezone }, timestamp: Date.now(), hypothesisId: 'H4' }) }).catch(() => {});
+            // #endregion
+            return;
+          }
           if (parsed?.type === 'audio' && parsed?.data) {
             base64 = parsed.data;
             if (parsed.sampleRate != null && Number(parsed.sampleRate) > 0) {

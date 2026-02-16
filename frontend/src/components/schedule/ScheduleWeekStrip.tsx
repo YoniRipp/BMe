@@ -2,7 +2,7 @@ import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, isSameDay } from 'd
 import { WEEK_SUNDAY } from '@/lib/dateRanges';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, utcScheduleToLocalDateStr } from '@/lib/utils';
 import type { ScheduleItem as ScheduleItemType } from '@/types/schedule';
 import { ScheduleItem } from '@/components/home/ScheduleItem';
 
@@ -39,7 +39,7 @@ export function ScheduleWeekStrip({
   const getItemsForDay = (day: Date) => {
     const dateStr = format(day, 'yyyy-MM-dd');
     return [...scheduleItems]
-      .filter((item) => item.isActive && item.date === dateStr)
+      .filter((item) => item.isActive && utcScheduleToLocalDateStr(item.date, item.startTime ?? '00:00') === dateStr)
       .sort((a, b) => (a.startTime || '00:00').localeCompare(b.startTime || '00:00'));
   };
 

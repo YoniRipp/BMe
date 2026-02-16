@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node index.js",
     "dev": "node --watch index.js",
+    "lint": "node --check index.js",
     "import:foods": "node scripts/importFoundationFoods.js",
     "remove:non-foundation-foods": "node scripts/removeNonFoundationFoods.js",
     "seed:popular-foods": "node scripts/seedPopularFoods.js"
@@ -15,12 +16,15 @@
     "@google/generative-ai": "^0.21.0",
     "bcrypt": "^6.0.0",
     "cors": "^2.8.5",
+    "date-fns": "^4.1.0",
+    "date-fns-tz": "^3.2.0",
     "dotenv": "^16.4.5",
     "express": "^4.21.0",
     "express-rate-limit": "^8.2.1",
     "google-auth-library": "^10.5.0",
     "jsonwebtoken": "^9.0.3",
     "pg": "^8.13.0",
+    "resend": "^6.9.2",
     "wave-resampler": "^1.0.0",
     "ws": "^8.18.0",
     "zod": "^3.23.8"

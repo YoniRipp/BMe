@@ -34,7 +34,7 @@ function rowToItem(row) {
 export async function findByUserId(userId) {
   const pool = getPool();
   const result = await pool.query(
-    'SELECT * FROM schedule_items WHERE is_active = true AND user_id = $1 ORDER BY date ASC, start_time ASC, end_time ASC',
+    'SELECT id, date, title, start_time, end_time, category, emoji, "order", is_active, group_id, recurrence, color FROM schedule_items WHERE is_active = true AND user_id = $1 ORDER BY date ASC, start_time ASC, end_time ASC',
     [userId]
   );
   return result.rows.map(rowToItem);
@@ -69,7 +69,7 @@ export async function create(params) {
   const result = await pool.query(
     `INSERT INTO schedule_items (date, title, start_time, end_time, category, emoji, "order", is_active, group_id, user_id, recurrence, color)
      VALUES ($1::date, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-     RETURNING *`,
+     RETURNING id, date, title, start_time, end_time, category, emoji, "order", is_active, group_id, recurrence, color`,
     [dateStr, title.trim(), startTime, endTime, category, emoji ?? null, nextOrder, isActive, groupId ?? null, userId, recurrence ?? null, color ?? null]
   );
   return rowToItem(result.rows[0]);
@@ -117,7 +117,7 @@ export async function createBatch(userId, items) {
   const result = await pool.query(
     `INSERT INTO schedule_items (date, title, start_time, end_time, category, emoji, "order", is_active, group_id, user_id, recurrence, color)
      VALUES ${placeholders.join(', ')}
-     RETURNING *`,
+     RETURNING id, date, title, start_time, end_time, category, emoji, "order", is_active, group_id, recurrence, color`,
     values
   );
   return result.rows.map(rowToItem);
@@ -148,7 +148,7 @@ export async function update(id, userId, updates) {
   if (updatesList.length === 0) return null;
   values.push(id, userId);
   const result = await pool.query(
-    `UPDATE schedule_items SET ${updatesList.join(', ')} WHERE id = $${i} AND user_id = $${i + 1} RETURNING *`,
+    `UPDATE schedule_items SET ${updatesList.join(', ')} WHERE id = $${i} AND user_id = $${i + 1} RETURNING id, date, title, start_time, end_time, category, emoji, "order", is_active, group_id, recurrence, color`,
     values
   );
   return result.rowCount > 0 ? rowToItem(result.rows[0]) : null;

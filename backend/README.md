@@ -13,7 +13,7 @@ The backend serves:
 
 When `DATABASE_URL` is not set, the server still starts but auth and data APIs are not mounted. When `GEMINI_API_KEY` is not set, the voice understand endpoint returns an error.
 
-For app-wide conventions (dates, week, voice behavior) and Update 7.0, see the root [README.md](../README.md).
+For app-wide conventions and the full changelog (Updates 1–11, latest first), see the root [README.md](../README.md) and [UPDATE_11.0.md](../UPDATE_11.0.md).
 
 ## Tech Stack
 
@@ -278,15 +278,17 @@ After pulling changes that affect the import script or schema, run the import ag
 
 The [mcp-server](mcp-server/) directory contains an MCP server that exposes BeMe schedule, transactions, and goals as tools and resources. It communicates only with this backend API (no direct DB access). See **[mcp-server/README.md](mcp-server/README.md)** for run instructions and Cursor MCP configuration.
 
-## Update 6.0
+## Changelog (latest first)
 
-This section records changes added in this revision and planned adoptions not yet reflected in the rest of the backend README.
-
-### Already in the repo (documentation catch-up)
-
-- **Docker**: The backend has a [Dockerfile](Dockerfile) at the repo root of `backend/`. It uses Node 20 Alpine, `npm ci --omit=dev`, and runs `node index.js`. The root README describes running the backend with Docker and Docker Compose.
-- **MCP server and Zod**: The [mcp-server](mcp-server/) uses **Zod** (`z` from `zod`) for validating and shaping tool arguments and responses. The main Express app (`src/`) does not yet use Zod; config is read manually in [src/config/index.js](src/config/index.js) and request bodies are validated ad hoc in services.
-
-### Implemented
-
-- **Zod in the main backend**: Config in [src/config/index.js](src/config/index.js) is validated at startup with a Zod schema. Request bodies for transaction create/update are validated with Zod in [src/routes/transaction.js](src/routes/transaction.js) via [validateBody](src/middleware/validateBody.js); invalid payloads return 400 with schema error messages.
+- **Update 11.0** — Infrastructure, resilience & security audit (Layers 1, 2, 4, 5). See root README **Update 11.0** and [UPDATE_11.0.md](../UPDATE_11.0.md).
+- **Update 10.0** — Voice Live ([voiceLive.js](src/services/voiceLive.js)), graceful shutdown ([index.js](index.js)). See root README **Update 10.0**.
+- **Update 9.0** — Schema, schedule model, voice service, food search. See root README **Update 9.0**.
+- **Update 8.0** — Food entry model/service, voice tools. See root README **Update 8.0**.
+- **Update 7.0** — Voice/food, dates, Gemini robustness. See root README **Update 7.0**.
+- **Update 6.2** — Voice service and tools. See root README **Update 6.2**.
+- **Update 6.1** — Docker. See root README **Update 6.1**.
+- **Update 6.0** — Docker, MCP server, Zod (config, request validation). See root README **Update 6.0**.
+- **Update 5.0** — Monorepo (frontend moved to `frontend/`). See root README **Update 5.0**.
+- **Update 4.1** — Logo. See root README **Update 4.1**.
+- **Update 4.0** — Backend restructure (src/controllers, services, models, routes, db, middleware, voice/tools), app.js, food import. See root README **Update 4.0**.
+- **Update 3.0** — Backend and MCP server, routes, auth, voice, DB. See root README **Update 3.0**.

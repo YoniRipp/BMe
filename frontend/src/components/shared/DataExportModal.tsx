@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   Dialog,
   DialogContent,
@@ -9,6 +10,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { exportAllData, importAllData, exportToCSV, downloadFile } from '@/lib/export';
+import { queryKeys } from '@/lib/queryClient';
 import { Download, Upload, FileJson, FileSpreadsheet, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -19,10 +21,26 @@ interface DataExportModalProps {
 
 export function DataExportModal({ open, onOpenChange }: DataExportModalProps) {
   const [importing, setImporting] = useState(false);
+  const queryClient = useQueryClient();
 
   const handleExportJSON = () => {
     try {
-      const data = exportAllData();
+      const transactions = (queryClient.getQueryData(queryKeys.transactions) as import('@/types/transaction').Transaction[]) ?? [];
+      const workouts = (queryClient.getQueryData(queryKeys.workouts) as import('@/types/workout').Workout[]) ?? [];
+      const foodEntries = (queryClient.getQueryData(queryKeys.foodEntries) as import('@/types/energy').FoodEntry[]) ?? [];
+      const checkIns = (queryClient.getQueryData(queryKeys.checkIns) as import('@/types/energy').DailyCheckIn[]) ?? [];
+      const scheduleItems = (queryClient.getQueryData(queryKeys.schedule) as import('@/types/schedule').ScheduleItem[]) ?? [];
+      const groups = (queryClient.getQueryData(queryKeys.groups) as import('@/types/group').Group[]) ?? [];
+      const data = exportAllData({
+        version: '1.0.0',
+        exportDate: new Date().toISOString(),
+        transactions,
+        workouts,
+        foodEntries,
+        checkIns,
+        scheduleItems,
+        groups,
+      });
       downloadFile(data, `beme-export-${new Date().toISOString().split('T')[0]}.json`, 'application/json');
       toast.success('Data exported successfully!');
       onOpenChange(false);
@@ -33,7 +51,12 @@ export function DataExportModal({ open, onOpenChange }: DataExportModalProps) {
 
   const handleExportCSV = (type: 'transactions' | 'workouts' | 'food') => {
     try {
-      const csv = exportToCSV(type);
+      const csvData = {
+        transactions: (queryClient.getQueryData(queryKeys.transactions) as import('@/types/transaction').Transaction[]) ?? [],
+        workouts: (queryClient.getQueryData(queryKeys.workouts) as import('@/types/workout').Workout[]) ?? [],
+        foodEntries: (queryClient.getQueryData(queryKeys.foodEntries) as import('@/types/energy').FoodEntry[]) ?? [],
+      };
+      const csv = exportToCSV(type, csvData);
       downloadFile(csv, `beme-${type}-${new Date().toISOString().split('T')[0]}.csv`, 'text/csv');
       toast.success(`${type.charAt(0).toUpperCase() + type.slice(1)} exported successfully!`);
       onOpenChange(false);

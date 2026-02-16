@@ -23,7 +23,7 @@ function rowToEntry(row) {
 export async function findByUserId(userId) {
   const pool = getPool();
   const result = await pool.query(
-    'SELECT * FROM food_entries WHERE user_id = $1 ORDER BY date DESC, created_at DESC',
+    'SELECT id, date, name, calories, protein, carbs, fats, portion_amount, portion_unit, serving_type, start_time, end_time FROM food_entries WHERE user_id = $1 ORDER BY date DESC, created_at DESC',
     [userId]
   );
   return result.rows.map(rowToEntry);
@@ -36,7 +36,7 @@ export async function create(params) {
   const result = await pool.query(
     `INSERT INTO food_entries (user_id, date, name, calories, protein, carbs, fats, portion_amount, portion_unit, serving_type, start_time, end_time)
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-     RETURNING *`,
+     RETURNING id, date, name, calories, protein, carbs, fats, portion_amount, portion_unit, serving_type, start_time, end_time`,
     [userId, d.toISOString().slice(0, 10), name.trim(), calories, protein, carbs, fats, portionAmount ?? null, portionUnit ?? null, servingType ?? null, startTime ?? null, endTime ?? null]
   );
   return rowToEntry(result.rows[0]);
@@ -61,7 +61,7 @@ export async function update(id, userId, updates) {
   if (entries.length === 0) return null;
   values.push(id, userId);
   const result = await pool.query(
-    `UPDATE food_entries SET ${entries.join(', ')} WHERE id = $${i} AND user_id = $${i + 1} RETURNING *`,
+    `UPDATE food_entries SET ${entries.join(', ')} WHERE id = $${i} AND user_id = $${i + 1} RETURNING id, date, name, calories, protein, carbs, fats, portion_amount, portion_unit, serving_type, start_time, end_time`,
     values
   );
   return result.rowCount > 0 ? rowToEntry(result.rows[0]) : null;

@@ -5,6 +5,7 @@ import { useSettings } from './hooks/useSettings';
 import { useThemeEffect } from './hooks/useThemeEffect';
 import { Base44Layout } from './components/layout/Base44Layout';
 import { LoadingSpinner } from './components/shared/LoadingSpinner';
+import { LocalErrorBoundary } from './components/shared/LocalErrorBoundary';
 import { AppProviders } from './Providers';
 
 const Home = lazy(() => import('./pages/Home').then((m) => ({ default: m.Home })));
@@ -22,6 +23,9 @@ const Login = lazy(() => import('./pages/Login').then((m) => ({ default: m.Login
 const Signup = lazy(() => import('./pages/Signup').then((m) => ({ default: m.Signup })));
 const AuthCallback = lazy(() =>
   import('./pages/AuthCallback').then((m) => ({ default: m.AuthCallback }))
+);
+const InviteJoin = lazy(() =>
+  import('./pages/InviteJoin').then((m) => ({ default: m.InviteJoin }))
 );
 
 function ProtectedRoutes() {
@@ -124,9 +128,11 @@ function ProtectedAppRoutes() {
         <Route
           path="insights"
           element={
-            <Suspense fallback={<LoadingSpinner text="Loading insights..." />}>
-              <Insights />
-            </Suspense>
+            <LocalErrorBoundary label="Insights">
+              <Suspense fallback={<LoadingSpinner text="Loading insights..." />}>
+                <Insights />
+              </Suspense>
+            </LocalErrorBoundary>
           }
         />
         <Route
@@ -185,6 +191,14 @@ export function AppRoutes() {
           element={
             <Suspense fallback={<LoadingSpinner text="Loading..." />}>
               <AuthCallback />
+            </Suspense>
+          }
+        />
+        <Route
+          path="/invite/join"
+          element={
+            <Suspense fallback={<LoadingSpinner text="Loading..." />}>
+              <InviteJoin />
             </Suspense>
           }
         />

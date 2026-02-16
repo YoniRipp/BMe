@@ -60,10 +60,40 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
         color: item.color,
       });
     },
-    onSuccess: (created) => {
+    onMutate: async (item) => {
+      await queryClient.cancelQueries({ queryKey: queryKeys.schedule });
+      const previous = queryClient.getQueryData<ScheduleItem[]>(queryKeys.schedule);
+      const today = new Date().toISOString().slice(0, 10);
+      const optimistic: ScheduleItem = {
+        id: `opt-${Date.now()}`,
+        date: item.date ?? today,
+        title: item.title,
+        startTime: item.startTime ?? '09:00',
+        endTime: item.endTime ?? '10:00',
+        category: item.category ?? 'Other',
+        emoji: item.emoji,
+        order: item.order ?? (previous?.length ?? 0),
+        isActive: item.isActive ?? true,
+        groupId: item.groupId,
+        recurrence: item.recurrence,
+        color: item.color,
+      };
       queryClient.setQueryData(queryKeys.schedule, (prev: ScheduleItem[] | undefined) =>
-        prev ? [...prev, apiScheduleItemToScheduleItem(created)] : [apiScheduleItemToScheduleItem(created)]
+        prev ? [...prev, optimistic] : [optimistic]
       );
+      return { previous };
+    },
+    onError: (_err, _item, context) => {
+      if (context?.previous != null) {
+        queryClient.setQueryData(queryKeys.schedule, context.previous);
+      }
+    },
+    onSuccess: (created) => {
+      queryClient.setQueryData(queryKeys.schedule, (prev: ScheduleItem[] | undefined) => {
+        if (!prev) return [apiScheduleItemToScheduleItem(created)];
+        const withoutOptimistic = prev.filter((s) => !s.id.startsWith('opt-'));
+        return [...withoutOptimistic, apiScheduleItemToScheduleItem(created)];
+      });
     },
   });
 

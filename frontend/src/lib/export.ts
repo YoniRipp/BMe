@@ -18,21 +18,21 @@ export interface ExportData {
 }
 
 /**
- * Export all application data as JSON
+ * Export all application data as JSON. Use API-backed data (e.g. from TanStack Query cache).
  */
-export function exportAllData(): string {
-  const data: ExportData = {
-    version: '1.0.0',
-    exportDate: new Date().toISOString(),
-    transactions: storage.get<Transaction[]>(STORAGE_KEYS.TRANSACTIONS) || [],
-    workouts: storage.get<Workout[]>(STORAGE_KEYS.WORKOUTS) || [],
-    foodEntries: storage.get<FoodEntry[]>(STORAGE_KEYS.FOOD_ENTRIES) || [],
-    checkIns: storage.get<any[]>(STORAGE_KEYS.ENERGY) || [],
-    scheduleItems: storage.get<ScheduleItem[]>(STORAGE_KEYS.SCHEDULE) || [],
-    groups: storage.get<Group[]>(STORAGE_KEYS.GROUPS) || [],
+export function exportAllData(data: ExportData): string {
+  const payload: ExportData = {
+    version: data.version ?? '1.0.0',
+    exportDate: data.exportDate ?? new Date().toISOString(),
+    transactions: data.transactions ?? [],
+    workouts: data.workouts ?? [],
+    foodEntries: data.foodEntries ?? [],
+    checkIns: data.checkIns ?? [],
+    scheduleItems: data.scheduleItems ?? [],
+    groups: data.groups ?? [],
+    settings: data.settings,
   };
-
-  return JSON.stringify(data, null, 2);
+  return JSON.stringify(payload, null, 2);
 }
 
 /**
@@ -79,51 +79,58 @@ export function importAllData(jsonString: string): { success: boolean; error?: s
   }
 }
 
-type ExportCSVType = 'transactions' | 'workouts' | 'food';
+export type ExportCSVType = 'transactions' | 'workouts' | 'food';
 
-const EXPORT_CONFIG: Record<
-  ExportCSVType,
-  { headers: string[]; getRows: () => (string | number)[][] }
-> = {
-  transactions: {
-    headers: ['Date', 'Type', 'Amount', 'Category', 'Description', 'Recurring'],
-    getRows: () =>
-      (storage.get<Transaction[]>(STORAGE_KEYS.TRANSACTIONS) || []).map(t => [
+export interface ExportCSVData {
+  transactions: Transaction[];
+  workouts: Workout[];
+  foodEntries: FoodEntry[];
+}
+
+function getCSVRows(
+  type: ExportCSVType,
+  data: ExportCSVData
+): (string | number)[][] {
+  switch (type) {
+    case 'transactions':
+      return (data.transactions ?? []).map(t => [
         new Date(t.date).toLocaleDateString(),
         t.type,
         t.amount.toString(),
         t.category,
         t.description || '',
         t.isRecurring ? 'Yes' : 'No',
-      ]),
-  },
-  workouts: {
-    headers: ['Date', 'Title', 'Type', 'Duration (min)', 'Exercises'],
-    getRows: () =>
-      (storage.get<Workout[]>(STORAGE_KEYS.WORKOUTS) || []).map(w => [
+      ]);
+    case 'workouts':
+      return (data.workouts ?? []).map(w => [
         new Date(w.date).toLocaleDateString(),
         w.title,
         w.type,
         w.durationMinutes.toString(),
-        w.exercises
+        (w.exercises ?? [])
           .map(e =>
             `${e.name} (${e.sets}x${e.reps}${e.weight ? ` @ ${e.weight}lbs` : ''})`
           )
           .join('; '),
-      ]),
-  },
-  food: {
-    headers: ['Date', 'Name', 'Calories', 'Protein (g)', 'Carbs (g)', 'Fats (g)'],
-    getRows: () =>
-      (storage.get<FoodEntry[]>(STORAGE_KEYS.FOOD_ENTRIES) || []).map(f => [
+      ]);
+    case 'food':
+      return (data.foodEntries ?? []).map(f => [
         new Date(f.date).toLocaleDateString(),
         f.name,
         f.calories.toString(),
         f.protein.toString(),
         f.carbs.toString(),
         f.fats.toString(),
-      ]),
-  },
+      ]);
+    default:
+      return [];
+  }
+}
+
+const EXPORT_CSV_HEADERS: Record<ExportCSVType, string[]> = {
+  transactions: ['Date', 'Type', 'Amount', 'Category', 'Description', 'Recurring'],
+  workouts: ['Date', 'Title', 'Type', 'Duration (min)', 'Exercises'],
+  food: ['Date', 'Name', 'Calories', 'Protein (g)', 'Carbs (g)', 'Fats (g)'],
 };
 
 function escapeCSV(value: string): string {
@@ -134,11 +141,11 @@ function escapeCSV(value: string): string {
 }
 
 /**
- * Export transactions to CSV
+ * Export data to CSV. Use API-backed data (e.g. from TanStack Query cache).
  */
-export function exportToCSV(type: ExportCSVType): string {
-  const { headers, getRows } = EXPORT_CONFIG[type];
-  const rows = getRows();
+export function exportToCSV(type: ExportCSVType, data: ExportCSVData): string {
+  const headers = EXPORT_CSV_HEADERS[type];
+  const rows = getCSVRows(type, data);
   const csv =
     headers.map(escapeCSV).join(',') + '\n' +
     rows.map(row => row.map(cell => escapeCSV(String(cell))).join(',')).join('\n');

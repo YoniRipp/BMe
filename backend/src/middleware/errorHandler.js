@@ -43,5 +43,6 @@ export function errorHandler(err, req, res, next) {
   }
 
   console.error('Unhandled error:', err?.message ?? err);
-  res.status(500).json({ error: err?.message ?? 'Internal server error' });
+  const message = process.env.NODE_ENV === 'production' ? 'Something went wrong' : (err?.message ?? 'Internal server error');
+  res.status(500).json({ error: message });
 }

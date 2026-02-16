@@ -27,7 +27,9 @@ const configSchema = z.object({
   jwtSecret: z.string().nullable().refine((v) => !isProduction || (v != null && v.length > 0), {
     message: 'JWT_SECRET must be set in production',
   }),
-  corsOrigin: z.union([z.string(), z.boolean()]),
+  corsOrigin: isProduction
+    ? z.string().min(1, 'CORS_ORIGIN must be set to an explicit origin in production')
+    : z.union([z.string(), z.boolean()]),
   frontendOrigin: z.string(),
   googleClientId: z.string().optional(),
   facebookAppId: z.string().optional(),
@@ -36,6 +38,8 @@ const configSchema = z.object({
   twitterRedirectUri: z.string(),
   mcpSecret: z.string().optional(),
   mcpUserId: z.string().optional(),
+  appBaseUrl: z.string().optional(),
+  resendApiKey: z.string().optional(),
 });
 
 const PORT = process.env.PORT ?? 3000;
@@ -45,7 +49,10 @@ const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN || process.env.CORS_ORIGIN |
 const CORS_ORIGIN = process.env.CORS_ORIGIN != null && process.env.CORS_ORIGIN !== ''
   ? process.env.CORS_ORIGIN
   : (isProduction ? FRONTEND_ORIGIN : true);
-if (isProduction && CORS_ORIGIN === FRONTEND_ORIGIN && !process.env.CORS_ORIGIN) {
+if (isProduction && (CORS_ORIGIN === true || CORS_ORIGIN === 'true')) {
+  throw new Error('CORS_ORIGIN must be an explicit origin in production, not true');
+}
+if (isProduction && !process.env.CORS_ORIGIN) {
   console.warn('CORS_ORIGIN not set in production; using FRONTEND_ORIGIN. Set CORS_ORIGIN explicitly for security.');
 }
 
@@ -65,6 +72,8 @@ const rawConfig = {
   twitterRedirectUri: process.env.TWITTER_REDIRECT_URI || 'http://localhost:3000/api/auth/twitter/callback',
   mcpSecret: process.env.BEME_MCP_SECRET,
   mcpUserId: process.env.BEME_MCP_USER_ID,
+  appBaseUrl: process.env.APP_BASE_URL || process.env.FRONTEND_URL || FRONTEND_ORIGIN,
+  resendApiKey: process.env.RESEND_API_KEY,
 };
 
 const parsed = configSchema.safeParse(rawConfig);

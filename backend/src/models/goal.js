@@ -15,7 +15,7 @@ function rowToGoal(row) {
 
 export async function findByUserId(userId) {
   const pool = getPool();
-  const result = await pool.query('SELECT * FROM goals WHERE user_id = $1 ORDER BY created_at ASC', [userId]);
+  const result = await pool.query('SELECT id, type, target, period, created_at FROM goals WHERE user_id = $1 ORDER BY created_at ASC', [userId]);
   return result.rows.map(rowToGoal);
 }
 
@@ -23,7 +23,7 @@ export async function create(params) {
   const pool = getPool();
   const { userId, type, target, period } = params;
   const result = await pool.query(
-    'INSERT INTO goals (type, target, period, user_id) VALUES ($1, $2, $3, $4) RETURNING *',
+    'INSERT INTO goals (type, target, period, user_id) VALUES ($1, $2, $3, $4) RETURNING id, type, target, period, created_at',
     [type, target, period, userId]
   );
   return rowToGoal(result.rows[0]);
@@ -40,7 +40,7 @@ export async function update(id, userId, updates) {
   if (entries.length === 0) return null;
   values.push(id, userId);
   const result = await pool.query(
-    `UPDATE goals SET ${entries.join(', ')} WHERE id = $${i} AND user_id = $${i + 1} RETURNING *`,
+    `UPDATE goals SET ${entries.join(', ')} WHERE id = $${i} AND user_id = $${i + 1} RETURNING id, type, target, period, created_at`,
     values
   );
   return result.rowCount > 0 ? rowToGoal(result.rows[0]) : null;

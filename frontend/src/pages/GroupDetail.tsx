@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useApp } from '@/context/AppContext';
 import { useGroups } from '@/hooks/useGroups';
 import { useSchedule } from '@/hooks/useSchedule';
 import { useTransactions } from '@/hooks/useTransactions';
@@ -21,6 +22,7 @@ import { Transaction } from '@/types/transaction';
 export function GroupDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { user } = useApp();
   const { getGroupById, groupsLoading } = useGroups();
   const { scheduleItems, scheduleLoading, scheduleError, addScheduleItem, updateScheduleItem, deleteScheduleItem } = useSchedule();
   const { transactions, addTransaction, updateTransaction, deleteTransaction } = useTransactions();
@@ -111,20 +113,24 @@ export function GroupDetail() {
     }
   };
 
+  const isAdmin = group.members.some((m) => m.userId === user?.id && m.role === 'admin');
+
   return (
     <div className="max-w-6xl mx-auto space-y-6">
       <div className="flex items-center justify-between gap-4">
         <Button variant="ghost" onClick={() => navigate('/groups')} className="gap-2 shrink-0">
           <ArrowLeft className="w-4 h-4" /> Back
         </Button>
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={() => setSettingsModalOpen(true)}
-          aria-label="Group settings"
-        >
-          <Settings className="w-4 h-4" />
-        </Button>
+        {isAdmin && (
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => setSettingsModalOpen(true)}
+            aria-label="Group settings"
+          >
+            <Settings className="w-4 h-4" />
+          </Button>
+        )}
       </div>
 
       <PageTitle

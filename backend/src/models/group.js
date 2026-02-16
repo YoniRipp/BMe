@@ -67,19 +67,60 @@ async function getFullGroup(pool, groupId) {
  */
 export async function findByUserId(userId) {
   const pool = getPool();
-  const result = await pool.query(
+  const idResult = await pool.query(
     `SELECT g.id FROM groups g
      JOIN group_members gm ON gm.group_id = g.id
      WHERE gm.user_id = $1
      ORDER BY g.name ASC`,
     [userId]
   );
-  const groups = [];
-  for (const r of result.rows) {
-    const group = await getFullGroup(pool, r.id);
-    if (group) groups.push(group);
+  const ids = idResult.rows.map((r) => r.id);
+  if (ids.length === 0) return [];
+
+  const groupsResult = await pool.query(
+    'SELECT id, name, description, type, created_at FROM groups WHERE id = ANY($1::uuid[])',
+    [ids]
+  );
+  const membersResult = await pool.query(
+    `SELECT gm.group_id, gm.user_id AS "userId", u.email, gm.role
+     FROM group_members gm
+     JOIN users u ON u.id = gm.user_id
+     WHERE gm.group_id = ANY($1::uuid[])`,
+    [ids]
+  );
+  const invResult = await pool.query(
+    `SELECT gi.group_id, gi.email, u.email AS "invitedBy", gi.invited_at AS "invitedAt"
+     FROM group_invitations gi
+     JOIN users u ON u.id = gi.invited_by_user_id
+     WHERE gi.group_id = ANY($1::uuid[])`,
+    [ids]
+  );
+
+  const membersByGroup = new Map();
+  for (const m of membersResult.rows) {
+    const list = membersByGroup.get(m.group_id) || [];
+    list.push({ userId: m.userId, email: m.email, role: m.role });
+    membersByGroup.set(m.group_id, list);
   }
-  return groups;
+  const invByGroup = new Map();
+  for (const i of invResult.rows) {
+    const list = invByGroup.get(i.group_id) || [];
+    list.push({ email: i.email, invitedBy: i.invitedBy, invitedAt: toISO(i.invitedAt) });
+    invByGroup.set(i.group_id, list);
+  }
+
+  const idToOrder = new Map(ids.map((id, idx) => [id, idx]));
+  return groupsResult.rows
+    .map((row) => ({
+      id: row.id,
+      name: row.name,
+      description: row.description ?? undefined,
+      type: row.type,
+      members: membersByGroup.get(row.id) || [],
+      invitations: invByGroup.get(row.id) || [],
+      createdAt: toISO(row.created_at),
+    }))
+    .sort((a, b) => (idToOrder.get(a.id) ?? 0) - (idToOrder.get(b.id) ?? 0));
 }
 
 /**
@@ -206,11 +247,13 @@ export async function addInvitation(groupId, userId, email) {
     [groupId, emailNorm]
   );
   if (invCheck.rows.length > 0) throw new ConflictError('Already invited');
-  await pool.query(
-    `INSERT INTO group_invitations (group_id, email, invited_by_user_id) VALUES ($1, $2, $3)`,
+  const insertResult = await pool.query(
+    `INSERT INTO group_invitations (group_id, email, invited_by_user_id) VALUES ($1, $2, $3) RETURNING id`,
     [groupId, emailNorm, userId]
   );
-  return getFullGroup(pool, groupId);
+  const group = await getFullGroup(pool, groupId);
+  const invitationId = insertResult.rows[0]?.id ?? null;
+  return { group, invitationId };
 }
 
 /**
@@ -227,6 +270,62 @@ export async function cancelInvitation(groupId, userId, email) {
   await pool.query(
     'DELETE FROM group_invitations WHERE group_id = $1 AND lower(email) = $2',
     [groupId, emailNorm]
+  );
+  return getFullGroup(pool, groupId);
+}
+
+/**
+ * Get invitation by id (token) for public join page. Returns { groupId, groupName, email } or null.
+ * @param {string} token - group_invitations.id
+ * @returns {Promise<{ groupId: string, groupName: string, email: string }|null>}
+ */
+export async function findInvitationByToken(token) {
+  if (!token || typeof token !== 'string') return null;
+  const pool = getPool();
+  const result = await pool.query(
+    `SELECT gi.group_id AS "groupId", g.name AS "groupName", gi.email
+     FROM group_invitations gi
+     JOIN groups g ON g.id = gi.group_id
+     WHERE gi.id = $1`,
+    [token.trim()]
+  );
+  if (result.rows.length === 0) return null;
+  const row = result.rows[0];
+  return {
+    groupId: row.groupId,
+    groupName: row.groupName,
+    email: row.email?.trim().toLowerCase() ?? '',
+  };
+}
+
+/**
+ * Accept an invitation by token (invitation id). Caller must be authenticated and email must match.
+ * @param {string} token - group_invitations.id
+ * @param {string} userId
+ * @param {string} userEmail
+ * @returns {Promise<object>} group
+ */
+export async function acceptInvitationByToken(token, userId, userEmail) {
+  if (!token || typeof token !== 'string') throw new NotFoundError('Invitation not found');
+  const pool = getPool();
+  const invResult = await pool.query(
+    'SELECT group_id AS "groupId", email FROM group_invitations WHERE id = $1',
+    [token.trim()]
+  );
+  if (invResult.rows.length === 0) throw new NotFoundError('Invitation not found');
+  const groupId = invResult.rows[0].groupId;
+  const invEmailNorm = (invResult.rows[0].email || '').trim().toLowerCase();
+  const userEmailNorm = (userEmail || '').trim().toLowerCase();
+  if (userEmailNorm !== invEmailNorm) {
+    throw new ForbiddenError('Invitation email does not match your account');
+  }
+  const userRow = await pool.query('SELECT id FROM users WHERE id = $1', [userId]);
+  if (userRow.rows.length === 0) throw new NotFoundError('User not found');
+  await pool.query('DELETE FROM group_invitations WHERE id = $1', [token.trim()]);
+  await pool.query(
+    `INSERT INTO group_members (group_id, user_id, role) VALUES ($1, $2, 'member')
+     ON CONFLICT (group_id, user_id) DO NOTHING`,
+    [groupId, userId]
   );
   return getFullGroup(pool, groupId);
 }

@@ -7,6 +7,8 @@ interface ContentWithLoadingProps {
   loading: boolean;
   /** Message shown under the spinner (e.g. "Loading transactions..."). */
   loadingText?: string;
+  /** Optional skeleton to show instead of spinner when loading (e.g. list of skeleton cards). */
+  skeleton?: ReactNode;
   /** Optional error message shown above children when not loading. */
   error?: string | null;
   /** Content shown when not loading. */
@@ -18,17 +20,28 @@ interface ContentWithLoadingProps {
 
 /**
  * Single place for section/page loading: same spinner and layout everywhere.
- * Use for any section that fetches data (transactions, schedule, goals, workouts, energy, etc.).
+ * Use skeleton for list pages to show a skeleton layout (cards/rows) instead of only a spinner.
  */
 export function ContentWithLoading({
   loading,
   loadingText = 'Loading...',
+  skeleton,
   error,
   children,
   minHeight,
   className,
 }: ContentWithLoadingProps) {
   if (loading) {
+    if (skeleton) {
+      return (
+        <div
+          className={className}
+          style={minHeight ? { minHeight: typeof minHeight === 'number' ? `${minHeight}px` : minHeight } : undefined}
+        >
+          {skeleton}
+        </div>
+      );
+    }
     return (
       <div
         className={cn('flex items-center justify-center', className)}

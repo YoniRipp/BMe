@@ -14,7 +14,7 @@ function rowToCheckIn(row) {
 export async function findByUserId(userId) {
   const pool = getPool();
   const result = await pool.query(
-    'SELECT * FROM daily_check_ins WHERE user_id = $1 ORDER BY date DESC, created_at DESC',
+    'SELECT id, date, sleep_hours FROM daily_check_ins WHERE user_id = $1 ORDER BY date DESC, created_at DESC',
     [userId]
   );
   return result.rows.map(rowToCheckIn);
@@ -27,7 +27,7 @@ export async function create(params) {
   const result = await pool.query(
     `INSERT INTO daily_check_ins (user_id, date, sleep_hours)
      VALUES ($1, $2, $3)
-     RETURNING *`,
+     RETURNING id, date, sleep_hours`,
     [userId, d.toISOString().slice(0, 10), sleepHours]
   );
   return rowToCheckIn(result.rows[0]);
@@ -43,7 +43,7 @@ export async function update(id, userId, updates) {
   if (entries.length === 0) return null;
   values.push(id, userId);
   const result = await pool.query(
-    `UPDATE daily_check_ins SET ${entries.join(', ')} WHERE id = $${i} AND user_id = $${i + 1} RETURNING *`,
+    `UPDATE daily_check_ins SET ${entries.join(', ')} WHERE id = $${i} AND user_id = $${i + 1} RETURNING id, date, sleep_hours`,
     values
   );
   return result.rowCount > 0 ? rowToCheckIn(result.rows[0]) : null;

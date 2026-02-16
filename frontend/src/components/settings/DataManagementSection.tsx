@@ -1,6 +1,9 @@
 import { Database, Download, RefreshCw, Trash2 } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { storage, STORAGE_KEYS } from '@/lib/storage';
+import { queryKeys } from '@/lib/queryClient';
+import { exportAllData, downloadFile } from '@/lib/export';
 import { DEFAULT_SETTINGS } from '@/types/settings';
 import { toast } from 'sonner';
 import { SettingsSection } from './SettingsSection';
@@ -11,32 +14,28 @@ interface DataManagementSectionProps {
 }
 
 export function DataManagementSection({ onResetClick, onClearClick }: DataManagementSectionProps) {
+  const queryClient = useQueryClient();
+
   const handleExportData = () => {
     try {
-      const allData = {
-        transactions: storage.get(STORAGE_KEYS.TRANSACTIONS) || [],
-        workouts: storage.get(STORAGE_KEYS.WORKOUTS) || [],
-        workoutTemplates: storage.get(STORAGE_KEYS.WORKOUT_TEMPLATES) || [],
-        energy: storage.get(STORAGE_KEYS.ENERGY) || [],
-        foodEntries: storage.get(STORAGE_KEYS.FOOD_ENTRIES) || [],
-        schedule: storage.get(STORAGE_KEYS.SCHEDULE) || [],
-        groups: storage.get(STORAGE_KEYS.GROUPS) || [],
-        customGroupTypes: storage.get(STORAGE_KEYS.CUSTOM_GROUP_TYPES) || [],
-        settings: storage.get(STORAGE_KEYS.SETTINGS) || DEFAULT_SETTINGS,
+      const transactions = (queryClient.getQueryData(queryKeys.transactions) as import('@/types/transaction').Transaction[]) ?? [];
+      const workouts = (queryClient.getQueryData(queryKeys.workouts) as import('@/types/workout').Workout[]) ?? [];
+      const foodEntries = (queryClient.getQueryData(queryKeys.foodEntries) as import('@/types/energy').FoodEntry[]) ?? [];
+      const checkIns = (queryClient.getQueryData(queryKeys.checkIns) as import('@/types/energy').DailyCheckIn[]) ?? [];
+      const scheduleItems = (queryClient.getQueryData(queryKeys.schedule) as import('@/types/schedule').ScheduleItem[]) ?? [];
+      const groups = (queryClient.getQueryData(queryKeys.groups) as import('@/types/group').Group[]) ?? [];
+      const dataStr = exportAllData({
+        version: '1.0.0',
         exportDate: new Date().toISOString(),
-      };
-
-      const dataStr = JSON.stringify(allData, null, 2);
-      const dataBlob = new Blob([dataStr], { type: 'application/json' });
-      const url = URL.createObjectURL(dataBlob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `beme-backup-${new Date().toISOString().split('T')[0]}.json`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-
+        transactions,
+        workouts,
+        foodEntries,
+        checkIns,
+        scheduleItems,
+        groups,
+        settings: storage.get(STORAGE_KEYS.SETTINGS) || DEFAULT_SETTINGS,
+      });
+      downloadFile(dataStr, `beme-backup-${new Date().toISOString().split('T')[0]}.json`, 'application/json');
       toast.success('Data exported successfully');
     } catch {
       toast.error('Failed to export data');

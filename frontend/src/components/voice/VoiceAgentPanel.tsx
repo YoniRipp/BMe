@@ -23,8 +23,10 @@ import { useGoals } from '@/hooks/useGoals';
 import { understandTranscript } from '@/lib/voiceApi';
 import { executeVoiceAction, type VoiceExecutorContext } from '@/lib/voiceActionExecutor';
 import { getVoiceLiveWsUrl, VOICE_LIVE_AUDIO, type VoiceLiveMessage } from '@/lib/voiceLiveApi';
+import { toLocalDateString } from '@/lib/dateRanges';
 import { type JarvisState } from '@/components/voice/JarvisLiveVisual';
 import { toast } from '@/components/shared/ToastProvider';
+import { LocalErrorBoundary } from '@/components/shared/LocalErrorBoundary';
 
 interface VoiceAgentPanelProps {
   open: boolean;
@@ -223,6 +225,12 @@ export function VoiceAgentPanel({ open, onOpenChange }: VoiceAgentPanelProps) {
     ws.onopen = () => {
       setLiveConnected(true);
       setLiveState('listening');
+      try {
+        const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
+        ws.send(JSON.stringify({ type: 'context', today: toLocalDateString(new Date()), timezone }));
+      } catch {
+        // ignore
+      }
     };
     ws.onmessage = (event) => {
       try {
@@ -342,7 +350,7 @@ export function VoiceAgentPanel({ open, onOpenChange }: VoiceAgentPanelProps) {
         <DialogHeader>
           <DialogTitle>מרח / Voice Agent</DialogTitle>
         </DialogHeader>
-
+        <LocalErrorBoundary label="Voice">
         {!isSupported ? (
           <div className="py-4 text-sm text-muted-foreground">
             Voice is not supported in this browser. Please use Chrome or Edge.
@@ -389,6 +397,11 @@ export function VoiceAgentPanel({ open, onOpenChange }: VoiceAgentPanelProps) {
                 <div className="mt-1 min-h-[80px] rounded-md border bg-muted/50 p-3 text-sm">
                   {transcript || '—'}
                 </div>
+                {isSubmitting && (
+                  <p className="mt-2 text-sm text-muted-foreground" role="status" aria-live="polite">
+                    Gemini is thinking...
+                  </p>
+                )}
                 {transcript.trim() && !isListening && (
                   <Button type="button" variant="secondary" className="mt-2 w-full" onClick={handleExecute} disabled={isSubmitting}>
                     <Send className="mr-2 h-4 w-4" />
@@ -399,6 +412,7 @@ export function VoiceAgentPanel({ open, onOpenChange }: VoiceAgentPanelProps) {
             )}
           </div>
         )}
+        </LocalErrorBoundary>
       </DialogContent>
     </Dialog>
   );

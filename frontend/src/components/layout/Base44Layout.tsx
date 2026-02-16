@@ -59,6 +59,7 @@ function getSidebarNav(isAdmin: boolean) {
 const BOTTOM_NAV_ITEMS = 6;
 
 function getPageTitle(pathname: string): string {
+  if (pathname.startsWith('/groups/') && pathname.length > 8) return 'Groups';
   return ROUTE_TO_TITLE[pathname] ?? (pathname.slice(1) || 'Dashboard');
 }
 

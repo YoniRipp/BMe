@@ -41,7 +41,7 @@ async function register(req, res) {
     const result = await pool.query(
       `INSERT INTO users (email, password_hash, name, role)
        VALUES ($1, $2, $3, 'user')
-       RETURNING *`,
+       RETURNING id, email, name, role, created_at`,
       [email.trim().toLowerCase(), password_hash, name.trim()]
     );
     const user = rowToUser(result.rows[0]);
@@ -68,7 +68,7 @@ async function login(req, res) {
     }
     const pool = getPool();
     const result = await pool.query(
-      'SELECT * FROM users WHERE email = $1',
+      'SELECT id, email, name, role, password_hash, auth_provider, provider_id FROM users WHERE email = $1',
       [email.trim().toLowerCase()]
     );
     if (result.rows.length === 0) {

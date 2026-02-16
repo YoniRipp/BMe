@@ -377,7 +377,7 @@ const HANDLERS: Partial<Record<VoiceAction['intent'], Handler>> = {
  */
 export async function executeVoiceAction(action: VoiceAction, context: VoiceExecutorContext): Promise<VoiceExecuteResult> {
   try {
-    if (action.intent === 'unknown') return { success: false, message: 'Could not understand' };
+    if (action.intent === 'unknown') return { success: false, message: (action as { message?: string }).message ?? 'Could not understand' };
     const handler = HANDLERS[action.intent];
     if (!handler) return { success: false, message: 'Could not understand' };
     return await handler(action, context);

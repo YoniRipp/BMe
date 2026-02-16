@@ -54,4 +54,17 @@ export const groupsApi = {
 
   removeMember: (id: string, userId: string) =>
     request<void>(`/api/groups/${id}/members/${userId}`, { method: 'DELETE' }),
+
+  /** Public: resolve invite token (no auth required). */
+  getInvitationByToken: (token: string) =>
+    request<{ groupId: string; groupName: string; email: string }>(
+      `/api/groups/invitations/${encodeURIComponent(token)}`
+    ),
+
+  /** Accept invite by token (auth required). */
+  acceptInviteByToken: (token: string) =>
+    request<ApiGroup>('/api/groups/accept-invite-by-token', {
+      method: 'POST',
+      body: { token },
+    }).then(toGroup),
 };

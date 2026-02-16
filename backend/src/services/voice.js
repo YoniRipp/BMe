@@ -1,6 +1,8 @@
 /**
  * Voice service — Gemini parsing and action mapping.
  */
+import { z } from 'zod';
+import { fromZonedTime } from 'date-fns-tz';
 import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from '@google/generative-ai';
 import { config } from '../config/index.js';
 import { isDbConfigured, getPool } from '../db/index.js';
@@ -10,6 +12,50 @@ import { VOICE_TOOLS } from '../../voice/tools.js';
 import { getNutritionForFoodName, unitToGrams } from '../models/foodSearch.js';
 import { lookupAndCreateFood } from './foodLookupGemini.js';
 import { logError } from './appLog.js';
+
+/**
+ * Convert a local date + time in a given IANA timezone to UTC date and time strings (YYYY-MM-DD, HH:mm).
+ * Used so we store only UTC in the DB.
+ */
+function localToUtcDateAndTime(dateStr, timeStr, timezone) {
+  if (!dateStr || !timeStr || !timezone) return null;
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const [hh, mm] = (timeStr + ':00').split(':').map(Number);
+  if (!Number.isFinite(y) || !Number.isFinite(m) || !Number.isFinite(d)) return null;
+  const localInTz = new Date(y, m - 1, d, hh || 0, mm || 0, 0);
+  try {
+    const utcDate = fromZonedTime(localInTz, timezone);
+    const utcDateStr = utcDate.toISOString().slice(0, 10);
+    const utcTimeStr = utcDate.toISOString().slice(11, 16);
+    return { date: utcDateStr, time: utcTimeStr };
+  } catch {
+    return null;
+  }
+}
+
+/** Lenient Zod schemas for Gemini function args; invalid args are rejected and that call is skipped. */
+const voiceAddTransactionArgsSchema = z.object({
+  type: z.enum(['income', 'expense']),
+  amount: z.union([z.number(), z.string()]).transform((v) => (v != null ? Number(v) : NaN)).pipe(z.number().min(0).finite()),
+  category: z.string().optional(),
+  description: z.string().optional(),
+  date: z.string().optional(),
+  isRecurring: z.boolean().optional(),
+});
+const voiceAddScheduleArgsSchema = z.object({
+  date: z.string().optional(),
+  items: z.array(z.object({
+    title: z.string().min(1),
+    startTime: z.string().optional(),
+    endTime: z.string().optional(),
+    category: z.string().optional(),
+    recurrence: z.string().optional(),
+  })).min(1),
+});
+const VOICE_ARG_SCHEMAS = {
+  add_transaction: voiceAddTransactionArgsSchema,
+  add_schedule: voiceAddScheduleArgsSchema,
+};
 
 export const VOICE_PROMPT = `You are a voice assistant for a life management app. The user speaks in Hebrew or English.
 Parse their message and call the appropriate function(s) for each action they want to take.
@@ -207,17 +253,47 @@ function buildDeleteWorkout(args) {
 function buildAddSchedule(args, ctx) {
   const todayStr = ctx?.todayStr ?? new Date().toISOString().slice(0, 10);
   const dateStr = parseDate(args.date, todayStr);
+  const tz = ctx?.timezone;
+  // #region agent log
+  fetch('http://127.0.0.1:7246/ingest/e2e403c5-3c70-4f1e-adfb-38e8c147c460', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'voice.js:buildAddSchedule:entry', message: 'buildAddSchedule', data: { todayStr, dateStr, tz: tz ?? null }, timestamp: Date.now(), hypothesisId: 'H1' }) }).catch(() => {});
+  // #endregion
   let items = Array.isArray(args.items) ? args.items : [];
+  let firstItemLogged = false;
   items = items
     .filter((it) => it && typeof it.title === 'string' && it.title.trim())
-    .map((it) => ({
-      title: String(it.title).trim(),
-      startTime: normTime(it.startTime) ?? '09:00',
-      endTime: normTime(it.endTime) ?? '10:00',
-      category: normCat(it.category, SCHEDULE_CATEGORIES),
-      recurrence: VALID_RECURRENCE.includes(it.recurrence) ? it.recurrence : undefined,
-      date: dateStr,
-    }));
+    .map((it) => {
+      const startTime = normTime(it.startTime) ?? '09:00';
+      const endTime = normTime(it.endTime) ?? '10:00';
+      const itemDate = dateStr;
+      if (tz) {
+        const startUtc = localToUtcDateAndTime(itemDate, startTime, tz);
+        const endUtc = localToUtcDateAndTime(itemDate, endTime, tz);
+        if (!firstItemLogged) {
+          firstItemLogged = true;
+          // #region agent log
+          fetch('http://127.0.0.1:7246/ingest/e2e403c5-3c70-4f1e-adfb-38e8c147c460', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'voice.js:buildAddSchedule:firstItem', message: 'local to UTC', data: { itemDate, startTime, endTime, tz, startUtc, endUtc }, timestamp: Date.now(), hypothesisId: 'H3' }) }).catch(() => {});
+          // #endregion
+        }
+        if (startUtc && endUtc) {
+          return {
+            title: String(it.title).trim(),
+            startTime: startUtc.time,
+            endTime: endUtc.time,
+            category: normCat(it.category, SCHEDULE_CATEGORIES),
+            recurrence: VALID_RECURRENCE.includes(it.recurrence) ? it.recurrence : undefined,
+            date: startUtc.date,
+          };
+        }
+      }
+      return {
+        title: String(it.title).trim(),
+        startTime,
+        endTime,
+        category: normCat(it.category, SCHEDULE_CATEGORIES),
+        recurrence: VALID_RECURRENCE.includes(it.recurrence) ? it.recurrence : undefined,
+        date: itemDate,
+      };
+    });
   return { items };
 }
 
@@ -401,14 +477,18 @@ async function fallbackOrUnknown(transcript, todayStr, reason, userId) {
  * @param {string} text
  * @param {string} [lang]
  * @param {string} [userId] - For error logging
+ * @param {{ today?: string, timezone?: string }} [options] - User's local today (YYYY-MM-DD) and IANA timezone for UTC conversion
  * @returns {Promise<{ actions: object[] }>}
  */
-export async function parseTranscript(text, lang = 'auto', userId = null) {
+export async function parseTranscript(text, lang = 'auto', userId = null, options = {}) {
   if (!config.geminiApiKey) {
     throw new Error('Voice service not configured (missing GEMINI_API_KEY)');
   }
-  const todayStr = new Date().toISOString().slice(0, 10);
-  const ctx = { todayStr };
+  const todayStr = options.today && /^\d{4}-\d{2}-\d{2}$/.test(options.today) ? options.today : new Date().toISOString().slice(0, 10);
+  const ctx = { todayStr, timezone: options.timezone || undefined };
+  // #region agent log
+  fetch('http://127.0.0.1:7246/ingest/e2e403c5-3c70-4f1e-adfb-38e8c147c460', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'voice.js:parseTranscript:ctx', message: 'ctx for voice', data: { todayStr, timezone: ctx.timezone }, timestamp: Date.now(), hypothesisId: 'H3' }) }).catch(() => {});
+  // #endregion
   const genAI = new GoogleGenerativeAI(config.geminiApiKey);
   const safetySettings = [
     { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
@@ -440,9 +520,27 @@ export async function parseTranscript(text, lang = 'auto', userId = null) {
   for (const fc of functionCalls) {
     const name = fc.name;
     const args = fc.args || {};
-    const action = { intent: name };
     const handler = HANDLERS[name];
-    const result_ = handler ? await handler(args, ctx) : {};
+
+    if (!handler) {
+      console.warn(`Voice: unknown function "${name}" — not in HANDLERS`);
+      actions.push({ intent: 'unknown', message: `Action "${name}" is not supported` });
+      continue;
+    }
+
+    const schema = VOICE_ARG_SCHEMAS[name];
+    let validatedArgs = args;
+    if (schema) {
+      const parsed = schema.safeParse(args);
+      if (!parsed.success) {
+        console.warn(`Voice: invalid args for "${name}"`, parsed.error.flatten());
+        continue;
+      }
+      validatedArgs = parsed.data;
+    }
+
+    const action = { intent: name };
+    const result_ = await handler(validatedArgs, ctx);
 
     if (result_.merge) Object.assign(action, result_.merge);
     if (result_.items?.length) action.items = result_.items;
