@@ -144,8 +144,10 @@ export function InviteJoin() {
                   <Link to={`/groups/${invitation.groupId}`}>Open group</Link>
                 </Button>
               </div>
-            ) : (
+            ) : acceptLoading ? (
               <LoadingSpinner text="Joining group..." />
+            ) : (
+              <LoadingSpinner text="Redirecting..." />
             )}
           </CardContent>
         </Card>

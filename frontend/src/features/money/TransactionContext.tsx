@@ -64,9 +64,15 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
       await queryClient.cancelQueries({ queryKey: queryKeys.transactions });
       const previous = queryClient.getQueryData<Transaction[]>(queryKeys.transactions);
       const optimisticId = `opt-${Date.now()}`;
+      const dateValue: Date =
+        typeof transaction.date === 'string'
+          ? new Date(transaction.date)
+          : transaction.date instanceof Date
+            ? transaction.date
+            : new Date();
       const optimistic: Transaction = {
         id: optimisticId,
-        date: typeof transaction.date === 'string' ? transaction.date : (transaction.date instanceof Date ? toLocalDateString(transaction.date) : new Date().toISOString().slice(0, 10)),
+        date: dateValue,
         type: transaction.type,
         amount: transaction.amount,
         currency: transaction.currency ?? 'USD',
