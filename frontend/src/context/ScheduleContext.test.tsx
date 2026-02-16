@@ -1,8 +1,16 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ScheduleProvider } from './ScheduleContext';
 import { useSchedule } from '@/hooks/useSchedule';
 import { ScheduleItem } from '@/types/schedule';
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: { retry: false },
+    mutations: { retry: false },
+  },
+});
 
 const mockList = vi.fn().mockResolvedValue([]);
 const mockAdd = vi.fn().mockImplementation((item: { title: string; date?: string }) =>
@@ -33,13 +41,16 @@ vi.mock('@/features/schedule/api', () => ({
 }));
 
 const wrapper = ({ children }: { children: React.ReactNode }) => (
-  <ScheduleProvider>{children}</ScheduleProvider>
+  <QueryClientProvider client={queryClient}>
+    <ScheduleProvider>{children}</ScheduleProvider>
+  </QueryClientProvider>
 );
 
 describe('ScheduleContext', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockList.mockResolvedValue([]);
+    queryClient.clear();
   });
 
   it('provides schedule items and loading state', async () => {

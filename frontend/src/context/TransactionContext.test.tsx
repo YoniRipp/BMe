@@ -1,8 +1,16 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { TransactionProvider } from './TransactionContext';
 import { useTransactions } from '@/hooks/useTransactions';
 import { Transaction } from '@/types/transaction';
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: { retry: false },
+    mutations: { retry: false },
+  },
+});
 
 const mockTransactionsApi = [
   { id: '1', date: '2025-01-15', type: 'income' as const, amount: 1000, category: 'Salary', description: 'Monthly salary', isRecurring: true },
@@ -27,13 +35,16 @@ vi.mock('@/features/money/api', () => ({
 }));
 
 const wrapper = ({ children }: { children: React.ReactNode }) => (
-  <TransactionProvider>{children}</TransactionProvider>
+  <QueryClientProvider client={queryClient}>
+    <TransactionProvider>{children}</TransactionProvider>
+  </QueryClientProvider>
 );
 
 describe('TransactionContext', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockList.mockResolvedValue(mockTransactionsApi);
+    queryClient.clear();
   });
 
   it('provides transactions from API', async () => {

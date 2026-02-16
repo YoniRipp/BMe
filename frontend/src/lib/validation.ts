@@ -324,16 +324,15 @@ export function validateTimeRange(startTime: string, endTime: string): Validatio
   const startTotal = startHours * 60 + startMinutes;
   let endTotal = endHours * 60 + endMinutes;
   
-  // Handle overnight times (e.g., 23:00 to 07:00)
-  if (endTotal < startTotal) {
-    endTotal += 24 * 60;
-  }
-  
+  // Handle overnight times (e.g., 23:00 to 07:00); reject same-day reverse (e.g. 17:00 to 09:00) or overly long overnight (> 12h)
   if (endTotal <= startTotal) {
-    return {
-      isValid: false,
-      error: 'End time must be after start time.',
-    };
+    const overnightMinutes = endTotal + 24 * 60 - startTotal;
+    if (overnightMinutes > 12 * 60) {
+      return {
+        isValid: false,
+        error: 'End time must be after start time.',
+      };
+    }
   }
   
   return { isValid: true };

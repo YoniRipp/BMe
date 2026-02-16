@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { subDays } from 'date-fns';
 import {
   calculateTrends,
   getSpendingInsights,
@@ -131,10 +132,13 @@ describe('analytics', () => {
 
   describe('getHealthInsights', () => {
     it('calculates health insights from food entries and check-ins', () => {
+      const now = new Date();
+      const day1 = subDays(now, 2);
+      const day2 = subDays(now, 1);
       const foodEntries: FoodEntry[] = [
         {
           id: '1',
-          date: new Date(),
+          date: day1,
           name: 'Chicken',
           calories: 300,
           protein: 50,
@@ -143,7 +147,7 @@ describe('analytics', () => {
         },
         {
           id: '2',
-          date: new Date(),
+          date: day2,
           name: 'Rice',
           calories: 200,
           protein: 5,
@@ -155,12 +159,12 @@ describe('analytics', () => {
       const checkIns: DailyCheckIn[] = [
         {
           id: '1',
-          date: new Date(),
+          date: day1,
           sleepHours: 7.5,
         },
         {
           id: '2',
-          date: new Date(),
+          date: day2,
           sleepHours: 8,
         },
       ];

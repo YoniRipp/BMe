@@ -11,21 +11,29 @@ import {
 } from './notifications';
 
 describe('notifications', () => {
+  const originalNotification = (global as any).Notification;
+
   beforeEach(() => {
     vi.clearAllMocks();
+    // In jsdom/CI Notification may be missing or not a constructor; set a valid mock so "supported" tests pass
+    (global as any).Notification = originalNotification ?? function MockNotification() {};
+    if ((global as any).Notification && !(global as any).Notification.permission) {
+      (global as any).Notification.permission = 'default';
+    }
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
+    (global as any).Notification = originalNotification;
   });
 
   describe('isNotificationSupported', () => {
     it('returns true when Notification API is available', () => {
+      (global as any).Notification = function MockNotification() {};
       expect(isNotificationSupported()).toBe(true);
     });
 
     it('returns false when Notification API is not available', () => {
-      const originalNotification = (global as any).Notification;
       delete (global as any).Notification;
       
       expect(isNotificationSupported()).toBe(false);
@@ -36,6 +44,7 @@ describe('notifications', () => {
 
   describe('getNotificationPermission', () => {
     it('returns current permission status', () => {
+      (global as any).Notification = { permission: 'default' };
       const permission = getNotificationPermission();
       expect(['default', 'granted', 'denied']).toContain(permission);
     });
@@ -121,10 +130,10 @@ describe('notifications', () => {
     });
 
     it('schedules notification', () => {
+      const NotificationMock = vi.fn();
+      Object.defineProperty(NotificationMock, 'permission', { value: 'granted', writable: true });
       Object.defineProperty(global, 'Notification', {
-        value: {
-          permission: 'granted',
-        },
+        value: NotificationMock,
         writable: true,
       });
 
@@ -132,6 +141,7 @@ describe('notifications', () => {
       expect(timeoutId).not.toBeNull();
       
       vi.advanceTimersByTime(1000);
+      expect(NotificationMock).toHaveBeenCalledWith('Test', expect.any(Object));
     });
 
     it('returns null when permission not granted', () => {

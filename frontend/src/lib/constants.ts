@@ -203,7 +203,7 @@ export const DEFAULTS = {
 // Validation rules
 export const VALIDATION_RULES = {
   EMAIL_REGEX: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
-  TIME_REGEX: /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, // HH:MM format
+  TIME_REGEX: /^(0[0-9]|1[0-9]|2[0-3]):[0-5][0-9]$/, // HH:MM format (two-digit hour)
   DATE_ISO_REGEX: /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/,
   POSITIVE_NUMBER_REGEX: /^\d+(\.\d+)?$/,
   NON_NEGATIVE_NUMBER_REGEX: /^\d+(\.\d+)?$/,
