@@ -13,7 +13,7 @@
     "test:coverage": "vitest --coverage"
   },
   "dependencies": {
-    "@hookform/resolvers": "^3.3.4",
+    "@hookform/resolvers": "^5.2.2",
     "@radix-ui/react-dialog": "^1.1.15",
     "@radix-ui/react-label": "^2.0.2",
     "@radix-ui/react-progress": "^1.1.8",
