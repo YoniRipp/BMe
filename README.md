@@ -294,6 +294,33 @@ The app is responsive and works on desktop and mobile. Theme (light/dark/system)
 
 Releases and notable changes (latest first):
 
+## Update 12.0 — Testing, security, observability, and data foundation
+
+See [UPDATE_12.0.md](UPDATE_12.0.md) for a concise summary.
+
+### Testing
+
+- **Backend tests:** Vitest added with unit tests for `src/utils/validation.js`, `src/services/appLog.js`, `src/services/transaction.js`. Run with `npm run test` from `backend/`.
+- **CI:** [.github/workflows/ci.yml](.github/workflows/ci.yml) runs backend tests (`npm run test`) in addition to lint; frontend continues to run lint, test, and build.
+
+### Security
+
+- **Helmet:** HTTP security headers (X-Content-Type-Options, X-Frame-Options, etc.) via [helmet](https://github.com/helmetjs/helmet) in [backend/app.js](backend/app.js).
+- **Auth rate limit:** `/api/auth/login` and `/api/auth/register` limited to 10 requests per 15 minutes per IP (separate from the general API limit of 200/15 min).
+- **Dependabot:** [.github/dependabot.yml](.github/dependabot.yml) configured for root, backend, and frontend; weekly npm dependency updates.
+- **Security documentation:** Backend README has a Security subsection (JWT, CORS, rate limits, Helmet, secrets).
+
+### Observability
+
+- **Structured logging:** Backend uses [Pino](https://getpino.io/) ([backend/src/lib/logger.js](backend/src/lib/logger.js)); replaces `console` in app.js, index.js, errorHandler.js, and voice.js.
+- **Health endpoints:** `GET /health` returns `{ status: 'ok' }`; `GET /ready` returns 200 if DB is reachable (`SELECT 1`), else 503. Not rate-limited.
+
+### Data
+
+- **Migrations:** [node-pg-migrate](https://github.com/salsita/node-pg-migrate) in `backend/migrations/` — baseline migration (tables) and add-indexes migration. Scripts: `npm run migrate:up`, `npm run migrate:create`. Production should run migrations on deploy; see backend README.
+- **Export:** Export functions in [frontend/src/lib/export.ts](frontend/src/lib/export.ts) expect API-backed data; DataManagementSection and DataExportModal pass TanStack Query cache (server data).
+- **Backup:** Backend README documents automated PostgreSQL backups, backup-before-migrations, and export behavior.
+
 ## Update 11.0 — Infrastructure, resilience & security audit (5 layers)
 
 A short summary of this update is in [UPDATE_11.0.md](UPDATE_11.0.md).

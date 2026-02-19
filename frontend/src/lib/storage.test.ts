@@ -1,16 +1,18 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { storage, STORAGE_KEYS } from './storage';
 
-// Mock localStorage
+// Mock localStorage - setItem/removeItem must not throw so isLocalStorageAvailable() returns true in CI
 const localStorageMock = {
   getItem: vi.fn(),
-  setItem: vi.fn(),
-  removeItem: vi.fn(),
+  setItem: vi.fn(() => {}),
+  removeItem: vi.fn(() => {}),
   clear: vi.fn(),
 };
 
 beforeEach(() => {
   vi.clearAllMocks();
+  localStorageMock.setItem.mockImplementation(() => {});
+  localStorageMock.removeItem.mockImplementation(() => {});
   global.localStorage = localStorageMock as any;
 });
 

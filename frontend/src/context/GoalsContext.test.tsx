@@ -1,8 +1,16 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { GoalsProvider } from './GoalsContext';
 import { useGoals } from '@/hooks/useGoals';
 import { Goal } from '@/types/goals';
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: { retry: false },
+    mutations: { retry: false },
+  },
+});
 
 const mockList = vi.fn().mockResolvedValue([]);
 const mockAdd = vi.fn().mockImplementation((goal: { type: string; target: number; period: string }) =>
@@ -21,13 +29,16 @@ vi.mock('@/features/goals/api', () => ({
 }));
 
 const wrapper = ({ children }: { children: React.ReactNode }) => (
-  <GoalsProvider>{children}</GoalsProvider>
+  <QueryClientProvider client={queryClient}>
+    <GoalsProvider>{children}</GoalsProvider>
+  </QueryClientProvider>
 );
 
 describe('GoalsContext', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockList.mockResolvedValue([]);
+    queryClient.clear();
   });
 
   it('provides goals and loading state', async () => {

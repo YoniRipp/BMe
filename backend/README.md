@@ -13,7 +13,7 @@ The backend serves:
 
 When `DATABASE_URL` is not set, the server still starts but auth and data APIs are not mounted. When `GEMINI_API_KEY` is not set, the voice understand endpoint returns an error.
 
-For app-wide conventions and the full changelog (Updates 1–11, latest first), see the root [README.md](../README.md) and [UPDATE_11.0.md](../UPDATE_11.0.md).
+For app-wide conventions and the full changelog (Updates 1–12, latest first), see the root [README.md](../README.md), [UPDATE_11.0.md](../UPDATE_11.0.md), and [UPDATE_12.0.md](../UPDATE_12.0.md).
 
 ## Tech Stack
 
@@ -28,12 +28,15 @@ For app-wide conventions and the full changelog (Updates 1–11, latest first), 
 | Env | dotenv |
 | CORS | cors |
 | Rate limit | express-rate-limit |
+| Security headers | helmet |
+| Logging | pino |
+| Migrations | node-pg-migrate |
 
 ## Project Structure
 
 ```
 backend/
-├── app.js                 # Express app: CORS, json, rate limit, auth routes, API router, error handler
+├── app.js                 # Express app: CORS, helmet, json, health/ready, rate limit, auth routes, API router, error handler
 ├── index.js               # Entry: load config, init DB schema, start HTTP server
 ├── routes/
 │   ├── auth.js            # register, login, loginGoogle, loginFacebook, loginTwitter, twitterRedirect, twitterCallback, me
@@ -67,11 +70,14 @@ backend/
 │   ├── controllers/       # One per domain (list, add, update, remove; balance for transactions)
 │   ├── services/          # Business logic per domain
 │   ├── models/            # Data access per domain
+│   ├── lib/
+│   │   └── logger.js      # Pino structured logger
 │   ├── utils/
 │   │   ├── response.js    # sendJson, sendError, sendCreated, sendNoContent
 │   │   ├── validation.js
 │   │   └── serviceHelpers.js
 │   └── errors.js
+├── migrations/            # node-pg-migrate (baseline, add-indexes)
 ├── voice/
 │   └── tools.js           # Gemini function declarations (add_schedule, add_transaction, add_workout, add_food, log_sleep, add_goal, etc.)
 ├── scripts/
@@ -88,6 +94,10 @@ From `backend/`:
 |--------|-------------|
 | `npm start` | `node index.js` – start server |
 | `npm run dev` | `node --watch index.js` – start with auto-reload |
+| `npm run lint` | `node --check index.js` – syntax check |
+| `npm run test` | Run Vitest unit tests (validation, appLog, transaction service) |
+| `npm run migrate:up` | Run pending database migrations (requires `DATABASE_URL`) |
+| `npm run migrate:create <name>` | Create a new migration file |
 | `npm run import:foods` | Run `scripts/importFoundationFoods.js` (requires `DATABASE_URL` and Foundation Foods JSON path) |
 | `npm run seed:popular-foods` | Replace all foods with ~100 popular foods (see [Food import](#food-import)) |
 | `npm run remove:non-foundation-foods` | Remove foods not in Foundation JSON (run from `backend/`) |
@@ -115,10 +125,40 @@ Configuration is loaded from [src/config/index.js](src/config/index.js): first `
 
 - **Missing `DATABASE_URL`**: Server starts; auth routes and data API are not mounted; warnings logged.
 - **Missing `GEMINI_API_KEY`**: Warning logged; `POST /api/voice/understand` will return an error.
+- **`LOG_LEVEL`** (optional): Pino log level (default: `info` in production, `debug` otherwise).
+
+## Logging
+
+[src/lib/logger.js](src/lib/logger.js) uses [Pino](https://getpino.io/) for structured JSON logging. Replace `console.log`/`console.error` with `logger.info`, `logger.error`, etc. Used in app.js, index.js, errorHandler.js, and voice.js. Set `LOG_LEVEL` for verbosity (e.g. `debug` in development).
+
+## Testing
+
+Unit tests use [Vitest](https://vitest.dev/). Run with `npm run test` from `backend/`. Tests cover:
+
+- **validation.js** — normTime, parseDate, validateNonNegative, requireNonEmptyString, requirePositiveNumber
+- **appLog.js** — logAction, logError, listLogs (db mocked)
+- **transaction service** — create, getBalance (model mocked)
+
+CI runs backend tests in [.github/workflows/ci.yml](../.github/workflows/ci.yml).
 
 ## Database
 
-PostgreSQL schema is defined in [src/db/schema.js](src/db/schema.js). On startup, if `DATABASE_URL` is set, the app runs `initSchema()` which creates (if not exists):
+PostgreSQL schema is defined in [src/db/schema.js](src/db/schema.js). On startup, if `DATABASE_URL` is set, the app runs `initSchema()` which creates tables and indexes (if not exists).
+
+### Migrations
+
+Versioned migrations live in `migrations/`. For production, run migrations on deploy instead of full schema init:
+
+- `npm run migrate:up` — run pending migrations (requires `DATABASE_URL`)
+- `npm run migrate:create <name>` — create a new migration file
+
+**Runbook:** Run migrations before starting the app. Do not run full schema init in production; use migrations for schema changes.
+
+### Backup
+
+- Run automated PostgreSQL backups (e.g. daily) with retention appropriate for your needs.
+- Back up before running migrations.
+- Use `Export All Data` in the app (Settings → Data Management) to export user data as JSON; data comes from the API (TanStack Query cache).
 
 | Table | Description |
 |-------|-------------|
@@ -143,6 +183,13 @@ To store all data (including reference foods) in Supabase:
 4. Run the food import once so reference foods are in Supabase: from `backend/` run `npm run import:foods`, or from repo root `node backend/scripts/importFoundationFoods.js`.
 
 ## API Overview
+
+**Health endpoints** (not rate-limited):
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/health` | Returns `{ status: 'ok' }` (200) |
+| GET | `/ready` | Returns 200 if DB is reachable (`SELECT 1`), else 503 |
 
 All paths under `/api` are rate-limited (200 requests per 15 minutes per IP). JSON request/response; errors return `{ error: string }`.
 
@@ -261,7 +308,15 @@ Controllers use [src/utils/response.js](src/utils/response.js): `sendJson`, `sen
 
 ## Rate Limiting
 
-[app.js](app.js) applies `express-rate-limit` to all `/api` routes: 200 requests per 15 minutes per IP. Exceeding the limit returns a JSON error message.
+[app.js](app.js) applies `express-rate-limit` to all `/api` routes: 200 requests per 15 minutes per IP. Auth routes (`/api/auth/login`, `/api/auth/register`) have a stricter limit: 10 requests per 15 minutes per IP. Exceeding a limit returns a JSON error message.
+
+## Security
+
+- **Helmet** — HTTP security headers (e.g. X-Content-Type-Options, X-Frame-Options) are applied via [helmet](https://github.com/helmetjs/helmet).
+- **JWT** — Authentication uses signed JWTs with `JWT_SECRET`; no cookie-based sessions.
+- **CORS** — Allowed origin is configured via `CORS_ORIGIN` (see [src/config/index.js](src/config/index.js)); production must use explicit origins.
+- **Rate limits** — General API and auth-specific limits (see above) reduce brute-force and abuse.
+- **Secrets** — Keep `JWT_SECRET`, database URLs, and API keys in environment variables only; do not commit them.
 
 ## Food Import
 
@@ -280,6 +335,7 @@ The [mcp-server](mcp-server/) directory contains an MCP server that exposes BeMe
 
 ## Changelog (latest first)
 
+- **Update 12.0** — Testing (Vitest for validation, appLog, transaction; CI backend test step); security (Helmet, auth rate limit 10/15 min, Dependabot, Security subsection); observability (Pino logger, GET /health, GET /ready); migrations (node-pg-migrate, baseline + add-indexes); backup docs. See root README **Update 12.0** and [UPDATE_12.0.md](../UPDATE_12.0.md).
 - **Update 11.0** — Infrastructure, resilience & security audit (Layers 1, 2, 4, 5). See root README **Update 11.0** and [UPDATE_11.0.md](../UPDATE_11.0.md).
 - **Update 10.0** — Voice Live ([voiceLive.js](src/services/voiceLive.js)), graceful shutdown ([index.js](index.js)). See root README **Update 10.0**.
 - **Update 9.0** — Schema, schedule model, voice service, food search. See root README **Update 9.0**.

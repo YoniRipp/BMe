@@ -2,9 +2,22 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { BrowserRouter } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Settings } from './Settings';
 import { AppProvider } from '@/context/AppContext';
 import { NotificationProvider } from '@/context/NotificationContext';
+
+const queryClient = new QueryClient({
+  defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+});
+
+// AppProvider uses useAuth(); provide a mock user so it renders
+vi.mock('@/context/AuthContext', () => ({
+  useAuth: () => ({
+    user: { id: '1', email: 'test@test.com', name: 'Test', role: 'user' as const },
+    authLoading: false,
+  }),
+}));
 
 // Mock toast
 vi.mock('sonner', () => ({
@@ -31,11 +44,13 @@ vi.mock('@/lib/storage', () => ({
 
 const wrapper = ({ children }: { children: React.ReactNode }) => (
   <BrowserRouter>
-    <AppProvider>
-      <NotificationProvider>
-        {children}
-      </NotificationProvider>
-    </AppProvider>
+    <QueryClientProvider client={queryClient}>
+      <AppProvider>
+        <NotificationProvider>
+          {children}
+        </NotificationProvider>
+      </AppProvider>
+    </QueryClientProvider>
   </BrowserRouter>
 );
 

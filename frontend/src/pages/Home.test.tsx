@@ -4,6 +4,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { BrowserRouter } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Home } from './Home';
 import { TransactionProvider } from '../context/TransactionContext';
 import { WorkoutProvider } from '../context/WorkoutContext';
@@ -12,9 +13,21 @@ import { ScheduleProvider } from '../context/ScheduleContext';
 import { GoalsProvider } from '../context/GoalsContext';
 import { AppProvider } from '../context/AppContext';
 
+vi.mock('@/context/AuthContext', () => ({
+  useAuth: () => ({
+    user: { id: '1', email: 'a@b.com', name: 'Test', role: 'user' as const },
+    authLoading: false,
+  }),
+}));
+
+const queryClient = new QueryClient({
+  defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+});
+
 const wrapper = ({ children }: { children: ReactNode }) => (
   <BrowserRouter>
-    <AppProvider>
+    <QueryClientProvider client={queryClient}>
+      <AppProvider>
       <TransactionProvider>
         <WorkoutProvider>
           <EnergyProvider>
@@ -27,6 +40,7 @@ const wrapper = ({ children }: { children: ReactNode }) => (
         </WorkoutProvider>
       </TransactionProvider>
     </AppProvider>
+    </QueryClientProvider>
   </BrowserRouter>
 );
 

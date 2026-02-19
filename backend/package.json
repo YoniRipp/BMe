@@ -7,9 +7,13 @@
     "start": "node index.js",
     "dev": "node --watch index.js",
     "lint": "node --check index.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "import:foods": "node scripts/importFoundationFoods.js",
     "remove:non-foundation-foods": "node scripts/removeNonFoundationFoods.js",
-    "seed:popular-foods": "node scripts/seedPopularFoods.js"
+    "seed:popular-foods": "node scripts/seedPopularFoods.js",
+    "migrate:up": "node-pg-migrate up",
+    "migrate:create": "node-pg-migrate create"
   },
   "dependencies": {
     "@google/genai": "^1.41.0",
@@ -22,11 +26,17 @@
     "express": "^4.21.0",
     "express-rate-limit": "^8.2.1",
     "google-auth-library": "^10.5.0",
+    "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.3",
+    "node-pg-migrate": "^8.0.4",
     "pg": "^8.13.0",
+    "pino": "^10.3.1",
     "resend": "^6.9.2",
     "wave-resampler": "^1.0.0",
     "ws": "^8.18.0",
     "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "vitest": "^4.0.18"
   }
 }

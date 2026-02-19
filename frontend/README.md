@@ -28,7 +28,7 @@ The frontend is a TypeScript React app built with Vite. It uses React Router for
 
 The API client ([src/core/api/client.ts](src/core/api/client.ts)) stores the JWT in localStorage (via [src/lib/storage.ts](src/lib/storage.ts)) and attaches it as `Authorization: Bearer <token>` to every request. On 401, it clears the token and dispatches an `auth:logout` event so the UI can redirect to login.
 
-For app-wide conventions and the full changelog (Updates 1–11, latest first), see the root [README.md](../README.md) and [UPDATE_11.0.md](../UPDATE_11.0.md).
+For app-wide conventions and the full changelog (Updates 1–12, latest first), see the root [README.md](../README.md), [UPDATE_11.0.md](../UPDATE_11.0.md), and [UPDATE_12.0.md](../UPDATE_12.0.md).
 
 ## Project Structure
 
@@ -181,6 +181,7 @@ The project uses the `@` alias for `src/` (see [vite.config.ts](vite.config.ts))
 
 ## Changelog (latest first)
 
+- **Update 12.0** — Export documentation: [export.ts](src/lib/export.ts) and DataManagementSection/DataExportModal pass API-backed data (TanStack Query cache) to export functions. Backend received testing, security, observability, and migrations (see root README Update 12.0). See [UPDATE_12.0.md](../UPDATE_12.0.md).
 - **Update 11.0** — Infrastructure, resilience & security audit (Layers 3, 4, 5). See root README **Update 11.0** and [UPDATE_11.0.md](../UPDATE_11.0.md).
 - **Update 10.0** — Voice Live (JarvisLiveVisual, VoiceAgentPanel, voiceLiveApi), layout (AppSidebar, Base44Layout, TopBar, PageTitle), DashboardHero, Admin (AdminLogs, AdminUsersTable), shared UI (StatCard, SectionHeader, skeleton, tooltip). See root README **Update 10.0**.
 - **Update 9.0** — Schedule recurrence, AppearanceSection, voice executor, schedule types. See root README **Update 9.0**.

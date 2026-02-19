@@ -12,6 +12,7 @@ import { VOICE_TOOLS } from '../../voice/tools.js';
 import { getNutritionForFoodName, unitToGrams } from '../models/foodSearch.js';
 import { lookupAndCreateFood } from './foodLookupGemini.js';
 import { logError } from './appLog.js';
+import { logger } from '../lib/logger.js';
 
 /**
  * Convert a local date + time in a given IANA timezone to UTC date and time strings (YYYY-MM-DD, HH:mm).
@@ -355,7 +356,7 @@ async function buildAddFood(args, ctx) {
         action.fats = 0;
       }
     } catch (e) {
-      console.error('add_food DB lookup:', e?.message ?? e);
+      logger.error({ err: e }, 'add_food DB lookup');
       action.name = withRawOrCooked(food || 'Unknown');
       action.calories = 0;
       action.protein = 0;
@@ -505,13 +506,13 @@ export async function parseTranscript(text, lang = 'auto', userId = null, option
       tools: VOICE_TOOLS,
     });
   } catch (e) {
-    console.error('Gemini voice parse blocked or error:', e?.message ?? e);
+    logger.error({ err: e }, 'Gemini voice parse blocked or error');
     return fallbackOrUnknown(text, todayStr, e?.message ?? String(e), userId);
   }
 
   const response = result.response;
   if (!response) {
-    console.error('Gemini voice parse: empty response');
+    logger.error('Gemini voice parse: empty response');
     return fallbackOrUnknown(text, todayStr, 'empty response', userId);
   }
   const functionCalls = response.functionCalls?.() ?? [];
@@ -523,7 +524,7 @@ export async function parseTranscript(text, lang = 'auto', userId = null, option
     const handler = HANDLERS[name];
 
     if (!handler) {
-      console.warn(`Voice: unknown function "${name}" — not in HANDLERS`);
+      logger.warn({ name }, 'Voice: unknown function');
       actions.push({ intent: 'unknown', message: `Action "${name}" is not supported` });
       continue;
     }
@@ -533,7 +534,7 @@ export async function parseTranscript(text, lang = 'auto', userId = null, option
     if (schema) {
       const parsed = schema.safeParse(args);
       if (!parsed.success) {
-        console.warn(`Voice: invalid args for "${name}"`, parsed.error.flatten());
+        logger.warn({ name, errors: parsed.error.flatten() }, 'Voice: invalid args');
         continue;
       }
       validatedArgs = parsed.data;

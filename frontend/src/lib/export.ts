@@ -18,7 +18,9 @@ export interface ExportData {
 }
 
 /**
- * Export all application data as JSON. Use API-backed data (e.g. from TanStack Query cache).
+ * Export all application data as JSON.
+ * Callers (DataManagementSection, DataExportModal) pass API-backed data from TanStack Query cache.
+ * See backend README for backup and migration runbook.
  */
 export function exportAllData(data: ExportData): string {
   const payload: ExportData = {

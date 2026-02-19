@@ -2,6 +2,7 @@
  * Centralized error handler. Maps domain errors to HTTP status codes.
  */
 import { ValidationError, NotFoundError, UnauthorizedError, ConflictError, ForbiddenError } from '../errors.js';
+import { logger } from '../lib/logger.js';
 
 const ERROR_STATUS_MAP = [
   [ValidationError, 400],
@@ -42,7 +43,7 @@ export function errorHandler(err, req, res, next) {
     return res.status(409).json({ error: 'Resource already exists' });
   }
 
-  console.error('Unhandled error:', err?.message ?? err);
+  logger.error({ err }, 'Unhandled error');
   const message = process.env.NODE_ENV === 'production' ? 'Something went wrong' : (err?.message ?? 'Internal server error');
   res.status(500).json({ error: message });
 }

@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { GoalCard } from './GoalCard';
 import { Goal } from '@/types/goals';
 import { GoalsProvider } from '@/context/GoalsContext';
@@ -9,11 +10,23 @@ import { TransactionProvider } from '@/context/TransactionContext';
 import { WorkoutProvider } from '@/context/WorkoutContext';
 import { EnergyProvider } from '@/context/EnergyContext';
 
+const queryClient = new QueryClient({
+  defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+});
+
 // Mock toast
 vi.mock('sonner', () => ({
   toast: {
     success: vi.fn(),
   },
+}));
+
+// AppProvider uses useAuth(); provide a mock user
+vi.mock('@/context/AuthContext', () => ({
+  useAuth: () => ({
+    user: { id: '1', email: 'a@b.com', name: 'Test', role: 'user' as const },
+    authLoading: false,
+  }),
 }));
 
 // useGoalProgress: return 100% for achieved-goal so "displays checkmark" test passes
@@ -33,17 +46,19 @@ const mockGoal: Goal = {
 };
 
 const wrapper = ({ children }: { children: React.ReactNode }) => (
-  <AppProvider>
-    <TransactionProvider>
-      <WorkoutProvider>
-        <EnergyProvider>
-          <GoalsProvider>
-            {children}
-          </GoalsProvider>
-        </EnergyProvider>
+  <QueryClientProvider client={queryClient}>
+    <AppProvider>
+      <TransactionProvider>
+        <WorkoutProvider>
+          <EnergyProvider>
+            <GoalsProvider>
+              {children}
+            </GoalsProvider>
+          </EnergyProvider>
+        </TransactionProvider>
       </WorkoutProvider>
-    </TransactionProvider>
-  </AppProvider>
+    </AppProvider>
+  </QueryClientProvider>
 );
 
 describe('GoalCard', () => {

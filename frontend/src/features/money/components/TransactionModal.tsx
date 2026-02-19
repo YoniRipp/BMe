@@ -190,6 +190,7 @@ export function TransactionModal({
                 render={({ field }) => (
                   <Select value={field.value} onValueChange={field.onChange}>
                     <SelectTrigger
+                      id="category"
                       aria-invalid={!!errors.category}
                       aria-describedby={errors.category ? 'category-error' : undefined}
                     >

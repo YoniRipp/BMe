@@ -5,6 +5,7 @@ import { config } from './src/config/index.js';
 import { isDbConfigured, initSchema } from './src/db/index.js';
 import { closePool } from './src/db/pool.js';
 import app from './app.js';
+import { logger } from './src/lib/logger.js';
 import { WebSocketServer } from 'ws';
 import { attachLiveSession } from './src/services/voiceLive.js';
 import jwt from 'jsonwebtoken';
@@ -13,13 +14,13 @@ async function start() {
   if (config.isDbConfigured) {
     try {
       await initSchema();
-      console.log('Database schema initialized.');
+      logger.info('Database schema initialized');
     } catch (e) {
-      console.error('Database init failed:', e?.message ?? e);
+      logger.error({ err: e }, 'Database init failed');
     }
   }
   const server = app.listen(config.port, () => {
-    console.log(`BMe backend listening on http://localhost:${config.port}`);
+    logger.info({ port: config.port }, 'BMe backend listening');
   });
 
   const wss = new WebSocketServer({ noServer: true });
@@ -56,14 +57,14 @@ async function start() {
 
   wss.on('connection', (ws, request, userId) => {
     attachLiveSession(ws, userId).catch((e) => {
-      console.error('Voice Live attach failed:', e?.message ?? e);
+      logger.error({ err: e }, 'Voice Live attach failed');
       if (ws.readyState === ws.OPEN) ws.close(1011, 'Server error');
     });
   });
 
   async function shutdown() {
     server.close(() => {
-      console.log('HTTP server closed.');
+      logger.info('HTTP server closed');
     });
     await closePool();
     process.exit(0);
@@ -73,6 +74,6 @@ async function start() {
 }
 
 start().catch((e) => {
-  console.error('Start failed:', e);
+  logger.error({ err: e }, 'Start failed');
   process.exit(1);
 });
