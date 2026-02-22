@@ -168,7 +168,7 @@ docker compose up --build
 Create `backend/.env` with the required variables. The frontend image is built with `VITE_API_URL=http://localhost:3000` so the browser can call the backend. Set `CORS_ORIGIN=http://localhost:5173` (or the URL where the frontend is served) so the backend allows requests from the frontend; the compose file sets this by default.
 
 **Required env vars (backend)**  
-`DATABASE_URL`, `JWT_SECRET`; for voice: `GEMINI_API_KEY`. **Build-arg for frontend:** `VITE_API_URL` (e.g. `http://localhost:3000`).
+`DATABASE_URL`, `JWT_SECRET`; for voice: `GEMINI_API_KEY`. Optional: `REDIS_URL` for distributed rate limiting and food search caching. **Build-arg for frontend:** `VITE_API_URL` (e.g. `http://localhost:3000`).
 
 ## Environment Variables
 
@@ -188,6 +188,7 @@ Create `backend/.env` with the required variables. The frontend image is built w
 | `TWITTER_CLIENT_ID` | For Twitter login | Twitter OAuth client ID |
 | `TWITTER_CLIENT_SECRET` | For Twitter callback | Twitter client secret |
 | `TWITTER_REDIRECT_URI` | No | Callback URL (default: `http://localhost:3000/api/auth/twitter/callback`) |
+| `REDIS_URL` | No | Redis connection string (e.g. `redis://localhost:6379`). When set, enables distributed rate limiting and food search caching; when unset, uses in-memory rate limiting and no cache. |
 
 Without `DATABASE_URL`, the backend runs but auth and data APIs (schedule, transactions, workouts, food entries, daily check-ins, goals) are disabled. Without `GEMINI_API_KEY`, the voice understand endpoint returns an error.
 
@@ -293,6 +294,10 @@ The backend includes an MCP server that exposes BeMe schedule, transactions, and
 The app is responsive and works on desktop and mobile. Theme (light/dark/system) is configurable in Settings.
 
 Releases and notable changes (latest first):
+
+## Update 13.0 — Redis Integration
+
+See [UPDATE_13.0.md](UPDATE_13.0.md) for a concise summary. Adds optional Redis for distributed rate limiting (express-rate-limit + rate-limit-redis) and food search caching; backend runs without Redis when `REDIS_URL` is unset.
 
 ## Update 12.0 — Testing, security, observability, and data foundation
 

@@ -27,7 +27,8 @@ For app-wide conventions and the full changelog (Updates 1–12, latest first), 
 | Validation | Zod (config and request body schemas) |
 | Env | dotenv |
 | CORS | cors |
-| Rate limit | express-rate-limit |
+| Rate limit | express-rate-limit (Redis store via rate-limit-redis when REDIS_URL set) |
+| Redis | redis, rate-limit-redis (optional) |
 | Security headers | helmet |
 | Logging | pino |
 | Migrations | node-pg-migrate |
@@ -45,12 +46,14 @@ backend/
 │   └── auth.js            # Legacy/auth helpers (if any)
 ├── src/
 │   ├── config/
-│   │   ├── index.js       # Load .env, export config (port, dbUrl, jwtSecret, gemini, cors, social keys)
+│   │   ├── index.js       # Load .env, export config (port, dbUrl, jwtSecret, redisUrl, etc.)
 │   │   └── constants.js
 │   ├── db/
 │   │   ├── index.js       # initSchema, getPool, closePool
 │   │   ├── pool.js        # pg Pool
 │   │   └── schema.js      # CREATE TABLE users, schedule_items, transactions, goals, workouts, food_entries, daily_check_ins, foundation_foods
+│   ├── redis/
+│   │   └── client.js      # getRedisClient, closeRedis, isRedisConfigured (optional)
 │   ├── middleware/
 │   │   ├── auth.js        # requireAuth, requireAdmin, getEffectiveUserId, resolveEffectiveUserId
 │   │   ├── errorHandler.js
@@ -122,10 +125,20 @@ Configuration is loaded from [src/config/index.js](src/config/index.js): first `
 | `TWITTER_CLIENT_ID` | For Twitter login | Twitter OAuth client ID |
 | `TWITTER_CLIENT_SECRET` | For Twitter callback | Twitter client secret |
 | `TWITTER_REDIRECT_URI` | No | Callback URL (default: `http://localhost:3000/api/auth/twitter/callback`) |
+| `REDIS_URL` | No | Redis connection string. When set, enables distributed rate limiting and food search caching; when unset, uses in-memory rate limiting and no cache. |
 
 - **Missing `DATABASE_URL`**: Server starts; auth routes and data API are not mounted; warnings logged.
 - **Missing `GEMINI_API_KEY`**: Warning logged; `POST /api/voice/understand` will return an error.
 - **`LOG_LEVEL`** (optional): Pino log level (default: `info` in production, `debug` otherwise).
+
+### Redis
+
+When `REDIS_URL` is set, the backend uses Redis for:
+
+- **Rate limiting store** — Shares rate-limit counters across multiple backend instances (via `rate-limit-redis`).
+- **Food search cache** — Caches `GET /api/food/search` results with 1-hour TTL to reduce PostgreSQL load.
+
+The Redis client lives in [src/redis/client.js](src/redis/client.js). Connection is closed on graceful shutdown. `GET /ready` returns 503 with `reason: 'Redis unreachable'` if Redis is configured but unreachable. When `REDIS_URL` is not set, the app uses in-memory rate limiting and no food search cache.
 
 ## Logging
 

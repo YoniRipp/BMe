@@ -4,7 +4,8 @@
 import { config } from './src/config/index.js';
 import { isDbConfigured, initSchema } from './src/db/index.js';
 import { closePool } from './src/db/pool.js';
-import app from './app.js';
+import { createApp } from './app.js';
+import { closeRedis } from './src/redis/client.js';
 import { logger } from './src/lib/logger.js';
 import { WebSocketServer } from 'ws';
 import { attachLiveSession } from './src/services/voiceLive.js';
@@ -19,6 +20,7 @@ async function start() {
       logger.error({ err: e }, 'Database init failed');
     }
   }
+  const app = await createApp();
   const server = app.listen(config.port, () => {
     logger.info({ port: config.port }, 'BMe backend listening');
   });
@@ -67,6 +69,7 @@ async function start() {
       logger.info('HTTP server closed');
     });
     await closePool();
+    await closeRedis();
     process.exit(0);
   }
   process.on('SIGTERM', shutdown);

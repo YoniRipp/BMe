@@ -40,6 +40,8 @@ const configSchema = z.object({
   mcpUserId: z.string().optional(),
   appBaseUrl: z.string().optional(),
   resendApiKey: z.string().optional(),
+  redisUrl: z.string().optional(),
+  isRedisConfigured: z.boolean(),
 });
 
 const PORT = process.env.PORT ?? 3000;
@@ -74,6 +76,8 @@ const rawConfig = {
   mcpUserId: process.env.BEME_MCP_USER_ID,
   appBaseUrl: process.env.APP_BASE_URL || process.env.FRONTEND_URL || FRONTEND_ORIGIN,
   resendApiKey: process.env.RESEND_API_KEY,
+  redisUrl: process.env.REDIS_URL,
+  isRedisConfigured: !!process.env.REDIS_URL,
 };
 
 const parsed = configSchema.safeParse(rawConfig);

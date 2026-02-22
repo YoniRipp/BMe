@@ -4,10 +4,13 @@
 import { asyncHandler } from '../middleware/errorHandler.js';
 import { config } from '../config/index.js';
 import { getPool } from '../db/index.js';
+import { getRedisClient } from '../redis/client.js';
 import * as foodSearchModel from '../models/foodSearch.js';
 import { lookupAndCreateFood } from '../services/foodLookupGemini.js';
 import { sendJson } from '../utils/response.js';
 import { sendError } from '../utils/response.js';
+
+const FOOD_SEARCH_CACHE_TTL_SEC = 3600;
 
 export const search = asyncHandler(async (req, res) => {
   if (!config.isDbConfigured) {
@@ -18,7 +21,24 @@ export const search = asyncHandler(async (req, res) => {
   if (!q) {
     return sendJson(res, []);
   }
+
+  if (config.isRedisConfigured) {
+    const redis = await getRedisClient();
+    const cacheKey = `food:search:${encodeURIComponent(q)}:${limit}`;
+    const cached = await redis.get(cacheKey);
+    if (cached) {
+      return sendJson(res, JSON.parse(cached));
+    }
+  }
+
   const results = await foodSearchModel.search(q, limit);
+
+  if (config.isRedisConfigured) {
+    const redis = await getRedisClient();
+    const cacheKey = `food:search:${encodeURIComponent(q)}:${limit}`;
+    await redis.setEx(cacheKey, FOOD_SEARCH_CACHE_TTL_SEC, JSON.stringify(results));
+  }
+
   sendJson(res, results);
 });
 
