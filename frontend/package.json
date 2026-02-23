@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
+    "preview:prod": "npm run build && node server.cjs",
     "lint": "tsc --noEmit",
     "test": "vitest",
     "test:ui": "vitest --ui",
@@ -41,6 +42,7 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "express": "^5.0.1",
     "@testing-library/jest-dom": "^6.1.5",
     "@testing-library/react": "^14.1.2",
     "@testing-library/user-event": "^14.5.1",

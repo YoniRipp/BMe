@@ -4,7 +4,7 @@ import { parseVoiceAction, type VoiceAction, type VoiceScheduleItem } from '@/sc
 
 export type { VoiceAction, VoiceScheduleItem };
 
-const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
+const API_BASE = import.meta.env.VITE_API_URL ?? '';
 
 function getAuthHeaders(): Record<string, string> {
   const token = getToken();

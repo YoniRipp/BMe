@@ -22,10 +22,10 @@ WORKDIR /app
 RUN npm init -y && npm install express
 
 COPY --from=build /app/dist ./dist
-COPY server.js ./
+COPY server.cjs ./
 
 # PORT is set by Railway at runtime; default for local runs.
 ENV PORT=3000
 EXPOSE 3000
 
-CMD ["node", "server.js"]
+CMD ["node", "server.cjs"]

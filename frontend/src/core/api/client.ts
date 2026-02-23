@@ -2,8 +2,7 @@
 
 import { STORAGE_KEYS } from '@/lib/storage';
 
-const API_BASE =
-  (import.meta as { env?: { VITE_API_URL?: string } }).env?.VITE_API_URL ?? 'http://localhost:3000';
+const API_BASE = (import.meta as { env?: { VITE_API_URL?: string } }).env?.VITE_API_URL ?? '';
 
 const DEFAULT_TIMEOUT_MS = 30000;
 

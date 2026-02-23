@@ -29,13 +29,13 @@ const configSchema = z.object({
   }),
   corsOrigin: isProduction
     ? z.string().min(1, 'CORS_ORIGIN must be set to an explicit origin in production')
-    : z.union([z.string(), z.boolean()]),
+    : z.union([z.string(), z.boolean(), z.undefined()]),
   frontendOrigin: z.string(),
   googleClientId: z.string().optional(),
   facebookAppId: z.string().optional(),
   twitterClientId: z.string().optional(),
   twitterClientSecret: z.string().optional(),
-  twitterRedirectUri: z.string(),
+  twitterRedirectUri: z.string().optional(),
   mcpSecret: z.string().optional(),
   mcpUserId: z.string().optional(),
   appBaseUrl: z.string().optional(),
@@ -44,13 +44,13 @@ const configSchema = z.object({
   isRedisConfigured: z.boolean(),
 });
 
-const PORT = process.env.PORT ?? 3000;
+const PORT = process.env.PORT;
 const DATABASE_URL = process.env.DATABASE_URL;
 const JWT_SECRET = process.env.JWT_SECRET || (isProduction ? null : 'dev-secret-change-in-production');
-const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN || process.env.CORS_ORIGIN || 'http://localhost:5173';
+const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN || process.env.CORS_ORIGIN;
 const CORS_ORIGIN = process.env.CORS_ORIGIN != null && process.env.CORS_ORIGIN !== ''
   ? process.env.CORS_ORIGIN
-  : (isProduction ? FRONTEND_ORIGIN : true);
+  : (isProduction ? FRONTEND_ORIGIN : undefined);
 if (isProduction && (CORS_ORIGIN === true || CORS_ORIGIN === 'true')) {
   throw new Error('CORS_ORIGIN must be an explicit origin in production, not true');
 }
@@ -71,10 +71,10 @@ const rawConfig = {
   facebookAppId: process.env.FACEBOOK_APP_ID,
   twitterClientId: process.env.TWITTER_CLIENT_ID,
   twitterClientSecret: process.env.TWITTER_CLIENT_SECRET,
-  twitterRedirectUri: process.env.TWITTER_REDIRECT_URI || 'http://localhost:3000/api/auth/twitter/callback',
+  twitterRedirectUri: process.env.TWITTER_REDIRECT_URI,
   mcpSecret: process.env.BEME_MCP_SECRET,
   mcpUserId: process.env.BEME_MCP_USER_ID,
-  appBaseUrl: process.env.APP_BASE_URL || process.env.FRONTEND_URL || FRONTEND_ORIGIN,
+  appBaseUrl: process.env.APP_BASE_URL || process.env.FRONTEND_URL,
   resendApiKey: process.env.RESEND_API_KEY,
   redisUrl: process.env.REDIS_URL,
   isRedisConfigured: !!process.env.REDIS_URL,

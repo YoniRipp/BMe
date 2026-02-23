@@ -56,30 +56,7 @@ export async function createApp() {
 
   const app = express();
   const corsOrigin = config.corsOrigin;
-  const corsOptions =
-    process.env.NODE_ENV === 'production'
-      ? {
-          origin: (origin, cb) => {
-            const allowed = String(corsOrigin || '').trim();
-            if (!origin) return cb(null, true);
-            if (allowed && origin === allowed) return cb(null, true);
-            // Allow any *.up.railway.app when CORS_ORIGIN is also Railway (resilient to URL changes)
-            if (allowed && /\.up\.railway\.app$/.test(allowed) && /^https:\/\/[a-z0-9-]+\.up\.railway\.app$/.test(origin)) {
-              return cb(null, true);
-            }
-            // Fallback: allow any *.up.railway.app in production (for Railway when CORS_ORIGIN unset)
-            if (/^https:\/\/[a-z0-9-]+\.up\.railway\.app$/.test(origin)) {
-              return cb(null, true);
-            }
-            return cb(null, false);
-          },
-        }
-      : {
-          origin:
-            corsOrigin === 'http://localhost:5173'
-              ? ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175', 'http://localhost:5176']
-              : corsOrigin,
-        };
+  const corsOptions = { origin: corsOrigin };
   app.use(cors(corsOptions));
   logger.info({ corsOrigin: config.corsOrigin, nodeEnv: process.env.NODE_ENV }, 'CORS configured');
   app.use(helmet({ crossOriginOpenerPolicy: false }));

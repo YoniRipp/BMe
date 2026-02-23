@@ -1,5 +1,6 @@
 /**
  * Static file server for production. Sets Cross-Origin-Opener-Policy so Google OAuth popup flow works.
+ * Uses .cjs so it runs as CommonJS in both local (type:module) and Docker (no type) contexts.
  */
 const express = require('express');
 const path = require('path');
