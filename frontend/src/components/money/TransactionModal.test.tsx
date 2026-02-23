@@ -16,6 +16,11 @@ vi.mock('@/hooks/useGroups', () => ({
   useGroups: () => ({ groups: [] }),
 }));
 
+vi.mock('@/lib/storage', () => ({
+  storage: { get: vi.fn(() => null), set: vi.fn(), remove: vi.fn(), clear: vi.fn() },
+  STORAGE_KEYS: { SETTINGS: 'beme_settings' },
+}));
+
 const wrapper = ({ children }: { children: React.ReactNode }) => (
   <AppProvider>{children}</AppProvider>
 );

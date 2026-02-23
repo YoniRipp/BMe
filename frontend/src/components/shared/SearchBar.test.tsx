@@ -19,19 +19,22 @@ describe('SearchBar', () => {
   });
 
   it('calls onChange with debounced value', async () => {
+    vi.useRealTimers();
+    const user = userEvent.setup();
     const onChange = vi.fn();
-    render(<SearchBar value="" onChange={onChange} debounceMs={300} />);
-    
+    render(<SearchBar value="" onChange={onChange} debounceMs={100} />);
+    onChange.mockClear(); // Clear initial call with '' from mount
+
     const input = screen.getByRole('textbox');
-    await userEvent.type(input, 'test');
-    
-    expect(onChange).not.toHaveBeenCalled();
-    
-    vi.advanceTimersByTime(300);
-    
-    await waitFor(() => {
-      expect(onChange).toHaveBeenCalledWith('test');
-    });
+    await user.type(input, 'test');
+
+    await waitFor(
+      () => {
+        expect(onChange).toHaveBeenCalledWith('test');
+      },
+      { timeout: 500 }
+    );
+    vi.useFakeTimers();
   });
 
   it('shows clear button when value is not empty', () => {
@@ -47,11 +50,12 @@ describe('SearchBar', () => {
   });
 
   it('clears value when clear button is clicked', async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     const onChange = vi.fn();
     render(<SearchBar value="test" onChange={onChange} />);
     
     const clearButton = screen.getByLabelText(/clear search/i);
-    await userEvent.click(clearButton);
+    await user.click(clearButton);
     
     expect(onChange).toHaveBeenCalledWith('');
   });

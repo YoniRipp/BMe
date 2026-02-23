@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
+import { renderHook, act, waitFor } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { EnergyProvider } from './EnergyContext';
 import { useEnergy } from '@/hooks/useEnergy';
 import { DailyCheckIn, FoodEntry } from '@/types/energy';
@@ -24,27 +25,31 @@ const mockFoodEntries: FoodEntry[] = [
   },
 ];
 
-const apiCheckIn = { id: '1', date: '2025-01-16', sleepHours: 7.5 };
-const apiFoodEntry = { id: '1', date: '2025-01-16', name: 'Chicken Breast', calories: 200, protein: 30, carbs: 0, fats: 5 };
-
 vi.mock('@/features/energy/api', () => ({
   foodEntriesApi: {
-    list: vi.fn().mockResolvedValue([apiFoodEntry]),
+    list: vi.fn().mockResolvedValue([{ id: '1', date: '2025-01-16', name: 'Chicken Breast', calories: 200, protein: 30, carbs: 0, fats: 5 }]),
     add: vi.fn().mockImplementation((e: { name: string; calories: number; protein: number; carbs: number; fats: number }) =>
       Promise.resolve({ id: 'new-id', date: new Date().toISOString().slice(0, 10), ...e })
     ),
-    update: vi.fn().mockResolvedValue(apiFoodEntry),
+    update: vi.fn().mockResolvedValue({ id: '1', date: '2025-01-16', name: 'Chicken Breast', calories: 200, protein: 30, carbs: 0, fats: 5 }),
     delete: vi.fn().mockResolvedValue(undefined),
   },
   dailyCheckInsApi: {
-    list: vi.fn().mockResolvedValue([apiCheckIn]),
+    list: vi.fn().mockResolvedValue([{ id: '1', date: '2025-01-16', sleepHours: 7.5 }]),
     add: vi.fn().mockImplementation((c: { sleepHours?: number }) =>
       Promise.resolve({ id: 'new-id', date: new Date().toISOString().slice(0, 10), sleepHours: c.sleepHours })
     ),
-    update: vi.fn().mockResolvedValue(apiCheckIn),
+    update: vi.fn().mockImplementation((_id: string, updates: { sleepHours?: number }) =>
+      Promise.resolve({ id: '1', date: '2025-01-16', sleepHours: updates.sleepHours ?? 7.5 })
+    ),
     delete: vi.fn().mockResolvedValue(undefined),
   },
+  searchFoods: vi.fn().mockResolvedValue([]),
 }));
+
+const queryClient = new QueryClient({
+  defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+});
 
 describe('EnergyContext', () => {
   beforeEach(() => {
@@ -52,20 +57,25 @@ describe('EnergyContext', () => {
   });
 
   const wrapper = ({ children }: { children: React.ReactNode }) => (
-    <EnergyProvider>{children}</EnergyProvider>
+    <QueryClientProvider client={queryClient}>
+      <EnergyProvider>{children}</EnergyProvider>
+    </QueryClientProvider>
   );
 
-  it('provides checkIns and foodEntries', () => {
+  it('provides checkIns and foodEntries', async () => {
     const { result } = renderHook(() => useEnergy(), { wrapper });
-    expect(result.current.checkIns).toEqual(mockCheckIns);
-    expect(result.current.foodEntries).toEqual(mockFoodEntries);
+    await waitFor(() => {
+      expect(result.current.checkIns).toEqual(mockCheckIns);
+      expect(result.current.foodEntries).toEqual(mockFoodEntries);
+    });
   });
 
-  it('adds new checkIn', () => {
+  it('adds new checkIn', async () => {
     const { result } = renderHook(() => useEnergy(), { wrapper });
-    
-    act(() => {
-      result.current.addCheckIn({
+    await waitFor(() => expect(result.current.checkIns).toHaveLength(1));
+
+    await act(async () => {
+      await result.current.addCheckIn({
         date: new Date(2025, 0, 17),
         sleepHours: 8,
       });
@@ -74,11 +84,12 @@ describe('EnergyContext', () => {
     expect(result.current.checkIns).toHaveLength(2);
   });
 
-  it('adds new foodEntry', () => {
+  it('adds new foodEntry', async () => {
     const { result } = renderHook(() => useEnergy(), { wrapper });
-    
-    act(() => {
-      result.current.addFoodEntry({
+    await waitFor(() => expect(result.current.foodEntries).toHaveLength(1));
+
+    await act(async () => {
+      await result.current.addFoodEntry({
         date: new Date(2025, 0, 17),
         name: 'Salad',
         calories: 100,
@@ -91,24 +102,26 @@ describe('EnergyContext', () => {
     expect(result.current.foodEntries).toHaveLength(2);
   });
 
-  it('updates checkIn', () => {
+  it('updates checkIn', async () => {
     const { result } = renderHook(() => useEnergy(), { wrapper });
-    
-    act(() => {
-      result.current.updateCheckIn('1', { sleepHours: 8 });
+    await waitFor(() => expect(result.current.checkIns).toHaveLength(1));
+
+    await act(async () => {
+      await result.current.updateCheckIn('1', { sleepHours: 8 });
     });
 
     const updated = result.current.checkIns.find((c: DailyCheckIn) => c.id === '1');
     expect(updated?.sleepHours).toBe(8);
   });
 
-  it('deletes foodEntry', () => {
+  it('deletes foodEntry', async () => {
     const { result } = renderHook(() => useEnergy(), { wrapper });
-    
-    act(() => {
-      result.current.deleteFoodEntry('1');
+    await waitFor(() => expect(result.current.foodEntries).toHaveLength(1));
+
+    await act(async () => {
+      await result.current.deleteFoodEntry('1');
     });
 
-    expect(result.current.foodEntries).toHaveLength(0);
+    await waitFor(() => expect(result.current.foodEntries).toHaveLength(0));
   });
 });

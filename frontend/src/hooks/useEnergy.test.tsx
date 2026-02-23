@@ -1,11 +1,24 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { renderHook } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { EnergyProvider } from '@/context/EnergyContext';
 import { useEnergy } from './useEnergy';
 
+vi.mock('@/features/energy/api', () => ({
+  foodEntriesApi: { list: vi.fn().mockResolvedValue([]), add: vi.fn(), update: vi.fn(), delete: vi.fn() },
+  dailyCheckInsApi: { list: vi.fn().mockResolvedValue([]), add: vi.fn(), update: vi.fn(), delete: vi.fn() },
+  searchFoods: vi.fn().mockResolvedValue([]),
+}));
+
+const queryClient = new QueryClient({
+  defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+});
+
 describe('useEnergy', () => {
   const wrapper = ({ children }: { children: React.ReactNode }) => (
-    <EnergyProvider>{children}</EnergyProvider>
+    <QueryClientProvider client={queryClient}>
+      <EnergyProvider>{children}</EnergyProvider>
+    </QueryClientProvider>
   );
 
   it('provides energy data from context', () => {

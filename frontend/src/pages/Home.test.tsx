@@ -20,6 +20,21 @@ vi.mock('@/context/AuthContext', () => ({
   }),
 }));
 
+vi.mock('@/features/body/api', () => ({
+  workoutsApi: { list: vi.fn().mockResolvedValue([]), add: vi.fn(), update: vi.fn(), delete: vi.fn() },
+}));
+vi.mock('@/features/energy/api', () => ({
+  foodEntriesApi: { list: vi.fn().mockResolvedValue([]), add: vi.fn(), update: vi.fn(), delete: vi.fn() },
+  dailyCheckInsApi: { list: vi.fn().mockResolvedValue([]), add: vi.fn(), update: vi.fn(), delete: vi.fn() },
+  searchFoods: vi.fn().mockResolvedValue([]),
+}));
+vi.mock('@/features/money/api', () => ({
+  transactionsApi: { list: vi.fn().mockResolvedValue([]), add: vi.fn(), update: vi.fn(), delete: vi.fn() },
+}));
+vi.mock('@/features/goals/api', () => ({
+  goalsApi: { list: vi.fn().mockResolvedValue([]), add: vi.fn(), update: vi.fn(), delete: vi.fn() },
+}));
+
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
 });

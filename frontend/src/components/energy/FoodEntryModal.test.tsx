@@ -6,6 +6,10 @@ import userEvent from '@testing-library/user-event';
 import type { FoodEntry } from '../../types/energy';
 import { FoodEntryModal } from './FoodEntryModal';
 
+vi.mock('@/features/energy/api', () => ({
+  searchFoods: vi.fn().mockResolvedValue([]),
+}));
+
 const mockEntry: FoodEntry = {
   id: '1',
   date: new Date(2025, 0, 16),
@@ -54,12 +58,15 @@ describe('FoodEntryModal', () => {
     );
 
     const nameInput = screen.getByLabelText(/food name/i);
+    await user.type(nameInput, 'x');
     await user.clear(nameInput);
-    await user.tab();
 
-    await waitFor(() => {
-      expect(screen.getByText(/food name is required/i)).toBeInTheDocument();
-    });
+    await waitFor(
+      () => {
+        expect(screen.getByText(/food name is required/i)).toBeInTheDocument();
+      },
+      { timeout: 3000 }
+    );
   });
 
   it('calls onSave with form data when submitted', async () => {
@@ -75,6 +82,9 @@ describe('FoodEntryModal', () => {
 
     await user.type(screen.getByLabelText(/food name/i), 'Salad');
     await user.type(screen.getByLabelText(/calories/i), '100');
+    await user.type(screen.getByLabelText(/protein/i), '5');
+    await user.type(screen.getByLabelText(/carbs/i), '10');
+    await user.type(screen.getByLabelText(/fats/i), '2');
     await user.click(screen.getByRole('button', { name: /add food/i }));
 
     await waitFor(() => {

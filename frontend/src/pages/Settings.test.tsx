@@ -61,59 +61,59 @@ describe('Settings Page', () => {
 
   it('renders settings page with title', () => {
     render(<Settings />, { wrapper });
-    expect(screen.getByText(/settings/i)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Settings' })).toBeInTheDocument();
   });
 
   it('displays currency section', () => {
     render(<Settings />, { wrapper });
-    expect(screen.getByText(/currency/i)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /currency/i })).toBeInTheDocument();
   });
 
   it('displays date format section', () => {
     render(<Settings />, { wrapper });
-    expect(screen.getByText(/date format/i)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /date format/i })).toBeInTheDocument();
   });
 
   it('displays units section', () => {
     render(<Settings />, { wrapper });
-    expect(screen.getByText(/units/i)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /^units$/i })).toBeInTheDocument();
   });
 
   it('displays theme section', () => {
     render(<Settings />, { wrapper });
-    expect(screen.getByText(/theme/i)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Appearance' })).toBeInTheDocument();
   });
 
   it('displays notifications section', () => {
     render(<Settings />, { wrapper });
-    expect(screen.getByText(/notifications/i)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Notifications' })).toBeInTheDocument();
   });
 
   it('displays data management section', () => {
     render(<Settings />, { wrapper });
-    expect(screen.getByText(/data management/i)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /data management/i })).toBeInTheDocument();
   });
 
   it('displays export data button', () => {
     render(<Settings />, { wrapper });
-    expect(screen.getByText(/export all data/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /export all data/i })).toBeInTheDocument();
   });
 
   it('displays reset settings button', () => {
     render(<Settings />, { wrapper });
-    expect(screen.getByText(/reset settings to defaults/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /reset settings to defaults/i })).toBeInTheDocument();
   });
 
   it('displays clear all data button', () => {
     render(<Settings />, { wrapper });
-    expect(screen.getByText(/clear all data/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /clear all data/i })).toBeInTheDocument();
   });
 
   it('opens confirmation dialog when clear data is clicked', async () => {
     const user = userEvent.setup();
     render(<Settings />, { wrapper });
 
-    const clearButton = screen.getByText(/clear all data/i);
+    const clearButton = screen.getByRole('button', { name: /clear all data/i });
     await act(async () => {
       await user.click(clearButton);
     });
@@ -127,7 +127,7 @@ describe('Settings Page', () => {
     const user = userEvent.setup();
     render(<Settings />, { wrapper });
 
-    const resetButton = screen.getByText(/reset settings to defaults/i);
+    const resetButton = screen.getByRole('button', { name: /reset settings to defaults/i });
     await act(async () => {
       await user.click(resetButton);
     });

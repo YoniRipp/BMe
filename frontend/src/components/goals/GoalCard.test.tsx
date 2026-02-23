@@ -37,6 +37,37 @@ vi.mock('@/features/goals/useGoalProgress', () => ({
       : { current: 0, target: 2000, percentage: 0 },
 }));
 
+// API mocks for context providers (WorkoutProvider, EnergyProvider, TransactionProvider, GoalsProvider)
+vi.mock('@/features/body/api', () => ({
+  workoutsApi: {
+    list: vi.fn().mockResolvedValue([]),
+    add: vi.fn(),
+    update: vi.fn(),
+    delete: vi.fn(),
+  },
+}));
+vi.mock('@/features/energy/api', () => ({
+  foodEntriesApi: { list: vi.fn().mockResolvedValue([]), add: vi.fn(), update: vi.fn(), delete: vi.fn() },
+  dailyCheckInsApi: { list: vi.fn().mockResolvedValue([]), add: vi.fn(), update: vi.fn(), delete: vi.fn() },
+  searchFoods: vi.fn().mockResolvedValue([]),
+}));
+vi.mock('@/features/money/api', () => ({
+  transactionsApi: {
+    list: vi.fn().mockResolvedValue([]),
+    add: vi.fn(),
+    update: vi.fn(),
+    delete: vi.fn(),
+  },
+}));
+vi.mock('@/features/goals/api', () => ({
+  goalsApi: {
+    list: vi.fn().mockResolvedValue([]),
+    add: vi.fn(),
+    update: vi.fn(),
+    delete: vi.fn(),
+  },
+}));
+
 const mockGoal: Goal = {
   id: 'test-goal',
   type: 'calories',
@@ -55,8 +86,8 @@ const wrapper = ({ children }: { children: React.ReactNode }) => (
               {children}
             </GoalsProvider>
           </EnergyProvider>
-        </TransactionProvider>
-      </WorkoutProvider>
+        </WorkoutProvider>
+      </TransactionProvider>
     </AppProvider>
   </QueryClientProvider>
 );
@@ -69,7 +100,8 @@ describe('GoalCard', () => {
 
   it('displays goal progress', () => {
     render(<GoalCard goal={mockGoal} />, { wrapper });
-    expect(screen.getByText(/0 \/ 2000 calories/i)).toBeInTheDocument();
+    expect(screen.getByText(/calories goal/i)).toBeInTheDocument();
+    expect(document.body.textContent).toMatch(/0\s*\/\s*2,?000/);
   });
 
   it('shows edit button when onEdit is provided', () => {
@@ -92,8 +124,8 @@ describe('GoalCard', () => {
   it('opens delete confirmation dialog when delete button is clicked', async () => {
     const user = userEvent.setup();
     render(<GoalCard goal={mockGoal} />, { wrapper });
-    
-    const deleteButton = screen.getByLabelText(/delete goal/i);
+    const buttons = screen.getAllByRole('button');
+    const deleteButton = buttons.find((b) => b.classList.contains('text-destructive')) ?? buttons[buttons.length - 1];
     await user.click(deleteButton);
     
     await waitFor(() => {

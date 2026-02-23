@@ -1,12 +1,32 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { renderHook } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { WorkoutProvider } from '@/context/WorkoutContext';
 import { useWorkouts } from './useWorkouts';
 
+vi.mock('@/features/body/api', () => ({
+  workoutsApi: {
+    list: vi.fn().mockResolvedValue([]),
+    add: vi.fn(),
+    update: vi.fn(),
+    delete: vi.fn(),
+  },
+}));
+
+const queryClient = new QueryClient({
+  defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+});
+
 describe('useWorkouts', () => {
   const wrapper = ({ children }: { children: React.ReactNode }) => (
-    <WorkoutProvider>{children}</WorkoutProvider>
+    <QueryClientProvider client={queryClient}>
+      <WorkoutProvider>{children}</WorkoutProvider>
+    </QueryClientProvider>
   );
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
 
   it('provides workouts from context', () => {
     const { result } = renderHook(() => useWorkouts(), { wrapper });

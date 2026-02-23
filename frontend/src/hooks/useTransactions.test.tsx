@@ -1,23 +1,27 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
+import { renderHook } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { TransactionProvider } from '@/context/TransactionContext';
 import { useTransactions } from './useTransactions';
-import { Transaction } from '@/types/transaction';
 
-// Mock storage
-vi.mock('@/lib/storage', () => ({
-  storage: {
-    get: vi.fn(),
-    set: vi.fn(),
-  },
-  STORAGE_KEYS: {
-    TRANSACTIONS: 'test_transactions',
+vi.mock('@/features/money/api', () => ({
+  transactionsApi: {
+    list: vi.fn().mockResolvedValue([]),
+    add: vi.fn(),
+    update: vi.fn(),
+    delete: vi.fn(),
   },
 }));
 
+const queryClient = new QueryClient({
+  defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+});
+
 describe('useTransactions', () => {
   const wrapper = ({ children }: { children: React.ReactNode }) => (
-    <TransactionProvider>{children}</TransactionProvider>
+    <QueryClientProvider client={queryClient}>
+      <TransactionProvider>{children}</TransactionProvider>
+    </QueryClientProvider>
   );
 
   beforeEach(() => {
