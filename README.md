@@ -295,6 +295,21 @@ The app is responsive and works on desktop and mobile. Theme (light/dark/system)
 
 Releases and notable changes (latest first):
 
+## Update 14.0 — Backend Architecture Refactor (TypeScript Monorepo)
+
+See [UPDATE_14.0.md](UPDATE_14.0.md) for the full summary. Refactors the backend from a JavaScript monolith into a TypeScript monorepo with three services:
+
+- **API Service**: HTTP handlers only, enqueues heavy work
+- **Workers Service**: Queue consumers (voice, email, food)
+- **Scheduler Service**: Cron jobs
+
+Key changes:
+- Full TypeScript migration with shared types via `@beme/core`
+- Queue abstraction (BullMQ for dev, AWS SQS for prod)
+- Async voice API with job polling (`POST /api/voice/understand` returns jobId, `GET /api/jobs/:id` for result)
+- New packages: `packages/core`, `packages/api`, `packages/workers`, `packages/scheduler`
+- Turborepo for monorepo builds
+
 ## Update 13.0 — Redis Integration
 
 See [UPDATE_13.0.md](UPDATE_13.0.md) for a concise summary. Adds optional Redis for distributed rate limiting (express-rate-limit + rate-limit-redis) and food search caching; backend runs without Redis when `REDIS_URL` is unset.

@@ -1,9 +1,12 @@
 /**
- * Voice controller.
+ * Voice controller. Accepts audio (enqueues job) or transcript (sync processing).
  */
+import { randomUUID } from 'crypto';
 import { asyncHandler } from '../middleware/errorHandler.js';
 import { config } from '../config/index.js';
 import * as voiceService from '../services/voice.js';
+import { getRedisClient, isRedisConfigured } from '../redis/client.js';
+import { enqueue } from '../queue/index.js';
 import { sendJson, sendError } from '../utils/response.js';
 
 const DATE_ONLY_REGEX = /^\d{4}-\d{2}-\d{2}$/;
@@ -26,26 +29,50 @@ export const understand = asyncHandler(async (req, res) => {
   if (!config.geminiApiKey) {
     return sendError(res, 503, 'Voice service not configured (missing GEMINI_API_KEY)');
   }
-  const { transcript, lang, today, timezone } = req.body ?? {};
-  if (!transcript || typeof transcript !== 'string') {
-    return sendError(res, 400, 'Missing or invalid transcript');
-  }
-  const text = transcript.trim();
-  if (!text) {
-    return sendError(res, 400, 'Transcript is empty');
-  }
+  const { audio, mimeType, transcript, lang, today, timezone } = req.body ?? {};
   const options = {};
   if (today != null && isValidDateStr(today)) options.today = today;
   if (timezone != null && isValidTimezone(timezone)) options.timezone = timezone;
-  // #region agent log
-  fetch('http://127.0.0.1:7246/ingest/e2e403c5-3c70-4f1e-adfb-38e8c147c460', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'voice.js controller:options', message: 'voice options from body', data: { bodyToday: today, bodyTimezone: timezone, validToday: !!options.today, validTz: !!options.timezone, optionsToday: options.today, optionsTimezone: options.timezone }, timestamp: Date.now(), hypothesisId: 'H1' }) }).catch(() => {});
-  // #endregion
-  try {
-    const userId = req.user?.id ?? null;
-    const { actions } = await voiceService.parseTranscript(text, lang ?? 'auto', userId, options);
-    sendJson(res, { actions });
-  } catch (e) {
-    console.error('Gemini / voice understand error:', e?.message ?? e);
-    sendError(res, 502, 'Failed to understand voice', { details: e?.message ?? String(e) });
+
+  const userId = req.user?.id ?? null;
+
+  if (audio && typeof audio === 'string' && mimeType && mimeType.startsWith('audio/')) {
+    if (!isRedisConfigured()) {
+      return sendError(res, 503, 'Voice queue not configured (REDIS_URL required for audio)');
+    }
+    const jobId = randomUUID();
+    const redis = await getRedisClient();
+    await redis.setEx(
+      `job:${jobId}`,
+      300,
+      JSON.stringify({ status: 'processing', createdAt: Date.now() })
+    );
+    await enqueue('voice.parse', {
+      jobId,
+      audio,
+      mimeType,
+      userId,
+      today: options.today || new Date().toISOString().slice(0, 10),
+      timezone: options.timezone || 'UTC',
+    });
+    return sendJson(res, {
+      jobId,
+      status: 'processing',
+      pollUrl: `/api/jobs/${jobId}`,
+    });
   }
+
+  if (transcript && typeof transcript === 'string') {
+    const text = transcript.trim();
+    if (!text) return sendError(res, 400, 'Transcript is empty');
+    try {
+      const { actions } = await voiceService.parseTranscript(text, lang ?? 'auto', userId, options);
+      return sendJson(res, { actions });
+    } catch (e) {
+      console.error('Gemini / voice understand error:', e?.message ?? e);
+      return sendError(res, 502, 'Failed to understand voice', { details: e?.message ?? String(e) });
+    }
+  }
+
+  return sendError(res, 400, 'Provide either audio (base64) + mimeType or transcript');
 });

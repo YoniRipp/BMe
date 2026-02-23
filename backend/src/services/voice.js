@@ -556,3 +556,92 @@ export async function parseTranscript(text, lang = 'auto', userId = null, option
 
   return { actions };
 }
+
+/**
+ * Parse audio into actions. Same logic as parseTranscript but with audio input.
+ * @param {string} audioBase64 - Base64-encoded audio
+ * @param {string} mimeType - e.g. "audio/webm"
+ * @param {string} [userId] - For error logging
+ * @param {{ today?: string, timezone?: string }} [options]
+ * @returns {Promise<{ actions: object[] }>}
+ */
+export async function parseAudio(audioBase64, mimeType, userId = null, options = {}) {
+  if (!config.geminiApiKey) {
+    throw new Error('Voice service not configured (missing GEMINI_API_KEY)');
+  }
+  const todayStr = options.today && /^\d{4}-\d{2}-\d{2}$/.test(options.today) ? options.today : new Date().toISOString().slice(0, 10);
+  const ctx = { todayStr, timezone: options.timezone || undefined };
+
+  const genAI = new GoogleGenerativeAI(config.geminiApiKey);
+  const safetySettings = [
+    { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
+    { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
+    { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+    { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+  ];
+  const model = genAI.getGenerativeModel({ model: config.geminiModel, safetySettings });
+
+  let result;
+  try {
+    result = await model.generateContent({
+      contents: [{
+        role: 'user',
+        parts: [
+          { inlineData: { mimeType, data: audioBase64 } },
+          { text: VOICE_PROMPT },
+        ],
+      }],
+      tools: VOICE_TOOLS,
+    });
+  } catch (e) {
+    logger.error({ err: e }, 'Gemini voice parse audio blocked or error');
+    await logError('Voice: audio parse failed', { reason: e?.message ?? String(e) }, userId);
+    return { actions: [{ intent: 'unknown' }] };
+  }
+
+  const response = result.response;
+  if (!response) {
+    logger.error('Gemini voice parse audio: empty response');
+    return { actions: [{ intent: 'unknown' }] };
+  }
+  const functionCalls = response.functionCalls?.() ?? [];
+  const actions = [];
+
+  for (const fc of functionCalls) {
+    const name = fc.name;
+    const args = fc.args || {};
+    const handler = HANDLERS[name];
+
+    if (!handler) {
+      logger.warn({ name }, 'Voice: unknown function');
+      actions.push({ intent: 'unknown', message: `Action "${name}" is not supported` });
+      continue;
+    }
+
+    const schema = VOICE_ARG_SCHEMAS[name];
+    let validatedArgs = args;
+    if (schema) {
+      const parsed = schema.safeParse(args);
+      if (!parsed.success) {
+        logger.warn({ name, errors: parsed.error.flatten() }, 'Voice: invalid args');
+        continue;
+      }
+      validatedArgs = parsed.data;
+    }
+
+    const action = { intent: name };
+    const result_ = await handler(validatedArgs, ctx);
+
+    if (result_.merge) Object.assign(action, result_.merge);
+    if (result_.items?.length) action.items = result_.items;
+
+    const isEmptyItems = result_.items && result_.items.length === 0;
+    if (!isEmptyItems) actions.push(action);
+  }
+
+  if (actions.length === 0) {
+    actions.push({ intent: 'unknown' });
+  }
+
+  return { actions };
+}

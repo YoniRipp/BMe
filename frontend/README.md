@@ -181,6 +181,7 @@ The project uses the `@` alias for `src/` (see [vite.config.ts](vite.config.ts))
 
 ## Changelog (latest first)
 
+- **Update 14.0** — Voice API now uses async polling: `voiceApi.ts` updated with `pollForResult()` helper. See root README **Update 14.0** and [UPDATE_14.0.md](../UPDATE_14.0.md).
 - **Update 12.0** — Export documentation: [export.ts](src/lib/export.ts) and DataManagementSection/DataExportModal pass API-backed data (TanStack Query cache) to export functions. Backend received testing, security, observability, and migrations (see root README Update 12.0). See [UPDATE_12.0.md](../UPDATE_12.0.md).
 - **Update 11.0** — Infrastructure, resilience & security audit (Layers 3, 4, 5). See root README **Update 11.0** and [UPDATE_11.0.md](../UPDATE_11.0.md).
 - **Update 10.0** — Voice Live (JarvisLiveVisual, VoiceAgentPanel, voiceLiveApi), layout (AppSidebar, Base44Layout, TopBar, PageTitle), DashboardHero, Admin (AdminLogs, AdminUsersTable), shared UI (StatCard, SectionHeader, skeleton, tooltip). See root README **Update 10.0**.

@@ -55,9 +55,18 @@ export async function createApp() {
   }
 
   const app = express();
-  app.use(cors({ origin: config.corsOrigin }));
+  const corsOrigin = config.corsOrigin;
+  const corsOptions = {
+    origin:
+      process.env.NODE_ENV === 'production'
+        ? corsOrigin
+        : corsOrigin === 'http://localhost:5173'
+          ? ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175', 'http://localhost:5176']
+          : corsOrigin,
+  };
+  app.use(cors(corsOptions));
   app.use(helmet());
-  app.use(express.json());
+  app.use(express.json({ limit: '10mb' }));
 
   // Health (not rate-limited)
   app.get('/health', (req, res) => res.status(200).json({ status: 'ok' }));

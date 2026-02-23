@@ -348,6 +348,8 @@ The [mcp-server](mcp-server/) directory contains an MCP server that exposes BeMe
 
 ## Changelog (latest first)
 
+- **Update 14.0** — TypeScript monorepo refactor: API, Workers, Scheduler services with queue abstraction (BullMQ/SQS). See root README **Update 14.0** and [UPDATE_14.0.md](../UPDATE_14.0.md).
+- **Update 13.0** — Redis integration: distributed rate limiting and food search caching. See root README **Update 13.0** and [UPDATE_13.0.md](../UPDATE_13.0.md).
 - **Update 12.0** — Testing (Vitest for validation, appLog, transaction; CI backend test step); security (Helmet, auth rate limit 10/15 min, Dependabot, Security subsection); observability (Pino logger, GET /health, GET /ready); migrations (node-pg-migrate, baseline + add-indexes); backup docs. See root README **Update 12.0** and [UPDATE_12.0.md](../UPDATE_12.0.md).
 - **Update 11.0** — Infrastructure, resilience & security audit (Layers 1, 2, 4, 5). See root README **Update 11.0** and [UPDATE_11.0.md](../UPDATE_11.0.md).
 - **Update 10.0** — Voice Live ([voiceLive.js](src/services/voiceLive.js)), graceful shutdown ([index.js](index.js)). See root README **Update 10.0**.

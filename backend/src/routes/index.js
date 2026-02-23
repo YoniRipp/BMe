@@ -13,6 +13,7 @@ import goalRouter from './goal.js';
 import groupRouter from './group.js';
 import foodSearchRouter from './foodSearch.js';
 import voiceRouter from './voice.js';
+import jobsRouter from './jobs.js';
 import adminRouter from './admin.js';
 
 const router = Router();
@@ -29,5 +30,6 @@ router.use(goalRouter);
 router.use(groupRouter);
 router.use(foodSearchRouter);
 router.use(voiceRouter);
+router.use(jobsRouter);
 
 export default router;
