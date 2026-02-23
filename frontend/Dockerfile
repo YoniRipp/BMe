@@ -15,22 +15,17 @@ RUN npm ci
 COPY . .
 RUN npm run build
 
-# Stage 2: serve static files
+# Stage 2: serve static files (Express with COOP header for Google OAuth)
 FROM node:20-alpine
 WORKDIR /app
 
-RUN npm install -g serve
+RUN npm init -y && npm install express
 
 COPY --from=build /app/dist ./dist
-COPY serve.json ./dist/serve.json
-COPY entrypoint.sh /app/entrypoint.sh
-RUN chmod +x /app/entrypoint.sh
+COPY server.js ./
 
 # PORT is set by Railway at runtime; default for local runs.
 ENV PORT=3000
 EXPOSE 3000
 
-# Entrypoint always sets PORT and passes a single listen token to serve so -l
-# is never undefined (avoids "Unknown --listen endpoint scheme" crash).
-# In Railway: do not set a custom Start Command, or use: /app/entrypoint.sh
-ENTRYPOINT ["/app/entrypoint.sh"]
+CMD ["node", "server.js"]

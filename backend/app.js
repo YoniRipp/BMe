@@ -67,6 +67,10 @@ export async function createApp() {
             if (allowed && /\.up\.railway\.app$/.test(allowed) && /^https:\/\/[a-z0-9-]+\.up\.railway\.app$/.test(origin)) {
               return cb(null, true);
             }
+            // Fallback: allow any *.up.railway.app in production (for Railway when CORS_ORIGIN unset)
+            if (/^https:\/\/[a-z0-9-]+\.up\.railway\.app$/.test(origin)) {
+              return cb(null, true);
+            }
             return cb(null, false);
           },
         }
@@ -77,6 +81,7 @@ export async function createApp() {
               : corsOrigin,
         };
   app.use(cors(corsOptions));
+  logger.info({ corsOrigin: config.corsOrigin, nodeEnv: process.env.NODE_ENV }, 'CORS configured');
   app.use(helmet({ crossOriginOpenerPolicy: false }));
   app.use(express.json({ limit: '10mb' }));
 
