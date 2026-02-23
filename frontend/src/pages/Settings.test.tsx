@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { BrowserRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -43,7 +43,7 @@ vi.mock('@/lib/storage', () => ({
 }));
 
 const wrapper = ({ children }: { children: React.ReactNode }) => (
-  <BrowserRouter>
+  <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
     <QueryClientProvider client={queryClient}>
       <AppProvider>
         <NotificationProvider>
@@ -112,10 +112,12 @@ describe('Settings Page', () => {
   it('opens confirmation dialog when clear data is clicked', async () => {
     const user = userEvent.setup();
     render(<Settings />, { wrapper });
-    
+
     const clearButton = screen.getByText(/clear all data/i);
-    await user.click(clearButton);
-    
+    await act(async () => {
+      await user.click(clearButton);
+    });
+
     await waitFor(() => {
       expect(screen.getByText(/are you sure you want to delete all your data/i)).toBeInTheDocument();
     });
@@ -124,10 +126,12 @@ describe('Settings Page', () => {
   it('opens confirmation dialog when reset settings is clicked', async () => {
     const user = userEvent.setup();
     render(<Settings />, { wrapper });
-    
+
     const resetButton = screen.getByText(/reset settings to defaults/i);
-    await user.click(resetButton);
-    
+    await act(async () => {
+      await user.click(resetButton);
+    });
+
     await waitFor(() => {
       expect(screen.getByText(/are you sure you want to reset all settings/i)).toBeInTheDocument();
     });
