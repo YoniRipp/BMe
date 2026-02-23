@@ -65,7 +65,7 @@ export async function createApp() {
           : corsOrigin,
   };
   app.use(cors(corsOptions));
-  app.use(helmet());
+  app.use(helmet({ crossOriginOpenerPolicy: false }));
   app.use(express.json({ limit: '10mb' }));
 
   // Health (not rate-limited)
