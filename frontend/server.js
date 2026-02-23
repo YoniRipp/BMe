@@ -12,7 +12,7 @@ app.use((_req, res, next) => {
   next();
 });
 app.use(express.static(dist));
-app.get('*', (_req, res) => res.sendFile(path.join(dist, 'index.html')));
+app.use((_req, res) => res.sendFile(path.join(dist, 'index.html')));
 
 app.listen(port, () => {
   console.log(`BMe frontend: listening on port ${port}`);
