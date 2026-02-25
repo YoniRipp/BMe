@@ -8,7 +8,8 @@ import { ContentWithLoading } from '@/components/shared/ContentWithLoading';
 import { SearchBar } from '@/components/shared/SearchBar';
 import { Card } from '@/components/ui/card';
 import { Plus } from 'lucide-react';
-import { format, isToday, isYesterday, parseISO } from 'date-fns';
+import { format, isToday, isYesterday, parseISO, isWithinInterval } from 'date-fns';
+import { getPeriodRange } from '@/lib/dateRanges';
 
 function groupWorkoutsByDate(workouts: Workout[]): { date: string; label: string; workouts: Workout[] }[] {
   const byDate = new Map<string, Workout[]>();
@@ -48,7 +49,27 @@ export function Body() {
     return filtered.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [workouts, searchQuery]);
 
-  const groupedByDate = useMemo(() => groupWorkoutsByDate(filteredWorkouts), [filteredWorkouts]);
+  const { start: weekStart, end: weekEnd } = useMemo(() => getPeriodRange('weekly', new Date()), []);
+  const workoutsThisWeek = useMemo(
+    () =>
+      filteredWorkouts.filter((w) => isWithinInterval(new Date(w.date), { start: weekStart, end: weekEnd })),
+    [filteredWorkouts, weekStart, weekEnd]
+  );
+  const workoutsOlder = useMemo(
+    () => filteredWorkouts.filter((w) => new Date(w.date) < weekStart),
+    [filteredWorkouts, weekStart]
+  );
+  const groupedOlder = useMemo(() => groupWorkoutsByDate(workoutsOlder), [workoutsOlder]);
+
+  const weekSummary = useMemo(() => {
+    const byDay = new Map<number, number>();
+    workoutsThisWeek.forEach((w) => {
+      const day = new Date(w.date).getDay();
+      byDay.set(day, (byDay.get(day) ?? 0) + 1);
+    });
+    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    return dayNames.map((name, i) => (byDay.get(i) ? `${name} ${byDay.get(i)}` : null)).filter(Boolean) as string[];
+  }, [workoutsThisWeek]);
 
   const handleSave = (workout: Omit<Workout, 'id'>) => {
     if (editingWorkout) {
@@ -86,7 +107,7 @@ export function Body() {
         </div>
         <ContentWithLoading loading={workoutsLoading} loadingText="Loading workouts...">
           <div className="space-y-6">
-            {groupedByDate.length === 0 ? (
+            {filteredWorkouts.length === 0 ? (
               <Card 
                 className="p-8 border-2 border-dashed cursor-pointer hover:border-primary transition-colors text-center"
                 onClick={handleAddNew}
@@ -97,13 +118,18 @@ export function Body() {
               </Card>
             ) : (
               <>
-                {groupedByDate.map(({ date: dateStr, label, workouts: dayWorkouts }) => (
-                  <section key={dateStr}>
-                    <h3 className="text-sm font-medium text-muted-foreground mb-2 sticky top-0 bg-background/95 py-1">
-                      {label}
-                    </h3>
-                    <div className="space-y-2">
-                      {dayWorkouts.map((workout) => (
+                {workoutsThisWeek.length > 0 && (
+                  <section>
+                    <div className="flex items-center gap-2 mb-2">
+                      <h3 className="text-sm font-medium text-muted-foreground">This week</h3>
+                      {weekSummary.length > 0 && (
+                        <span className="text-xs text-muted-foreground">
+                          {weekSummary.join(', ')}
+                        </span>
+                      )}
+                    </div>
+                    <div className="rounded-lg border bg-muted/20 p-3 space-y-2">
+                      {workoutsThisWeek.map((workout) => (
                         <WorkoutCard
                           key={workout.id}
                           workout={workout}
@@ -113,7 +139,31 @@ export function Body() {
                       ))}
                     </div>
                   </section>
-                ))}
+                )}
+                {groupedOlder.length > 0 && (
+                  <>
+                    <h3 className="text-sm font-medium text-muted-foreground sticky top-0 bg-background/95 py-1">
+                      Older
+                    </h3>
+                    {groupedOlder.map(({ date: dateStr, label, workouts: dayWorkouts }) => (
+                      <section key={dateStr}>
+                        <h4 className="text-xs font-medium text-muted-foreground mb-1.5 pl-0.5">
+                          {label}
+                        </h4>
+                        <div className="space-y-2">
+                          {dayWorkouts.map((workout) => (
+                            <WorkoutCard
+                              key={workout.id}
+                              workout={workout}
+                              onEdit={handleEdit}
+                              onDelete={deleteWorkout}
+                            />
+                          ))}
+                        </div>
+                      </section>
+                    ))}
+                  </>
+                )}
                 <Card 
                   className="p-6 border-2 border-dashed cursor-pointer hover:border-primary transition-colors text-center bg-muted/50"
                   onClick={handleAddNew}

@@ -29,8 +29,9 @@ async function getErrorMessage(res: Response): Promise<string> {
   return (body as { error?: string })?.error ?? res.statusText ?? `Request failed: ${res.status}`;
 }
 
-function parseVoiceResult(data: { actions?: unknown[] } | null): VoiceUnderstandResult {
-  const rawActions = Array.isArray(data?.actions) ? data.actions : [];
+export function parseVoiceResult(data: { actions?: unknown[] } | null): VoiceUnderstandResult {
+  if (!data) return { actions: [{ intent: 'unknown' }] };
+  const rawActions = Array.isArray(data.actions) ? data.actions : [];
   const actions: VoiceAction[] = [];
   for (const raw of rawActions) {
     if (raw && typeof raw === 'object') {

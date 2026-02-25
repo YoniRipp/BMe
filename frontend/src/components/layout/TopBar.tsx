@@ -1,16 +1,27 @@
 import { useMemo } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { startOfMonth, endOfMonth, isAfter } from 'date-fns';
+import { Settings, LogOut } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
+import { useAuth } from '@/context/AuthContext';
 import { useSettings } from '@/hooks/useSettings';
 import { useTransactions } from '@/hooks/useTransactions';
 import { useExchangeRates } from '@/features/money/useExchangeRates';
 import { getGreeting, formatDate } from '@/lib/utils';
 import { HeaderBalance } from './HeaderBalance';
 import { SidebarTrigger } from '@/components/ui/sidebar';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 export function TopBar() {
+  const navigate = useNavigate();
   const { user } = useApp();
+  const { logout } = useAuth();
   const { settings } = useSettings();
   const { transactions, transactionsLoading } = useTransactions();
   const displayCurrency = settings.currency;
@@ -41,6 +52,11 @@ export function TopBar() {
     };
   }, [transactions, convertToDisplay]);
 
+  const handleSignOut = () => {
+    logout();
+    navigate('/login', { replace: true });
+  };
+
   return (
     <div className="bg-background border-b border-border px-4 py-3">
       <div className="w-full flex items-center justify-between">
@@ -67,9 +83,30 @@ export function TopBar() {
               balanceDisplayLayout={settings.balanceDisplayLayout}
               loading={transactionsLoading}
             />
-            <div className="w-10 h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-semibold shrink-0">
-              {user.name.charAt(0)}
-            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  className="w-10 h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-semibold shrink-0 hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                  aria-label="Account menu"
+                >
+                  {user.name.charAt(0)}
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-44">
+                <DropdownMenuItem asChild>
+                  <Link to="/settings" className="flex items-center gap-2 cursor-pointer">
+                    <Settings className="h-4 w-4" />
+                    Settings
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleSignOut} className="flex items-center gap-2 cursor-pointer">
+                  <LogOut className="h-4 w-4" />
+                  Sign out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </div>

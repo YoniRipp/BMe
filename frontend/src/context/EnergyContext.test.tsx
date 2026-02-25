@@ -82,7 +82,7 @@ describe('EnergyContext', () => {
       });
     });
 
-    expect(result.current.checkIns).toHaveLength(2);
+    await waitFor(() => expect(result.current.checkIns).toHaveLength(2));
   });
 
   it('adds new foodEntry', async () => {

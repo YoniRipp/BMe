@@ -6,7 +6,7 @@ export interface ApiWorkout {
   title: string;
   type: string;
   durationMinutes: number;
-  exercises: { name: string; sets: number; reps: number; weight?: number; notes?: string }[];
+  exercises: { name: string; sets: number; reps: number; repsPerSet?: number[]; weight?: number; notes?: string }[];
   notes?: string;
 }
 

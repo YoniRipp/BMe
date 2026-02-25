@@ -3,15 +3,21 @@ import { LIMITS } from '@/lib/constants';
 
 const WORKOUT_TYPES = ['strength', 'cardio', 'flexibility', 'sports'] as const;
 
-const exerciseFormSchema = z.object({
-  name: z.string().min(1, 'Exercise name is required').max(100, 'Exercise name cannot exceed 100 characters'),
-  sets: z.coerce.number().int().min(1).max(LIMITS.MAX_EXERCISE_SETS),
-  reps: z.coerce.number().int().min(1).max(LIMITS.MAX_EXERCISE_REPS),
-  weight: z.preprocess(
-    (v) => (v === '' || v === null || v === undefined ? undefined : Number(v)),
-    z.number().min(0).max(LIMITS.MAX_EXERCISE_WEIGHT).optional()
-  ),
-});
+const exerciseFormSchema = z
+  .object({
+    name: z.string().min(1, 'Exercise name is required').max(100, 'Exercise name cannot exceed 100 characters'),
+    sets: z.coerce.number().int().min(1).max(LIMITS.MAX_EXERCISE_SETS),
+    reps: z.coerce.number().int().min(0).max(LIMITS.MAX_EXERCISE_REPS),
+    repsPerSet: z.array(z.number().int().min(0).max(LIMITS.MAX_EXERCISE_REPS)).optional(),
+    weight: z.preprocess(
+      (v) => (v === '' || v === null || v === undefined ? undefined : Number(v)),
+      z.number().min(0).max(LIMITS.MAX_EXERCISE_WEIGHT).optional()
+    ),
+  })
+  .refine((data) => !data.repsPerSet || data.repsPerSet.length === data.sets, {
+    message: 'Reps per set must have one value per set',
+    path: ['repsPerSet'],
+  });
 
 export const workoutFormSchema = z.object({
   title: z.string().min(1, 'Title is required').max(100, 'Title cannot exceed 100 characters'),

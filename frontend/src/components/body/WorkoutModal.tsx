@@ -38,6 +38,7 @@ const defaultExercise: WorkoutFormValues['exercises'][0] = {
   name: '',
   sets: 3,
   reps: 10,
+  repsPerSet: [10, 10, 10],
   weight: undefined,
 };
 
@@ -59,6 +60,7 @@ export function WorkoutModal({ open, onOpenChange, onSave, workout }: WorkoutMod
     handleSubmit,
     reset,
     watch,
+    setValue,
     formState: { errors, isValid },
   } = useForm<WorkoutFormValues>({
     resolver: zodResolver(workoutFormSchema),
@@ -69,6 +71,25 @@ export function WorkoutModal({ open, onOpenChange, onSave, workout }: WorkoutMod
   const { fields, append, remove } = useFieldArray({ control, name: 'exercises' });
   const watchedTitle = watch('title');
   const watchedExercises = watch('exercises');
+
+  // Keep repsPerSet length in sync with sets for each exercise
+  useEffect(() => {
+    const exercises = watchedExercises ?? [];
+    exercises.forEach((ex, idx) => {
+      if (!ex) return;
+      const sets = Math.min(20, Math.max(1, Number(ex.sets) || 1));
+      const current = ex.repsPerSet ?? [];
+      if (current.length === sets) return;
+      let next: number[];
+      if (current.length < sets) {
+        const fill = ex.reps ?? 0;
+        next = [...current, ...Array.from({ length: sets - current.length }, () => (current.length ? current[current.length - 1] : fill))];
+      } else {
+        next = current.slice(0, sets);
+      }
+      setValue(`exercises.${idx}.repsPerSet`, next, { shouldValidate: true });
+    });
+  }, [watchedExercises, setValue]);
 
   useEffect(() => {
     if (open) {
@@ -87,7 +108,13 @@ export function WorkoutModal({ open, onOpenChange, onSave, workout }: WorkoutMod
         durationMinutes: workout.durationMinutes.toString(),
         notes: workout.notes ?? '',
         exercises: workout.exercises.length
-          ? workout.exercises.map((e) => ({ name: e.name, sets: e.sets, reps: e.reps, weight: e.weight }))
+          ? workout.exercises.map((e) => {
+              const repsPerSet =
+                e.repsPerSet && e.repsPerSet.length === e.sets
+                  ? e.repsPerSet
+                  : Array.from({ length: e.sets }, () => e.reps);
+              return { name: e.name, sets: e.sets, reps: e.reps, repsPerSet, weight: e.weight };
+            })
           : [defaultExercise],
       });
     } else {
@@ -95,7 +122,11 @@ export function WorkoutModal({ open, onOpenChange, onSave, workout }: WorkoutMod
     }
   }, [open, workout, reset]);
 
-  const addExercise = () => append({ ...defaultExercise });
+  const addExercise = () =>
+    append({
+      ...defaultExercise,
+      repsPerSet: Array.from({ length: defaultExercise.sets }, () => defaultExercise.reps),
+    });
 
   const loadTemplate = (template: WorkoutTemplate) => {
     reset({
@@ -105,7 +136,13 @@ export function WorkoutModal({ open, onOpenChange, onSave, workout }: WorkoutMod
       durationMinutes: template.durationMinutes.toString(),
       notes: template.notes ?? '',
       exercises: template.exercises.length
-        ? template.exercises.map((e) => ({ name: e.name, sets: e.sets, reps: e.reps, weight: e.weight }))
+        ? template.exercises.map((e) => {
+            const repsPerSet =
+              e.repsPerSet && e.repsPerSet.length === e.sets
+                ? e.repsPerSet
+                : Array.from({ length: e.sets }, () => e.reps);
+            return { name: e.name, sets: e.sets, reps: e.reps, repsPerSet, weight: e.weight };
+          })
         : [defaultExercise],
     });
   };
@@ -122,7 +159,13 @@ export function WorkoutModal({ open, onOpenChange, onSave, workout }: WorkoutMod
       type: watch('type'),
       durationMinutes: parseInt(watch('durationMinutes') || '0', 10),
       notes: watch('notes'),
-      exercises: exercises.map((e) => ({ name: e.name, sets: e.sets, reps: e.reps, weight: e.weight })),
+      exercises: exercises.map((e) => ({
+        name: e.name,
+        sets: e.sets,
+        reps: e.reps,
+        ...(e.repsPerSet && e.repsPerSet.length === e.sets ? { repsPerSet: e.repsPerSet } : undefined),
+        weight: e.weight,
+      })),
     };
     try {
       const updatedTemplates = [...templates, template];
@@ -137,7 +180,16 @@ export function WorkoutModal({ open, onOpenChange, onSave, workout }: WorkoutMod
   const onSubmit = (data: WorkoutFormValues) => {
     const exercises: Exercise[] = data.exercises
       .filter((ex) => ex.name.trim() !== '')
-      .map((ex) => ({ name: ex.name, sets: ex.sets, reps: ex.reps, weight: ex.weight }));
+      .map((ex) => {
+        const reps = ex.repsPerSet?.[0] ?? ex.reps;
+        return {
+          name: ex.name,
+          sets: ex.sets,
+          reps,
+          ...(ex.repsPerSet && ex.repsPerSet.length === ex.sets ? { repsPerSet: ex.repsPerSet } : undefined),
+          weight: ex.weight,
+        };
+      });
     onSave({
       title: data.title,
       type: data.type,
@@ -151,7 +203,7 @@ export function WorkoutModal({ open, onOpenChange, onSave, workout }: WorkoutMod
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-4xl w-full max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{workout ? 'Edit Workout' : 'Add Workout'}</DialogTitle>
         </DialogHeader>
@@ -252,71 +304,93 @@ export function WorkoutModal({ open, onOpenChange, onSave, workout }: WorkoutMod
                 </Button>
               </div>
               <div className="rounded-lg border bg-muted/30 p-3 space-y-3">
-                <div className="grid gap-2 grid-cols-[1fr_4rem_4rem_5rem] items-center text-xs font-medium text-muted-foreground">
+                <div className="grid gap-2 grid-cols-[1fr_5rem_minmax(0,1fr)_6rem] items-center text-xs font-medium text-muted-foreground">
                   <span>Exercise name</span>
-                  <span>Sets</span>
-                  <span>Reps</span>
-                  <span>Weight (kg)</span>
+                  <span className="text-center">Sets</span>
+                  <span>Reps per set</span>
+                  <span className="text-center">Weight (kg)</span>
                 </div>
-                {fields.map((field, idx) => (
-                  <div key={field.id} className="grid gap-2 grid-cols-[1fr_4rem_4rem_5rem] items-start">
-                    <div>
-                      <Input
-                        placeholder="e.g. Squat, Deadlift"
-                        className="w-full"
-                        {...register(`exercises.${idx}.name`)}
-                        aria-invalid={!!errors.exercises?.[idx]?.name}
-                        aria-describedby={errors.exercises?.[idx]?.name ? `exercise-${idx}-name-error` : undefined}
-                      />
-                      {errors.exercises?.[idx]?.name && (
-                        <p id={`exercise-${idx}-name-error`} className="text-xs text-destructive mt-1">
-                          {errors.exercises[idx]?.name?.message}
+                {fields.map((field, idx) => {
+                  const setsCount = Math.min(20, Math.max(1, Number(watchedExercises?.[idx]?.sets) || 1));
+                  const repsPerSet = watchedExercises?.[idx]?.repsPerSet ?? Array.from({ length: setsCount }, () => watchedExercises?.[idx]?.reps ?? 0);
+                  const repsError = errors.exercises?.[idx]?.repsPerSet;
+                  return (
+                    <div key={field.id} className="space-y-1">
+                      <div className="grid gap-2 grid-cols-[1fr_5rem_minmax(0,1fr)_6rem] items-start">
+                        <div>
+                          <Input
+                            placeholder="e.g. Squat, Deadlift"
+                            className="w-full"
+                            {...register(`exercises.${idx}.name`)}
+                            aria-invalid={!!errors.exercises?.[idx]?.name}
+                            aria-describedby={errors.exercises?.[idx]?.name ? `exercise-${idx}-name-error` : undefined}
+                          />
+                          {errors.exercises?.[idx]?.name && (
+                            <p id={`exercise-${idx}-name-error`} className="text-xs text-destructive mt-1">
+                              {errors.exercises[idx]?.name?.message}
+                            </p>
+                          )}
+                        </div>
+                        <div>
+                          <Input
+                            type="number"
+                            placeholder="3"
+                            min={1}
+                            max={20}
+                            {...register(`exercises.${idx}.sets`)}
+                            aria-invalid={!!errors.exercises?.[idx]?.sets}
+                          />
+                          {errors.exercises?.[idx]?.sets && (
+                            <p className="text-xs text-destructive mt-1">{errors.exercises[idx]?.sets?.message}</p>
+                          )}
+                        </div>
+                        <div className="flex flex-wrap gap-1.5 items-center min-h-10">
+                          {Array.from({ length: setsCount }, (_, i) => (
+                            <Input
+                              key={i}
+                              type="number"
+                              placeholder={`${i + 1}`}
+                              min={0}
+                              className="w-14 min-w-14 text-center"
+                              value={repsPerSet[i] ?? ''}
+                              onChange={(e) => {
+                                const v = e.target.value === '' ? undefined : parseInt(e.target.value, 10);
+                                const next = [...(repsPerSet ?? [])];
+                                next[i] = Number.isNaN(v) ? 0 : v;
+                                setValue(`exercises.${idx}.repsPerSet`, next, { shouldValidate: true });
+                              }}
+                              aria-label={`Set ${i + 1} reps`}
+                            />
+                          ))}
+                        </div>
+                        <div className="flex items-center gap-1">
+                        <Controller
+                          name={`exercises.${idx}.weight`}
+                          control={control}
+                          render={({ field: weightField }) => (
+                            <Input
+                              type="number"
+                              placeholder="kg"
+                              className="w-full"
+                              value={weightField.value ?? ''}
+                              onChange={(e) => weightField.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
+                              aria-invalid={!!errors.exercises?.[idx]?.weight}
+                            />
+                          )}
+                        />
+                        <Button type="button" variant="ghost" size="icon" onClick={() => remove(idx)} aria-label="Remove exercise">
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                      </div>
+                      {repsError && (
+                        <p className="text-xs text-destructive" aria-live="polite">
+                          {repsError.message}
                         </p>
                       )}
                     </div>
-                    <div>
-                      <Input
-                        type="number"
-                        placeholder="3"
-                        {...register(`exercises.${idx}.sets`)}
-                        aria-invalid={!!errors.exercises?.[idx]?.sets}
-                      />
-                      {errors.exercises?.[idx]?.sets && (
-                        <p className="text-xs text-destructive mt-1">{errors.exercises[idx]?.sets?.message}</p>
-                      )}
-                    </div>
-                    <div>
-                      <Input
-                        type="number"
-                        placeholder="5"
-                        {...register(`exercises.${idx}.reps`)}
-                        aria-invalid={!!errors.exercises?.[idx]?.reps}
-                      />
-                      {errors.exercises?.[idx]?.reps && (
-                        <p className="text-xs text-destructive mt-1">{errors.exercises[idx]?.reps?.message}</p>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Controller
-                        name={`exercises.${idx}.weight`}
-                        control={control}
-                        render={({ field }) => (
-                          <Input
-                            type="number"
-                            placeholder="kg"
-                            className="w-full"
-                            value={field.value ?? ''}
-                            onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
-                            aria-invalid={!!errors.exercises?.[idx]?.weight}
-                          />
-                        )}
-                      />
-                      <Button type="button" variant="ghost" size="icon" onClick={() => remove(idx)} aria-label="Remove exercise">
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
               {errors.exercises?.root && (
                 <p className="text-sm text-destructive mt-1">{errors.exercises.root.message}</p>

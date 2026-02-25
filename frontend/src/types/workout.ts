@@ -4,6 +4,8 @@ export interface Exercise {
   name: string;
   sets: number;
   reps: number;
+  /** When present, one rep count per set; length must equal sets. */
+  repsPerSet?: number[];
   weight?: number;
   notes?: string;
 }
