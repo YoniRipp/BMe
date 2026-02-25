@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { EnergyProvider } from './EnergyContext';
 import { useEnergy } from '@/hooks/useEnergy';
 import { DailyCheckIn, FoodEntry } from '@/types/energy';
+import { dailyCheckInsApi } from '@/features/energy/api';
 
 const mockCheckIns: DailyCheckIn[] = [
   {
@@ -103,6 +104,11 @@ describe('EnergyContext', () => {
   });
 
   it('updates checkIn', async () => {
+    (dailyCheckInsApi.update as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      id: '1',
+      date: '2025-01-16',
+      sleepHours: 8,
+    });
     const { result } = renderHook(() => useEnergy(), { wrapper });
     await waitFor(() => expect(result.current.checkIns).toHaveLength(1));
 
@@ -110,8 +116,10 @@ describe('EnergyContext', () => {
       await result.current.updateCheckIn('1', { sleepHours: 8 });
     });
 
-    const updated = result.current.checkIns.find((c: DailyCheckIn) => c.id === '1');
-    expect(updated?.sleepHours).toBe(8);
+    await waitFor(() => {
+      const updated = result.current.checkIns.find((c: DailyCheckIn) => c.id === '1');
+      expect(updated?.sleepHours).toBe(8);
+    });
   });
 
   it('deletes foodEntry', async () => {

@@ -36,7 +36,7 @@ describe('WorkoutCard', () => {
     const onDelete = vi.fn();
     render(<WorkoutCard workout={mockWorkout} onDelete={onDelete} />);
     
-    const deleteButton = screen.getByRole('button');
+    const deleteButton = screen.getByRole('button', { name: /delete workout/i });
     await user.click(deleteButton);
     expect(onDelete).toHaveBeenCalledWith('1');
   });

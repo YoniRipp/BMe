@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { GoalCard } from './GoalCard';
@@ -126,8 +126,9 @@ describe('GoalCard', () => {
     render(<GoalCard goal={mockGoal} />, { wrapper });
     const buttons = screen.getAllByRole('button');
     const deleteButton = buttons.find((b) => b.classList.contains('text-destructive')) ?? buttons[buttons.length - 1];
-    await user.click(deleteButton);
-    
+    await act(async () => {
+      await user.click(deleteButton);
+    });
     await waitFor(() => {
       expect(screen.getByText(/are you sure you want to delete this goal/i)).toBeInTheDocument();
     });

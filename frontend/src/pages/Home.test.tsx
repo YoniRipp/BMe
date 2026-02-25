@@ -11,6 +11,7 @@ import { WorkoutProvider } from '../context/WorkoutContext';
 import { EnergyProvider } from '../context/EnergyContext';
 import { ScheduleProvider } from '../context/ScheduleContext';
 import { GoalsProvider } from '../context/GoalsContext';
+import { GroupProvider } from '../context/GroupContext';
 import { AppProvider } from '../context/AppContext';
 
 vi.mock('@/context/AuthContext', () => ({
@@ -34,6 +35,9 @@ vi.mock('@/features/money/api', () => ({
 vi.mock('@/features/goals/api', () => ({
   goalsApi: { list: vi.fn().mockResolvedValue([]), add: vi.fn(), update: vi.fn(), delete: vi.fn() },
 }));
+vi.mock('@/core/api/groups', () => ({
+  groupsApi: { list: vi.fn().mockResolvedValue([]), create: vi.fn(), update: vi.fn(), delete: vi.fn(), invite: vi.fn(), cancelInvite: vi.fn(), acceptInvite: vi.fn(), removeMember: vi.fn() },
+}));
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
@@ -43,31 +47,33 @@ const wrapper = ({ children }: { children: ReactNode }) => (
   <BrowserRouter>
     <QueryClientProvider client={queryClient}>
       <AppProvider>
-      <TransactionProvider>
-        <WorkoutProvider>
-          <EnergyProvider>
-            <ScheduleProvider>
-              <GoalsProvider>
-                {children}
-              </GoalsProvider>
-            </ScheduleProvider>
-          </EnergyProvider>
-        </WorkoutProvider>
-      </TransactionProvider>
-    </AppProvider>
+        <TransactionProvider>
+          <WorkoutProvider>
+            <EnergyProvider>
+              <ScheduleProvider>
+                <GroupProvider>
+                  <GoalsProvider>
+                    {children}
+                  </GoalsProvider>
+                </GroupProvider>
+              </ScheduleProvider>
+            </EnergyProvider>
+          </WorkoutProvider>
+        </TransactionProvider>
+      </AppProvider>
     </QueryClientProvider>
   </BrowserRouter>
 );
 
 describe('Home Page', () => {
-  it('renders home page with dashboard title', () => {
+  it('renders home page with hero', () => {
     render(<Home />, { wrapper });
-    expect(screen.getByText(/dashboard/i)).toBeInTheDocument();
+    expect(screen.getByText(/how are you feeling today/i)).toBeInTheDocument();
   });
 
-  it('displays daily schedule section', () => {
+  it('displays today\'s schedule section', () => {
     render(<Home />, { wrapper });
-    expect(screen.getByText(/daily schedule/i)).toBeInTheDocument();
+    expect(screen.getByText(/today's schedule/i)).toBeInTheDocument();
   });
 
   it('displays dashboard stats section', () => {
@@ -75,47 +81,58 @@ describe('Home Page', () => {
     expect(screen.getByText(/workouts/i)).toBeInTheDocument();
   });
 
-  it('displays financial summary section', () => {
+  it('displays wellness copy', () => {
     render(<Home />, { wrapper });
-    expect(screen.getByText(/current balance/i)).toBeInTheDocument();
+    expect(screen.getByText(/track your wellness/i)).toBeInTheDocument();
   });
 
   it('displays goals section', () => {
     render(<Home />, { wrapper });
-    expect(screen.getByText(/goals/i)).toBeInTheDocument();
+    expect(screen.getByText(/^goals$/i)).toBeInTheDocument();
   });
 
   it('opens schedule modal when add schedule button is clicked', async () => {
     const user = userEvent.setup();
     render(<Home />, { wrapper });
-    
+
+    await waitFor(() => {
+      expect(screen.getByText(/add your first schedule item/i)).toBeInTheDocument();
+    });
     const addButton = screen.getByText(/add your first schedule item/i);
     await user.click(addButton);
-    
+
     await waitFor(() => {
-      expect(screen.getByText(/schedule item/i)).toBeInTheDocument();
+      expect(screen.getByText(/add schedule item/i)).toBeInTheDocument();
     });
   });
 
   it('opens goal modal when new goal button is clicked', async () => {
     const user = userEvent.setup();
     render(<Home />, { wrapper });
-    
-    const newGoalButton = screen.getByText(/new goal/i);
-    await user.click(newGoalButton);
-    
+
     await waitFor(() => {
-      expect(screen.getByText(/add new goal/i)).toBeInTheDocument();
+      expect(screen.getByText(/add your first goal/i)).toBeInTheDocument();
+    });
+    const newGoalButton = screen.getByText(/add your first goal/i);
+    await user.click(newGoalButton);
+
+    await waitFor(() => {
+      const createGoalElements = screen.getAllByText(/create goal/i);
+      expect(createGoalElements.length).toBeGreaterThanOrEqual(1);
     });
   });
 
-  it('shows empty state when no schedule items exist', () => {
+  it('shows empty state when no schedule items exist', async () => {
     render(<Home />, { wrapper });
-    expect(screen.getByText(/add your first schedule item/i)).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText(/add your first schedule item/i)).toBeInTheDocument();
+    });
   });
 
-  it('shows empty state when no goals exist', () => {
+  it('shows empty state when no goals exist', async () => {
     render(<Home />, { wrapper });
-    expect(screen.getByText(/no goals yet/i)).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText(/add your first goal/i)).toBeInTheDocument();
+    });
   });
 });

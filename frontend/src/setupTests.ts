@@ -16,6 +16,23 @@ if (typeof Element !== 'undefined' && typeof Element.prototype.scrollIntoView !=
   Element.prototype.scrollIntoView = function () {};
 }
 
+// jsdom does not implement ResizeObserver; Radix and charts use it
+if (typeof globalThis.ResizeObserver === 'undefined') {
+  globalThis.ResizeObserver = class ResizeObserver {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  } as any;
+}
+
+// jsdom does not implement Notification; NotificationContext reads Notification.permission
+const NotificationStub = { permission: 'denied' as const, requestPermission: () => Promise.resolve('denied') };
+if (typeof (globalThis as any).Notification === 'undefined') {
+  (globalThis as any).Notification = NotificationStub;
+} else if (!(globalThis as any).Notification.permission) {
+  (globalThis as any).Notification.permission = 'denied';
+}
+
 // Mock localStorage
 const localStorageMock = {
   getItem: vi.fn(),

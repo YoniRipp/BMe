@@ -1,11 +1,16 @@
 import { describe, it, expect, vi } from 'vitest';
 import { renderHook } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useGoals } from './useGoals';
 import { GoalsProvider } from '@/context/GoalsContext';
 import { AppProvider } from '@/context/AppContext';
 import { TransactionProvider } from '@/context/TransactionContext';
 import { WorkoutProvider } from '@/context/WorkoutContext';
 import { EnergyProvider } from '@/context/EnergyContext';
+
+const queryClient = new QueryClient({
+  defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+});
 
 // Mock auth so AppProvider has a user (AppProvider calls useAuth())
 vi.mock('@/context/AuthContext', () => ({
@@ -29,18 +34,24 @@ vi.mock('@/hooks/useEnergy', () => ({
   useEnergy: () => ({ foodEntries: [] }),
 }));
 
+vi.mock('@/features/goals/api', () => ({
+  goalsApi: { list: vi.fn().mockResolvedValue([]), add: vi.fn(), update: vi.fn(), delete: vi.fn() },
+}));
+
 const wrapper = ({ children }: { children: React.ReactNode }) => (
-  <AppProvider>
-    <TransactionProvider>
-      <WorkoutProvider>
-        <EnergyProvider>
-          <GoalsProvider>
-            {children}
-          </GoalsProvider>
-        </EnergyProvider>
-      </WorkoutProvider>
-    </TransactionProvider>
-  </AppProvider>
+  <QueryClientProvider client={queryClient}>
+    <AppProvider>
+      <TransactionProvider>
+        <WorkoutProvider>
+          <EnergyProvider>
+            <GoalsProvider>
+              {children}
+            </GoalsProvider>
+          </EnergyProvider>
+        </WorkoutProvider>
+      </TransactionProvider>
+    </AppProvider>
+  </QueryClientProvider>
 );
 
 describe('useGoals', () => {

@@ -10,6 +10,13 @@ vi.mock('@/hooks/useLocalStorage', () => ({
   useLocalStorage: vi.fn(() => [DEFAULT_SETTINGS, mockSetSettings]),
 }));
 
+vi.mock('@/context/AuthContext', () => ({
+  useAuth: () => ({
+    user: { id: '1', email: 'a@b.com', name: 'Test', role: 'user' as const },
+    authLoading: false,
+  }),
+}));
+
 const wrapper = ({ children }: { children: React.ReactNode }) => (
   <AppProvider>{children}</AppProvider>
 );

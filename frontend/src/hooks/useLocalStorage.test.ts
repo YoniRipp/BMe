@@ -64,7 +64,8 @@ describe('useLocalStorage', () => {
       result.current[1]('new value');
     });
 
-    // Should not throw, but value might not update
-    expect(result.current[0]).toBe('initial');
+    // Hook updates state first then persists; when storage.set throws, we catch and log (no rethrow)
+    expect(storage.set).toHaveBeenCalledWith('test', 'new value');
+    expect(result.current[0]).toBe('new value');
   });
 });

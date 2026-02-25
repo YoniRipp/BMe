@@ -96,14 +96,16 @@ describe('WorkoutContext', () => {
 
   it('updates existing workout', async () => {
     const { result } = renderHook(() => useWorkouts(), { wrapper });
-    await act(() => Promise.resolve());
+    await waitFor(() => expect(result.current.workouts).toHaveLength(1));
 
     await act(async () => {
       await result.current.updateWorkout('1', { title: 'Updated Title' });
     });
 
-    const updated = result.current.workouts.find((w: Workout) => w.id === '1');
-    expect(updated?.title).toBe('Updated Title');
+    await waitFor(() => {
+      const updated = result.current.workouts.find((w: Workout) => w.id === '1');
+      expect(updated?.title).toBe('Updated Title');
+    });
   });
 
   it('deletes workout', async () => {
