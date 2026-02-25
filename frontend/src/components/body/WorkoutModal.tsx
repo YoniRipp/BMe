@@ -356,7 +356,7 @@ export function WorkoutModal({ open, onOpenChange, onSave, workout }: WorkoutMod
                               onChange={(e) => {
                                 const v = e.target.value === '' ? undefined : parseInt(e.target.value, 10);
                                 const next = [...(repsPerSet ?? [])];
-                                next[i] = Number.isNaN(v) ? 0 : v;
+                                next[i] = v === undefined || Number.isNaN(v) ? 0 : v;
                                 setValue(`exercises.${idx}.repsPerSet`, next, { shouldValidate: true });
                               }}
                               aria-label={`Set ${i + 1} reps`}
