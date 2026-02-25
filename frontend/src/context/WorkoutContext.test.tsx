@@ -78,7 +78,7 @@ describe('WorkoutContext', () => {
 
   it('adds new workout', async () => {
     const { result } = renderHook(() => useWorkouts(), { wrapper });
-    await act(() => Promise.resolve());
+    await waitFor(() => expect(result.current.workouts).toHaveLength(1));
 
     await act(async () => {
       await result.current.addWorkout({
@@ -90,7 +90,7 @@ describe('WorkoutContext', () => {
       });
     });
 
-    expect(result.current.workouts).toHaveLength(2);
+    await waitFor(() => expect(result.current.workouts).toHaveLength(2));
     expect(workoutsApi.add).toHaveBeenCalled();
   });
 
