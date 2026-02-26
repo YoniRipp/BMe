@@ -7,6 +7,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import { RedisStore } from 'rate-limit-redis';
+import { createProxyMiddleware } from 'http-proxy-middleware';
 import { config } from './src/config/index.js';
 import { getRedisClient, isRedisConfigured } from './src/redis/client.js';
 import apiRouter from './src/routes/index.js';
@@ -92,7 +93,27 @@ export async function createApp() {
   app.use('/api/auth/login', authLimiter);
   app.use('/api/auth/register', authLimiter);
 
-  // All API routes (auth, users, schedule, transactions, workouts, food, voice, etc.)
+  // API gateway: route context paths to extracted services when SERVICE_URL is set
+  if (config.moneyServiceUrl) {
+    app.use('/api/money', createProxyMiddleware({ target: config.moneyServiceUrl, changeOrigin: true, pathRewrite: { '^/api/money': '/api' } }));
+    app.use('/api/transactions', createProxyMiddleware({ target: config.moneyServiceUrl, changeOrigin: true }));
+    app.use('/api/balance', createProxyMiddleware({ target: config.moneyServiceUrl, changeOrigin: true }));
+  }
+  if (config.scheduleServiceUrl) {
+    app.use('/api/schedule', createProxyMiddleware({ target: config.scheduleServiceUrl, changeOrigin: true }));
+  }
+  if (config.bodyServiceUrl) {
+    app.use('/api/workouts', createProxyMiddleware({ target: config.bodyServiceUrl, changeOrigin: true }));
+  }
+  if (config.energyServiceUrl) {
+    app.use('/api/food-entries', createProxyMiddleware({ target: config.energyServiceUrl, changeOrigin: true }));
+    app.use('/api/daily-check-ins', createProxyMiddleware({ target: config.energyServiceUrl, changeOrigin: true }));
+  }
+  if (config.goalsServiceUrl) {
+    app.use('/api/goals', createProxyMiddleware({ target: config.goalsServiceUrl, changeOrigin: true }));
+  }
+
+  // All API routes (auth, users, schedule, transactions when not proxied, workouts, food, voice, etc.)
   if (config.isDbConfigured) {
     app.use('/api', apiLimiter);
     app.use(apiRouter);

@@ -1,6 +1,50 @@
 # Changelog
 
-Releases and notable changes, latest first.
+All notable changes to this project are documented in this file. Releases and notable changes, latest first.
+
+## Update 16.0 — Documentation, run guides, and professional repo polish
+
+Documentation overhaul and repo conventions to support contributors and deployment.
+
+### Documentation
+
+- **Technology flow** — Root README: client → gateway/main API → (optional proxy to context services) → PostgreSQL; event bus (Redis/SQS) and event consumer; voice pipeline and BullMQ.
+- **Architecture diagram** — Updated mermaid: Event bus, Event Consumer process, optional Money/OtherSvcs; links to bounded-contexts, event-schema, architecture-principles.
+- **Run guides** — [docs/RUNNING.md](docs/RUNNING.md) index; [docs/RUNNING-LOCAL.md](docs/RUNNING-LOCAL.md), [docs/RUNNING-RAILWAY.md](docs/RUNNING-RAILWAY.md), [docs/RUNNING-AWS.md](docs/RUNNING-AWS.md) for local, Railway, and AWS.
+- **Docs index** — [docs/README.md](docs/README.md) for all docs.
+- **Docs reorganization** — `SCALE-HARDEN-AWS.md` moved to `docs/scale-harden-aws.md`; all references updated.
+
+### Environment
+
+- **backend/.env.example** — Restored with full var list: PORT, DATABASE_URL, JWT_SECRET, CORS_ORIGIN, FRONTEND_ORIGIN, GEMINI_API_KEY, REDIS_URL, EVENT_TRANSPORT, EVENT_QUEUE_URL, AWS_REGION, per-context DB URLs, *_SERVICE_URL, auth vars.
+- **frontend/.env.example** — Restored with VITE_API_URL, VITE_GOOGLE_CLIENT_ID, VITE_FACEBOOK_APP_ID.
+
+### Professional repo conventions
+
+- **LICENSE** — MIT License (BeMe contributors).
+- **CONTRIBUTING.md** — Contribution flow, dev setup (link to RUNNING-LOCAL), code style, PR process.
+- **CODE_OF_CONDUCT.md** — Contributor Covenant 2.1.
+- **SECURITY.md** — Security vulnerability reporting (GitHub Security Advisories).
+- **.editorconfig** — Shared indent, line endings, charset.
+- **.gitattributes** — text=auto, linguist-generated for lockfiles, binary for images.
+- **.github/PULL_REQUEST_TEMPLATE.md** — PR checklist (lint, test, docs, CI).
+- **Root package.json** — version, license, repository, keywords; scripts: lint:backend, test:backend, test:all.
+- **Dependabot** — Removed root directory (no deps); kept backend and frontend.
+- **README** — Links to LICENSE, SECURITY, CONTRIBUTING, CODE_OF_CONDUCT; Root Scripts table includes lint:backend, test:backend, test:all.
+- **CHANGELOG** — Header: "All notable changes to this project are documented in this file."
+
+### Backend and frontend READMEs
+
+- **backend/README.md** — Event-ready overview, event bus and consumers, per-context DB and extracted services, scripts (start:consumer, start:money, etc.), config table, testing (event schema, bus, SQS, write-paths, transactionAnalytics), API note (proxy when *_SERVICE_URL), changelog (event-driven migration).
+- **frontend/README.md** — Gateway/single URL note; Data flow: API base URL may be gateway; no frontend changes.
+
+---
+
+## Update 15.0 — Event-driven migration (Plans 0–12)
+
+Event bus, all write paths emit events, configurable transport (Redis/SQS), idempotency, transaction analytics consumer, event-consumer as separate process, per-context DB configuration, extracted Money/Schedule/Body/Energy/Goals services, gateway proxy. See [docs/bounded-contexts.md](docs/bounded-contexts.md), [docs/event-schema.md](docs/event-schema.md), [docs/architecture-principles.md](docs/architecture-principles.md).
+
+---
 
 ## Docs: workflow and architecture diagrams
 

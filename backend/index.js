@@ -8,7 +8,12 @@ import { createApp } from './app.js';
 import { closeRedis } from './src/redis/client.js';
 import { closeQueue } from './src/queue/index.js';
 import { startVoiceWorker } from './src/workers/voice.js';
+import { subscribe, startEventsWorker, closeEventsBus } from './src/events/bus.js';
 import { logger } from './src/lib/logger.js';
+
+subscribe('money.TransactionCreated', (event) => {
+  logger.info({ eventType: event.type, eventId: event.eventId, userId: event.metadata?.userId }, 'Event received');
+});
 
 async function start() {
   if (config.isDbConfigured) {
@@ -29,6 +34,7 @@ async function start() {
     voiceWorker = startVoiceWorker();
     logger.info('Voice worker started');
   }
+  // Event bus consumer runs in a separate process (workers/event-consumer.js)
 
   // Legacy: Live voice WebSocket - commented out
   // Voice now uses: Browser Web Speech API → text → POST /api/voice/understand → Gemini
@@ -80,6 +86,7 @@ async function start() {
       await voiceWorker.close();
       logger.info('Voice worker closed');
     }
+    await closeEventsBus();
     await closeQueue();
     await closePool();
     await closeRedis();

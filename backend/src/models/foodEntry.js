@@ -21,7 +21,7 @@ function rowToEntry(row) {
 }
 
 export async function findByUserId(userId) {
-  const pool = getPool();
+  const pool = getPool('energy');
   const result = await pool.query(
     'SELECT id, date, name, calories, protein, carbs, fats, portion_amount, portion_unit, serving_type, start_time, end_time FROM food_entries WHERE user_id = $1 ORDER BY date DESC, created_at DESC',
     [userId]
@@ -30,7 +30,7 @@ export async function findByUserId(userId) {
 }
 
 export async function create(params) {
-  const pool = getPool();
+  const pool = getPool('energy');
   const { userId, date, name, calories, protein, carbs, fats, portionAmount, portionUnit, servingType, startTime, endTime } = params;
   const d = date ? new Date(date) : new Date();
   const result = await pool.query(
@@ -43,7 +43,7 @@ export async function create(params) {
 }
 
 export async function update(id, userId, updates) {
-  const pool = getPool();
+  const pool = getPool('energy');
   const entries = [];
   const values = [];
   let i = 1;
@@ -68,7 +68,7 @@ export async function update(id, userId, updates) {
 }
 
 export async function deleteById(id, userId) {
-  const pool = getPool();
+  const pool = getPool('energy');
   const result = await pool.query('DELETE FROM food_entries WHERE id = $1 AND user_id = $2 RETURNING id', [id, userId]);
   return result.rowCount > 0;
 }

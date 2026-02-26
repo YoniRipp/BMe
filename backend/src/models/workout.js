@@ -16,7 +16,7 @@ function rowToWorkout(row) {
 }
 
 export async function findByUserId(userId) {
-  const pool = getPool();
+  const pool = getPool('body');
   const result = await pool.query(
     'SELECT id, date, title, type, duration_minutes, exercises, notes FROM workouts WHERE user_id = $1 ORDER BY date DESC, created_at DESC',
     [userId]
@@ -25,7 +25,7 @@ export async function findByUserId(userId) {
 }
 
 export async function create(params) {
-  const pool = getPool();
+  const pool = getPool('body');
   const { userId, date, title, type, durationMinutes, exercises, notes } = params;
   const d = date ? new Date(date) : new Date();
   const ex = Array.isArray(exercises) ? exercises : [];
@@ -39,7 +39,7 @@ export async function create(params) {
 }
 
 export async function update(id, userId, updates) {
-  const pool = getPool();
+  const pool = getPool('body');
   const entries = [];
   const values = [];
   let i = 1;
@@ -59,7 +59,7 @@ export async function update(id, userId, updates) {
 }
 
 export async function deleteById(id, userId) {
-  const pool = getPool();
+  const pool = getPool('body');
   const result = await pool.query('DELETE FROM workouts WHERE id = $1 AND user_id = $2 RETURNING id', [id, userId]);
   return result.rowCount > 0;
 }

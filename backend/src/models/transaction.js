@@ -18,7 +18,7 @@ function rowToTransaction(row) {
 }
 
 export async function findByUserId(userId, { month, type, limit = 500, offset = 0 } = {}) {
-  const pool = getPool();
+  const pool = getPool('money');
   const conditions = ['user_id = $1'];
   const params = [userId];
   let i = 2;
@@ -47,7 +47,7 @@ export async function findByUserId(userId, { month, type, limit = 500, offset = 
 }
 
 export async function create(params) {
-  const pool = getPool();
+  const pool = getPool('money');
   const { userId, date, type, amount, currency, category, description, isRecurring, groupId } = params;
   const d = date ? new Date(date) : new Date();
   const curr = currency && String(currency).length === 3 ? String(currency).toUpperCase() : 'USD';
@@ -61,7 +61,7 @@ export async function create(params) {
 }
 
 export async function update(id, userId, updates) {
-  const pool = getPool();
+  const pool = getPool('money');
   const entries = [];
   const values = [];
   let i = 1;
@@ -83,13 +83,13 @@ export async function update(id, userId, updates) {
 }
 
 export async function deleteById(id, userId) {
-  const pool = getPool();
+  const pool = getPool('money');
   const result = await pool.query('DELETE FROM transactions WHERE id = $1 AND user_id = $2 RETURNING id', [id, userId]);
   return result.rowCount > 0;
 }
 
 export async function getBalance(userId, month) {
-  const pool = getPool();
+  const pool = getPool('money');
   let query = 'SELECT type, SUM(amount)::numeric AS total FROM transactions WHERE user_id = $1';
   const params = [userId];
   if (month) {

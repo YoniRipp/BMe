@@ -4,6 +4,7 @@
 import { parseDate, validateNonNegative } from '../utils/validation.js';
 import { requireId, requireFound, buildUpdates } from '../utils/serviceHelpers.js';
 import * as dailyCheckInModel from '../models/dailyCheckIn.js';
+import { publishEvent } from '../events/publish.js';
 
 function normSleepHours(v) {
   if (v == null) return null;
@@ -16,11 +17,13 @@ export async function list(userId) {
 
 export async function create(userId, body) {
   const { date, sleepHours } = body ?? {};
-  return dailyCheckInModel.create({
+  const checkIn = await dailyCheckInModel.create({
     userId,
     date: parseDate(date),
     sleepHours: normSleepHours(sleepHours),
   });
+  await publishEvent('energy.CheckInCreated', checkIn, userId);
+  return checkIn;
 }
 
 export async function update(userId, id, body) {
@@ -31,6 +34,7 @@ export async function update(userId, id, body) {
   });
   const updated = await dailyCheckInModel.update(id, userId, updates);
   requireFound(updated, 'Daily check-in');
+  await publishEvent('energy.CheckInUpdated', updated, userId);
   return updated;
 }
 

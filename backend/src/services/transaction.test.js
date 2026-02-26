@@ -1,8 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import * as transactionService from './transaction.js';
 import * as transactionModel from '../models/transaction.js';
 import { ValidationError } from '../errors.js';
 
+vi.mock('../config/index.js', () => ({
+  config: { isRedisConfigured: false },
+}));
 vi.mock('../models/transaction.js', () => ({
   findByUserId: vi.fn(),
   create: vi.fn(),
@@ -10,6 +12,9 @@ vi.mock('../models/transaction.js', () => ({
   deleteById: vi.fn(),
   getBalance: vi.fn(),
 }));
+
+import * as transactionService from './transaction.js';
+import { subscribe } from '../events/bus.js';
 
 describe('transaction service', () => {
   beforeEach(() => {
@@ -51,6 +56,21 @@ describe('transaction service', () => {
         transactionService.create('user-1', { type: 'expense', amount: -10 })
       ).rejects.toThrow(ValidationError);
       expect(transactionModel.create).not.toHaveBeenCalled();
+    });
+
+    it('publishes money.TransactionCreated event after create', async () => {
+      const created = { id: 'tx-1', date: '2025-02-24', type: 'expense', amount: 50, currency: 'USD', category: 'Food' };
+      transactionModel.create.mockResolvedValue(created);
+      const received = [];
+      subscribe('money.TransactionCreated', (event) => received.push(event));
+
+      await transactionService.create('user-1', { type: 'expense', amount: 50, category: 'Food' });
+
+      expect(received).toHaveLength(1);
+      expect(received[0].type).toBe('money.TransactionCreated');
+      expect(received[0].payload).toEqual(created);
+      expect(received[0].metadata.userId).toBe('user-1');
+      expect(received[0].eventId).toBeDefined();
     });
   });
 

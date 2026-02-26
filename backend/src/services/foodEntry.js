@@ -4,6 +4,7 @@
 import { parseDate, validateNonNegative, requireNonEmptyString, normTime } from '../utils/validation.js';
 import { requireId, requireFound, buildUpdates } from '../utils/serviceHelpers.js';
 import * as foodEntryModel from '../models/foodEntry.js';
+import { publishEvent } from '../events/publish.js';
 
 export async function list(userId) {
   return foodEntryModel.findByUserId(userId);
@@ -16,7 +17,7 @@ function optionalTime(v) {
 
 export async function create(userId, body) {
   const { date, name, calories, protein, carbs, fats, portionAmount, portionUnit, servingType, startTime, endTime } = body ?? {};
-  return foodEntryModel.create({
+  const entry = await foodEntryModel.create({
     userId,
     date: parseDate(date),
     name: requireNonEmptyString(name, 'name'),
@@ -30,6 +31,8 @@ export async function create(userId, body) {
     startTime: optionalTime(startTime),
     endTime: optionalTime(endTime),
   });
+  await publishEvent('energy.FoodEntryCreated', entry, userId);
+  return entry;
 }
 
 export async function update(userId, id, body) {
@@ -49,6 +52,7 @@ export async function update(userId, id, body) {
   });
   const updated = await foodEntryModel.update(id, userId, updates);
   requireFound(updated, 'Food entry');
+  await publishEvent('energy.FoodEntryUpdated', updated, userId);
   return updated;
 }
 
@@ -56,4 +60,5 @@ export async function remove(userId, id) {
   requireId(id);
   const deleted = await foodEntryModel.deleteById(id, userId);
   requireFound(deleted, 'Food entry');
+  await publishEvent('energy.FoodEntryDeleted', { id }, userId);
 }

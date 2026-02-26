@@ -14,13 +14,13 @@ function rowToGoal(row) {
 }
 
 export async function findByUserId(userId) {
-  const pool = getPool();
+  const pool = getPool('goals');
   const result = await pool.query('SELECT id, type, target, period, created_at FROM goals WHERE user_id = $1 ORDER BY created_at ASC', [userId]);
   return result.rows.map(rowToGoal);
 }
 
 export async function create(params) {
-  const pool = getPool();
+  const pool = getPool('goals');
   const { userId, type, target, period } = params;
   const result = await pool.query(
     'INSERT INTO goals (type, target, period, user_id) VALUES ($1, $2, $3, $4) RETURNING id, type, target, period, created_at',
@@ -30,7 +30,7 @@ export async function create(params) {
 }
 
 export async function update(id, userId, updates) {
-  const pool = getPool();
+  const pool = getPool('goals');
   const entries = [];
   const values = [];
   let i = 1;
@@ -47,7 +47,7 @@ export async function update(id, userId, updates) {
 }
 
 export async function deleteById(id, userId) {
-  const pool = getPool();
+  const pool = getPool('goals');
   const result = await pool.query('DELETE FROM goals WHERE id = $1 AND user_id = $2 RETURNING id', [id, userId]);
   return result.rowCount > 0;
 }

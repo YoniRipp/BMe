@@ -2,6 +2,8 @@
 
 React single-page application for the BeMe life-management app: dashboard, money, body, energy, schedule, goals, groups, settings, and insights. When `VITE_API_URL` is set and the user is authenticated, all domain data is loaded and saved via the backend API.
 
+When the backend is deployed as a gateway with extracted services, set `VITE_API_URL` to the gateway URL; the client still talks to a single origin. No frontend code changes are required for gateway vs monolith.
+
 ## Overview
 
 The frontend is a TypeScript React app built with Vite. It uses React Router for navigation; server data (goals, transactions, schedule, workouts, energy) is fetched and cached with TanStack Query; auth and UI state use React Context. Forms use React Hook Form with Zod validation. The central API client sends a JWT on every request. Public routes are login, signup, and OAuth callback; all other routes are protected and require a logged-in user when the backend is in use.
@@ -152,6 +154,8 @@ See the [root README](../README.md) for backend/frontend env pairing (e.g. Googl
 Feature providers use TanStack Query (useQuery for lists, useMutation for add/update/delete) and update the cache on success. They expose the same interface (e.g. `goals`, `goalsLoading`, `addGoal`) so existing hooks like `useGoals()` are unchanged.
 
 ## Data Flow
+
+The API base URL (`VITE_API_URL`) may point to the main backend or a gateway that routes to multiple services; the frontend is unchanged in either case. See the root README **Architecture** for the technology flow.
 
 1. User logs in → backend returns JWT → frontend stores token and sets user in AuthContext.
 2. Protected app mounts → AppProviders mount → `QueryClientProvider` wraps feature providers. Each feature provider (e.g. TransactionProvider, GoalsProvider) uses `useQuery` to fetch its list (e.g. transactions, goals); the query key and API call live in the provider.

@@ -1,6 +1,6 @@
 # Target architecture: AWS
 
-After migration (see [SCALE-HARDEN-AWS.md](../SCALE-HARDEN-AWS.md)): same app behavior on AWS services.
+After migration (see [scale-harden-aws.md](scale-harden-aws.md)): same app behavior on AWS services.
 
 ```mermaid
 flowchart TB

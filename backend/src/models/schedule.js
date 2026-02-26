@@ -32,7 +32,7 @@ function rowToItem(row) {
  * @returns {Promise<object[]>}
  */
 export async function findByUserId(userId) {
-  const pool = getPool();
+  const pool = getPool('schedule');
   const result = await pool.query(
     'SELECT id, date, title, start_time, end_time, category, emoji, "order", is_active, group_id, recurrence, color FROM schedule_items WHERE is_active = true AND user_id = $1 ORDER BY date ASC, start_time ASC, end_time ASC',
     [userId]
@@ -61,7 +61,7 @@ function normalizeDate(dateVal) {
 }
 
 export async function create(params) {
-  const pool = getPool();
+  const pool = getPool('schedule');
   const { userId, title, startTime = '09:00', endTime = '10:00', category = 'Other', emoji, order, isActive = true, groupId, recurrence, color, date } = params;
   const dateStr = normalizeDate(date);
   const countResult = await pool.query('SELECT COALESCE(MAX("order"), -1) + 1 AS next_order FROM schedule_items WHERE user_id = $1', [userId]);
@@ -88,7 +88,7 @@ export async function create(params) {
  * @param {string} [items[].color]
  */
 export async function createBatch(userId, items) {
-  const pool = getPool();
+  const pool = getPool('schedule');
   const todayStr = new Date().toISOString().slice(0, 10);
   const valid = items
     .filter((it) => it?.title && typeof it.title === 'string' && it.title.trim())
@@ -129,7 +129,7 @@ export async function createBatch(userId, items) {
  * @param {object} updates
  */
 export async function update(id, userId, updates) {
-  const pool = getPool();
+  const pool = getPool('schedule');
   const { title, startTime, endTime, category, emoji, order, isActive, groupId, recurrence, color, date } = updates;
   const updatesList = [];
   const values = [];
@@ -160,7 +160,7 @@ export async function update(id, userId, updates) {
  * @returns {Promise<boolean>}
  */
 export async function deleteById(id, userId) {
-  const pool = getPool();
+  const pool = getPool('schedule');
   const result = await pool.query('DELETE FROM schedule_items WHERE id = $1 AND user_id = $2 RETURNING id', [id, userId]);
   return result.rowCount > 0;
 }

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { BrowserRouter } from 'react-router-dom';
 import { TopBar } from './TopBar';
@@ -76,8 +76,9 @@ describe('TopBar', () => {
     const trigger = screen.getByRole('button', { name: 'Account menu' });
     await user.click(trigger);
 
-    const signOut = screen.getByRole('menuitem', { name: /sign out/i });
-    await user.click(signOut);
+    const signOut = await screen.findByRole('menuitem', { name: /sign out/i });
+    await waitFor(() => expect(signOut).toBeVisible());
+    fireEvent.click(signOut);
 
     expect(mockLogout).toHaveBeenCalled();
   });

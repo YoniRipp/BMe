@@ -1,6 +1,6 @@
 # BeMe – Life Management Application
 
-**BeMe** (BMe) is a full-stack life-management app for tracking **money**, **body**, **energy**, **schedule**, **goals**, and **groups**, with an optional **voice agent** powered by Google Gemini. Built with **React**, **TypeScript**, **Vite**, and **Node/Express**; data is stored in **PostgreSQL**; optional **Redis** for rate limiting, caching, and async voice processing.
+**BeMe** (BMe) is a full-stack life-management app for tracking **money**, **body**, **energy**, **schedule**, **goals**, and **groups**, with an optional **voice agent** powered by Google Gemini. Built with **React**, **TypeScript**, **Vite**, and **Node/Express**; data is stored in **PostgreSQL**; optional **Redis** for rate limiting, caching, async voice processing, and event bus.
 
 ## Features
 
@@ -45,34 +45,57 @@
 - Social login: Google, Facebook, Twitter (when configured)
 - JWT-based sessions; protected routes require login
 
+## Technology Flow
+
+Client → **Backend API or Gateway** → (optional proxy to Money/Schedule/Body/Energy/Goals services when `*_SERVICE_URL` set) → PostgreSQL. The API publishes domain events to an **event bus** (Redis BullMQ or SQS). An optional **event-consumer** process runs handlers (e.g. transaction analytics) in a separate deployable. The voice pipeline uses BullMQ for async job processing and Gemini for natural-language intent.
+
 ## Architecture
 
 ```mermaid
 flowchart TB
   User[User]
   Frontend[Frontend React]
-  Backend[Backend Express]
+  Gateway[Backend API or Gateway]
   Redis[(Redis)]
   DB[(PostgreSQL)]
   Queue[BullMQ Voice Queue]
   Worker[Voice Worker]
   Gemini[Gemini API]
+  EventBus[Event Bus Redis or SQS]
+  EventConsumer[Event Consumer Process]
+  MoneySvc[Money Service optional]
+  OtherSvcs[Schedule Body Energy Goals optional]
 
   User --> Frontend
-  Frontend <-->|"REST, JWT"| Backend
-  Backend <--> DB
-  Backend <--> Redis
-  Backend --> Queue
+  Frontend <-->|"REST JWT"| Gateway
+  Gateway <--> DB
+  Gateway --> EventBus
+  EventBus --> EventConsumer
+  EventConsumer --> Redis
+  Gateway --> Redis
+  Gateway --> Queue
   Queue --> Worker
   Worker --> Gemini
   Worker --> Redis
   Worker --> DB
+  Gateway -.->|"if MONEY_SERVICE_URL"| MoneySvc
+  Gateway -.->|"if *_SERVICE_URL"| OtherSvcs
+  MoneySvc --> DB
 ```
 
 - **Frontend**: React SPA; talks to backend when `VITE_API_URL` is set; stores JWT in localStorage; uses local date and week (Sun–Sat) conventions
-- **Backend**: Express API; auth, domain APIs (schedule, transactions, workouts, food entries, daily check-ins, goals), food search, voice `/api/voice/understand`, job polling `/api/jobs/:jobId`
-- **Redis** (optional): Rate limiting (distributed when set), food search cache, BullMQ queue, job result storage
+- **Backend / Gateway**: Express API; auth, domain APIs (schedule, transactions, workouts, food entries, daily check-ins, goals), food search, voice `/api/voice/understand`, job polling `/api/jobs/:jobId`. When `MONEY_SERVICE_URL` (or other `*_SERVICE_URL`) is set, those paths are proxied to the given URL
+- **Event bus**: Redis (BullMQ) or SQS; API publishes domain events; optional **event-consumer** process consumes and runs handlers (e.g. transaction analytics)
+- **Redis** (optional): Rate limiting, food search cache, BullMQ voice queue, job result storage, event bus
 - **Voice worker**: Processes audio jobs via BullMQ; calls Gemini, writes result to Redis
+
+### Event-driven architecture
+
+- **Bounded contexts** and event types: [docs/bounded-contexts.md](docs/bounded-contexts.md)
+- **Event envelope** and consumer contract: [docs/event-schema.md](docs/event-schema.md)
+- **Architecture principles**: [docs/architecture-principles.md](docs/architecture-principles.md)
+
+All write paths publish events; consumers can run in-process or as a separate deployable (`node workers/event-consumer.js`).
 
 ## Voice Flow
 
@@ -89,6 +112,9 @@ Voice Live WebSocket is legacy and disabled; voice uses Browser Web Speech API f
 |-------|--------------|
 | Frontend | React 18, TypeScript, Vite, Tailwind CSS, Shadcn UI (Radix), Recharts, React Router v6, TanStack Query, React Context, Zod, React Hook Form, @hookform/resolvers |
 | Backend | Node.js (ES modules), Express, PostgreSQL (pg), JWT, bcrypt, CORS, express-rate-limit, Zod, Pino, Helmet |
+| Event bus | BullMQ (Redis), optional SQS ([backend/src/events/bus.js](backend/src/events/bus.js)); Zod event envelope ([backend/src/events/schema.js](backend/src/events/schema.js)) |
+| Gateway | http-proxy-middleware when `MONEY_SERVICE_URL` (or other `*_SERVICE_URL`) is set |
+| Per-context DB | Optional `MONEY_DATABASE_URL`, `SCHEDULE_DATABASE_URL`, etc. ([backend/src/db/pool.js](backend/src/db/pool.js)) |
 | Redis | redis, rate-limit-redis, BullMQ (optional) |
 | Voice | Google Gemini, function calling, relaxed safety, fallback on block |
 | Auth | jsonwebtoken, google-auth-library; optional social (Google, Facebook, Twitter) |
@@ -100,6 +126,7 @@ Voice Live WebSocket is legacy and disabled; voice uses Browser Web Speech API f
 - **Food search cache**: 1-hour TTL
 - **BullMQ queue**: Async voice job processing
 - **Job results**: Stored in Redis for polling
+- **Event bus**: BullMQ queue `events` for domain events; API publishes; optional **event-consumer** process (`node workers/event-consumer.js`) consumes and runs handlers (e.g. transaction analytics). See Backend README.
 
 ## Conventions
 
@@ -112,16 +139,24 @@ Voice Live WebSocket is legacy and disabled; voice uses Browser Web Speech API f
 ```
 BMe/
 ├── backend/
-│   ├── app.js              # Express app, CORS, rate limit, routes
+│   ├── app.js              # Express app, CORS, rate limit, gateway proxy (when *_SERVICE_URL), routes
 │   ├── index.js            # Entry: config, DB, server, voice worker
+│   ├── money-service.js    # Optional standalone Money (transactions) API
+│   ├── schedule-service.js # Optional Schedule API
+│   ├── body-service.js     # Optional Body (workouts) API
+│   ├── energy-service.js   # Optional Energy (food entries, daily check-ins) API
+│   ├── goals-service.js    # Optional Goals API
+│   ├── workers/
+│   │   └── event-consumer.js # Standalone event consumer (no HTTP)
 │   ├── src/
 │   │   ├── config/         # Env, Zod validation
-│   │   ├── db/             # Pool, schema, init
+│   │   ├── db/             # Pool (getPool per context), schema, init
+│   │   ├── events/         # bus.js, schema.js, publish.js, transports/sqs.js, consumers/transactionAnalytics.js
 │   │   ├── redis/          # Redis client (optional)
 │   │   ├── queue/          # BullMQ voice queue
 │   │   ├── workers/        # Voice job worker
 │   │   ├── middleware/     # Auth, error handler, validateBody
-│   │   ├── routes/         # API route mount
+│   │   ├── routes/         # API route mount; conditionally excludes context routes when *_SERVICE_URL set
 │   │   ├── controllers/    # Request handlers
 │   │   ├── services/       # Business logic
 │   │   ├── models/         # Data access
@@ -147,6 +182,12 @@ BMe/
 ├── CHANGELOG.md
 └── backend/README.md, frontend/README.md
 ```
+
+## Deployment Modes
+
+- **Mode A — Single process (default):** One backend process (`node index.js`). All routes local; events in-memory or Redis (no separate consumer if Redis not set).
+- **Mode B — API + event consumer:** Two processes: `node index.js` (API, publishes to Redis) and `node workers/event-consumer.js` (consumes from Redis, e.g. transaction analytics). Requires `REDIS_URL`.
+- **Mode C — Gateway + extracted services:** Set `MONEY_SERVICE_URL`, etc.; run money-service.js (and others) as separate services; main app proxies `/api/transactions`, `/api/money/*`, etc. to those URLs. Client still uses a single `VITE_API_URL` (the gateway).
 
 ## Branches and tags
 
@@ -193,9 +234,11 @@ cp .env.example .env   # then edit .env
 npm start
 ```
 
+If `.env.example` is missing, see [backend/README.md](backend/README.md) Configuration for required variables.
+
 From root: `npm run start:backend` or `npm run dev:backend` (watch mode).
 
-Required in `backend/.env`: `DATABASE_URL`, `JWT_SECRET`. For voice: `GEMINI_API_KEY`. Optional: `REDIS_URL` (required for audio voice).
+Required in `backend/.env`: `DATABASE_URL`, `JWT_SECRET`. For voice: `GEMINI_API_KEY`. Optional: `REDIS_URL` (required for audio voice and event bus). For event consumer (Mode B): run `npm run start:consumer` from `backend/` when using Redis.
 
 Set `VITE_API_URL=http://localhost:3000` in `frontend/.env.development` so the frontend calls the API.
 
@@ -212,7 +255,12 @@ Set `VITE_API_URL=http://localhost:3000` in `frontend/.env.development` so the f
 | `PORT` | No | Server port (default: 3000) |
 | `CORS_ORIGIN` | No | Allowed origin (default from FRONTEND_ORIGIN) |
 | `FRONTEND_ORIGIN` | No | Frontend origin (default: `http://localhost:5173`) |
-| `REDIS_URL` | For audio voice / rate limit / cache | Redis URL. When unset: in-memory rate limit, no cache, transcript-only voice |
+| `REDIS_URL` | For audio voice / rate limit / cache / event bus | Redis URL. When unset: in-memory rate limit, no cache, transcript-only voice |
+| `EVENT_TRANSPORT` | No | `redis` \| `sqs`; default `redis` |
+| `EVENT_QUEUE_URL` | When `EVENT_TRANSPORT=sqs` | SQS queue URL |
+| `AWS_REGION` | When using SQS | AWS region |
+| `MONEY_DATABASE_URL`, `SCHEDULE_DATABASE_URL`, `BODY_DATABASE_URL`, `ENERGY_DATABASE_URL`, `GOALS_DATABASE_URL` | No | Per-context DB; fallback `DATABASE_URL` |
+| `MONEY_SERVICE_URL`, `SCHEDULE_SERVICE_URL`, `BODY_SERVICE_URL`, `ENERGY_SERVICE_URL`, `GOALS_SERVICE_URL` | No | When set, main app proxies those paths to the given URL |
 | `GOOGLE_CLIENT_ID` | For Google login | OAuth client ID |
 | `FACEBOOK_APP_ID` | For Facebook login | Facebook app ID |
 | `TWITTER_CLIENT_ID`, `TWITTER_CLIENT_SECRET`, `TWITTER_REDIRECT_URI` | For Twitter login | Twitter OAuth |
@@ -286,9 +334,14 @@ Optional stdio server exposing schedule, transactions, goals as tools. See [back
 | `npm run build` | Build frontend |
 | `npm run preview` | Serve frontend build |
 | `npm run lint` | Frontend TypeScript check |
+| `npm run lint:backend` | Backend syntax check |
 | `npm run test` | Frontend tests |
+| `npm run test:backend` | Backend tests |
+| `npm run test:all` | Backend + frontend tests |
 | `npm run start:backend` | Start backend |
 | `npm run dev:backend` | Backend with watch mode |
+
+From `backend/`: `npm run start:consumer`, `npm run start:money`, `npm run start:schedule`, `npm run start:body`, `npm run start:energy`, `npm run start:goals` (optional entrypoints for event consumer and extracted services).
 
 ## Building for Production
 
@@ -297,10 +350,15 @@ Optional stdio server exposing schedule, transactions, goals as tools. See [back
 
 ## Documentation
 
+- [docs/README.md](docs/README.md) — Documentation index
+- [docs/RUNNING.md](docs/RUNNING.md) — Running locally, on Railway, or on AWS
 - [docs/WORKFLOW.md](docs/WORKFLOW.md) — Branches, tags, and dev workflow
+- [docs/bounded-contexts.md](docs/bounded-contexts.md) — Bounded contexts and event types
+- [docs/event-schema.md](docs/event-schema.md) — Event envelope and consumer contract
+- [docs/architecture-principles.md](docs/architecture-principles.md) — Event-driven and cross-context rules
 - [docs/architecture-current-railway-supabase.md](docs/architecture-current-railway-supabase.md) — Current architecture (Railway + Supabase)
 - [docs/architecture-target-aws.md](docs/architecture-target-aws.md) — Target architecture (AWS)
-- [SCALE-HARDEN-AWS.md](SCALE-HARDEN-AWS.md) — Short-term and AWS scale/harden plans
+- [docs/scale-harden-aws.md](docs/scale-harden-aws.md) — Short-term and AWS scale/harden plans
 
 ## Changelog
 
@@ -308,8 +366,12 @@ See [CHANGELOG.md](CHANGELOG.md) for release history.
 
 ## License
 
-MIT
+MIT. See [LICENSE](LICENSE) for details.
+
+## Security
+
+To report a security vulnerability, see [SECURITY.md](SECURITY.md).
 
 ## Contributing
 
-Contributions welcome. Open an issue or submit a Pull Request.
+See [CONTRIBUTING.md](CONTRIBUTING.md) and [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md). Contributions welcome.

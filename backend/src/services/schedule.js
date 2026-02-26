@@ -8,6 +8,7 @@ import { normTime, normTimeRequired } from '../utils/validation.js';
 import { requireNonEmptyString } from '../utils/validation.js';
 import { requireId, requireFound, normOneOf, buildUpdates, trim } from '../utils/serviceHelpers.js';
 import * as scheduleModel from '../models/schedule.js';
+import { publishEvent } from '../events/publish.js';
 
 export async function list(userId) {
   return scheduleModel.findByUserId(userId);
@@ -24,7 +25,7 @@ export async function create(userId, body) {
   const cat = normOneOf(category, SCHEDULE_CATEGORIES, { default: 'Other' });
   const rec = normOneOf(recurrence, VALID_RECURRENCE, { default: null });
   const dateStr = normDate(date) ?? new Date().toISOString().slice(0, 10);
-  return scheduleModel.create({
+  const item = await scheduleModel.create({
     userId,
     title: requireNonEmptyString(title, 'title'),
     startTime: startTime ?? '09:00',
@@ -38,6 +39,8 @@ export async function create(userId, body) {
     color: color != null && typeof color === 'string' ? color.trim() || null : null,
     date: dateStr,
   });
+  await publishEvent('schedule.ScheduleItemAdded', item, userId);
+  return item;
 }
 
 export async function createBatch(userId, items) {
@@ -57,7 +60,9 @@ export async function createBatch(userId, items) {
   if (normalized.length === 0) {
     throw new ValidationError('At least one valid item with title is required');
   }
-  return scheduleModel.createBatch(userId, normalized);
+  const created = await scheduleModel.createBatch(userId, normalized);
+  await publishEvent('schedule.ScheduleBatchAdded', { items: created }, userId);
+  return created;
 }
 
 export async function update(userId, id, body) {
@@ -77,6 +82,7 @@ export async function update(userId, id, body) {
   });
   const updated = await scheduleModel.update(id, userId, updates);
   requireFound(updated, 'Schedule item');
+  await publishEvent('schedule.ScheduleItemUpdated', updated, userId);
   return updated;
 }
 
@@ -84,4 +90,5 @@ export async function remove(userId, id) {
   requireId(id);
   const deleted = await scheduleModel.deleteById(id, userId);
   requireFound(deleted, 'Schedule item');
+  await publishEvent('schedule.ScheduleItemDeleted', { id }, userId);
 }

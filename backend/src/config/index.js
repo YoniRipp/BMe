@@ -42,6 +42,19 @@ const configSchema = z.object({
   resendApiKey: z.string().optional(),
   redisUrl: z.string().optional(),
   isRedisConfigured: z.boolean(),
+  eventTransport: z.enum(['redis', 'sqs']).optional(),
+  awsRegion: z.string().optional(),
+  eventQueueUrl: z.string().url().optional(),
+  moneyDbUrl: z.string().optional(),
+  scheduleDbUrl: z.string().optional(),
+  bodyDbUrl: z.string().optional(),
+  energyDbUrl: z.string().optional(),
+  goalsDbUrl: z.string().optional(),
+  moneyServiceUrl: z.string().url().optional(),
+  scheduleServiceUrl: z.string().url().optional(),
+  bodyServiceUrl: z.string().url().optional(),
+  energyServiceUrl: z.string().url().optional(),
+  goalsServiceUrl: z.string().url().optional(),
 });
 
 const PORT = process.env.PORT;
@@ -78,6 +91,19 @@ const rawConfig = {
   resendApiKey: process.env.RESEND_API_KEY,
   redisUrl: process.env.REDIS_URL,
   isRedisConfigured: !!process.env.REDIS_URL,
+  eventTransport: process.env.EVENT_TRANSPORT === 'sqs' ? 'sqs' : 'redis',
+  awsRegion: process.env.AWS_REGION,
+  eventQueueUrl: process.env.EVENT_QUEUE_URL,
+  moneyDbUrl: process.env.MONEY_DATABASE_URL,
+  scheduleDbUrl: process.env.SCHEDULE_DATABASE_URL,
+  bodyDbUrl: process.env.BODY_DATABASE_URL,
+  energyDbUrl: process.env.ENERGY_DATABASE_URL,
+  goalsDbUrl: process.env.GOALS_DATABASE_URL,
+  moneyServiceUrl: process.env.MONEY_SERVICE_URL,
+  scheduleServiceUrl: process.env.SCHEDULE_SERVICE_URL,
+  bodyServiceUrl: process.env.BODY_SERVICE_URL,
+  energyServiceUrl: process.env.ENERGY_SERVICE_URL,
+  goalsServiceUrl: process.env.GOALS_SERVICE_URL,
 };
 
 const parsed = configSchema.safeParse(rawConfig);

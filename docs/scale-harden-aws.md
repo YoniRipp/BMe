@@ -5,7 +5,7 @@ This document splits the scale-and-harden work into **two plans**:
 - **Plan 1: Short-term** — Redis-backed workers and state, security quick wins, and observability. No cloud migration; works on current or any host (e.g. Railway, Render, VPS) with Redis.
 - **Plan 2: AWS** — Full scalable architecture on Amazon Web Services: Cognito, RDS, SQS, ECS, CloudFront, WAF, etc.
 
-You can do Plan 1 first and later run it on AWS, or do Plan 1 and Plan 2 in sequence when you are ready to move to AWS. Current (Railway + Supabase) and target (AWS) architecture diagrams: [docs/architecture-current-railway-supabase.md](docs/architecture-current-railway-supabase.md), [docs/architecture-target-aws.md](docs/architecture-target-aws.md).
+You can do Plan 1 first and later run it on AWS, or do Plan 1 and Plan 2 in sequence when you are ready to move to AWS. Current (Railway + Supabase) and target (AWS) architecture diagrams: [architecture-current-railway-supabase.md](architecture-current-railway-supabase.md), [architecture-target-aws.md](architecture-target-aws.md).
 
 ---
 
@@ -98,7 +98,7 @@ Do these in order. Each item is a concrete deliverable.
 
 10. **Idempotency key on frontend**  
     - In `api/client.ts`, for POST requests to create endpoints, generate `X-Idempotency-Key` (e.g. `crypto.randomUUID()`) if not provided and send it.  
-    - **Why:** Backend supports idempotency but frontend doesn’t send the key; double-submit still creates duplicates.
+    - **Why:** Backend supports idempotency but frontend doesn't send the key; double-submit still creates duplicates.
 
 ### Phase D — Optional (modularity and CI)
 
@@ -272,7 +272,7 @@ flowchart TB
 
 ---
 
-## 2.7 What’s “big” and scalable in the AWS plan
+## 2.7 What's "big" and scalable in the AWS plan
 
 - **Cognito:** No custom auth; no PKCE or token-in-URL; compliance and scaling handled by AWS.  
 - **RDS + RDS Proxy:** Managed DB and connection pooling; read replicas when needed.  
@@ -286,7 +286,7 @@ flowchart TB
 
 # Reference: options and rationale
 
-This section briefly summarizes the **options (A, B, C)** and **recommendations** for each area, for when you need the “why” or want to choose an alternative.
+This section briefly summarizes the **options (A, B, C)** and **recommendations** for each area, for when you need the "why" or want to choose an alternative.
 
 ---
 

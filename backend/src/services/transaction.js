@@ -6,6 +6,7 @@ import { TRANSACTION_CATEGORIES } from '../config/constants.js';
 import { parseDate, validateNonNegative } from '../utils/validation.js';
 import { requireId, requireFound, normOneOf, buildUpdates } from '../utils/serviceHelpers.js';
 import * as transactionModel from '../models/transaction.js';
+import { publishEvent } from '../events/publish.js';
 
 const TYPE_ERROR = 'type must be income or expense';
 
@@ -33,7 +34,7 @@ export async function create(userId, body) {
   const { date, type, amount, currency, category, description, isRecurring, groupId } = body ?? {};
   normOneOf(type, ['income', 'expense'], { errorMessage: TYPE_ERROR });
   const cat = TRANSACTION_CATEGORIES[type]?.includes(category) ? category : 'Other';
-  return transactionModel.create({
+  const transaction = await transactionModel.create({
     userId,
     date: parseDate(date),
     type,
@@ -44,6 +45,8 @@ export async function create(userId, body) {
     isRecurring,
     groupId,
   });
+  await publishEvent('money.TransactionCreated', transaction, userId);
+  return transaction;
 }
 
 export async function update(userId, id, body) {
@@ -61,6 +64,7 @@ export async function update(userId, id, body) {
   });
   const updated = await transactionModel.update(id, userId, updates);
   requireFound(updated, 'Transaction');
+  await publishEvent('money.TransactionUpdated', updated, userId);
   return updated;
 }
 
@@ -68,6 +72,7 @@ export async function remove(userId, id) {
   requireId(id);
   const deleted = await transactionModel.deleteById(id, userId);
   requireFound(deleted, 'Transaction');
+  await publishEvent('money.TransactionDeleted', { id }, userId);
 }
 
 export async function getBalance(userId, month) {
