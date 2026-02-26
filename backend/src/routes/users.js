@@ -112,6 +112,45 @@ async function deleteUser(req, res) {
   }
 }
 
+/**
+ * GET /api/admin/users/:userId/activity
+ * Returns paginated user activity timeline from user_activity_log.
+ * Query params:
+ *   limit  - number of rows (default 50, max 200)
+ *   before - ISO timestamp cursor for pagination (exclusive)
+ */
+async function getUserActivity(req, res) {
+  try {
+    const { userId } = req.params;
+    const limit = Math.min(parseInt(req.query.limit ?? '50', 10) || 50, 200);
+    const before = req.query.before;
+
+    const pool = getPool();
+    const params = [userId, limit];
+    let whereClause = 'WHERE user_id = $1';
+    if (before) {
+      whereClause += ' AND created_at < $3';
+      params.push(before);
+    }
+
+    const result = await pool.query(
+      `SELECT id, event_type AS "eventType", event_id AS "eventId", summary, payload, created_at AS "createdAt"
+       FROM user_activity_log
+       ${whereClause}
+       ORDER BY created_at DESC
+       LIMIT $2`,
+      params
+    );
+
+    const events = result.rows;
+    const nextCursor = events.length === limit ? events[events.length - 1].createdAt : null;
+    res.json({ events, nextCursor });
+  } catch (e) {
+    console.error('getUserActivity error:', e?.message ?? e);
+    res.status(500).json({ error: e?.message ?? 'Failed to get user activity' });
+  }
+}
+
 const router = Router();
 const withAdmin = [requireAuth, requireAdmin];
 
@@ -119,5 +158,6 @@ router.get('/api/users', withAdmin, listUsers);
 router.post('/api/users', withAdmin, createUser);
 router.patch('/api/users/:id', withAdmin, updateUser);
 router.delete('/api/users/:id', withAdmin, deleteUser);
+router.get('/api/admin/users/:userId/activity', withAdmin, getUserActivity);
 
 export default router;
