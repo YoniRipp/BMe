@@ -60,7 +60,9 @@ export async function publish(event) {
     if (queue) await queue.add(event.type, event, { removeOnComplete: true, removeOnFail: 100 });
     return;
   }
-  const handlers = getHandlers(event.type);
+  const typeHandlers = getHandlers(event.type) || [];
+  const wildcardHandlers = getHandlers('*') || [];
+  const handlers = [...typeHandlers, ...wildcardHandlers];
   for (const h of handlers) {
     try {
       await Promise.resolve(h(event));
@@ -79,7 +81,9 @@ export async function getEventsQueue() {
 }
 
 async function invokeHandlers(event) {
-  const handlers = getHandlers(event?.type);
+  const typeHandlers = getHandlers(event?.type) || [];
+  const wildcardHandlers = getHandlers('*') || [];
+  const handlers = [...typeHandlers, ...wildcardHandlers];
   for (const h of handlers) {
     try {
       await Promise.resolve(h(event));
