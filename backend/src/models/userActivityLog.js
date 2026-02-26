@@ -47,6 +47,9 @@ export async function listActivity(opts) {
   }
 
   const pool = getPool();
+  // #region agent log
+  fetch('http://127.0.0.1:7246/ingest/e2e403c5-3c70-4f1e-adfb-38e8c147c460',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'b94650'},body:JSON.stringify({sessionId:'b94650',location:'userActivityLog.js:listActivity_preQuery',message:'listActivity before query',data:{from,to},timestamp:Date.now(),hypothesisId:'H3'})}).catch(()=>{});
+  // #endregion
   const conditions = ['a.created_at >= $1', 'a.created_at <= $2'];
   const values = [from, to];
   let paramIndex = 3;

@@ -32,6 +32,9 @@ router.get('/api/admin/logs', requireAuth, requireAdmin, async (req, res, next) 
 router.get('/api/admin/activity', requireAuth, requireAdmin, async (req, res, next) => {
   try {
     const { limit, before, from, to, userId, eventType } = req.query ?? {};
+    // #region agent log
+    fetch('http://127.0.0.1:7246/ingest/e2e403c5-3c70-4f1e-adfb-38e8c147c460',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'b94650'},body:JSON.stringify({sessionId:'b94650',location:'admin.js:activity_entry',message:'Activity route entered',data:{from,to,hasUser:!!req.user,userRole:req.user?.role},timestamp:Date.now(),hypothesisId:'H1_H2'})}).catch(()=>{});
+    // #endregion
     if (!from || !to) {
       return res.status(400).json({ error: 'from and to (ISO UTC) are required' });
     }
@@ -45,6 +48,9 @@ router.get('/api/admin/activity', requireAuth, requireAdmin, async (req, res, ne
     });
     res.json(result);
   } catch (e) {
+    // #region agent log
+    fetch('http://127.0.0.1:7246/ingest/e2e403c5-3c70-4f1e-adfb-38e8c147c460',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'b94650'},body:JSON.stringify({sessionId:'b94650',location:'admin.js:activity_catch',message:'Activity handler error',data:{err:String(e?.message||e),stack:e?.stack?.slice(0,200)},timestamp:Date.now(),hypothesisId:'H3'})}).catch(()=>{});
+    // #endregion
     if (e.message?.includes('required') || e.message?.includes('range') || e.message?.includes('exceed')) {
       return res.status(400).json({ error: e.message });
     }

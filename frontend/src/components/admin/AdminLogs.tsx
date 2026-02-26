@@ -112,7 +112,12 @@ export function AdminLogs() {
           else setEvents((prev) => [...prev, ...r.events]);
           setNextCursor(r.nextCursor);
         })
-        .catch(() => toast.error('Failed to load activity'))
+        .catch((err) => {
+          // #region agent log
+          fetch('http://127.0.0.1:7246/ingest/e2e403c5-3c70-4f1e-adfb-38e8c147c460',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'b94650'},body:JSON.stringify({sessionId:'b94650',location:'AdminLogs.tsx:getActivity_catch',message:'getActivity failed',data:{from,to,err:String(err)},timestamp:Date.now(),hypothesisId:'H1_H2_H3_H4_H5'})}).catch(()=>{});
+          // #endregion
+          toast.error('Failed to load activity');
+        })
         .finally(() => setActivityLoading(false));
     },
     [from, to, userId, eventType]
