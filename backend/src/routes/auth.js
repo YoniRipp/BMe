@@ -51,7 +51,7 @@ async function register(req, res) {
       config.jwtSecret,
       { expiresIn: TOKEN_EXPIRY }
     );
-    publishEvent('auth.UserRegistered', { userId: user.id }, user.id).catch(() => {});
+    publishEvent('auth.UserRegistered', { userId: user.id, email: user.email, name: user.name }, user.id).catch(() => {});
     res.status(201).json({ user, token });
   } catch (e) {
     if (e.code === '23505') {
@@ -90,7 +90,7 @@ async function login(req, res) {
       config.jwtSecret,
       { expiresIn: TOKEN_EXPIRY }
     );
-    publishEvent('auth.UserLoggedIn', { userId: user.id }, user.id).catch(() => {});
+    publishEvent('auth.UserLoggedIn', { userId: user.id, method: 'email' }, user.id).catch(() => {});
     res.json({ user, token });
   } catch (e) {
     console.error('login error:', e?.message ?? e);
@@ -215,7 +215,7 @@ async function loginGoogle(req, res) {
       email,
       name,
     });
-    publishEvent('auth.UserLoggedIn', { userId: user.id, provider: 'google' }, user.id).catch(() => {});
+    publishEvent('auth.UserLoggedIn', { userId: user.id, method: 'google' }, user.id).catch(() => {});
     res.json({ user, token: jwtToken });
   } catch (e) {
     console.error('loginGoogle error:', e?.message ?? e);
@@ -253,7 +253,7 @@ async function loginFacebook(req, res) {
       email,
       name,
     });
-    publishEvent('auth.UserLoggedIn', { userId: user.id, provider: 'facebook' }, user.id).catch(() => {});
+    publishEvent('auth.UserLoggedIn', { userId: user.id, method: 'facebook' }, user.id).catch(() => {});
     res.json({ user, token: jwtToken });
   } catch (e) {
     console.error('loginFacebook error:', e?.message ?? e);
@@ -293,7 +293,7 @@ async function loginTwitter(req, res) {
       email,
       name,
     });
-    publishEvent('auth.UserLoggedIn', { userId: user.id, provider: 'twitter' }, user.id).catch(() => {});
+    publishEvent('auth.UserLoggedIn', { userId: user.id, method: 'twitter' }, user.id).catch(() => {});
     res.json({ user, token: jwtToken });
   } catch (e) {
     console.error('loginTwitter error:', e?.message ?? e);
@@ -380,7 +380,7 @@ async function twitterCallback(req, res) {
       email,
       name,
     });
-    publishEvent('auth.UserLoggedIn', { userId: user.id, provider: 'twitter' }, user.id).catch(() => {});
+    publishEvent('auth.UserLoggedIn', { userId: user.id, method: 'twitter' }, user.id).catch(() => {});
     const redirectUrl = `${config.frontendOrigin}/auth/callback?token=${encodeURIComponent(jwtToken)}`;
     res.redirect(redirectUrl);
   } catch (e) {
