@@ -1,4 +1,5 @@
 /// <reference types="vite/client" />
+/// <reference types="vite-plugin-pwa/client" />
 
 // Web Speech API - not in TypeScript's DOM lib for all browsers
 interface SpeechRecognitionEventMap {
