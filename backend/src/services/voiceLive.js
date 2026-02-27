@@ -221,9 +221,6 @@ export async function attachLiveSession(clientWs, userId) {
           if (parsed?.type === 'context') {
             if (parsed.today != null && isValidDateStr(parsed.today)) ctx.todayStr = parsed.today;
             if (parsed.timezone != null && isValidTimezone(parsed.timezone)) ctx.timezone = parsed.timezone;
-            // #region agent log
-            fetch('http://127.0.0.1:7246/ingest/e2e403c5-3c70-4f1e-adfb-38e8c147c460', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'voiceLive.js:context', message: 'live context applied', data: { todayStr: ctx.todayStr, timezone: ctx.timezone }, timestamp: Date.now(), hypothesisId: 'H4' }) }).catch(() => {});
-            // #endregion
             return;
           }
           if (parsed?.type === 'audio' && parsed?.data) {

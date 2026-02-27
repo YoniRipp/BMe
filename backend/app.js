@@ -92,6 +92,18 @@ export async function createApp() {
   // Auth routes: stricter rate limit (10 per 15 min)
   app.use('/api/auth/login', authLimiter);
   app.use('/api/auth/register', authLimiter);
+  app.use('/api/auth/google', authLimiter);
+  app.use('/api/auth/facebook', authLimiter);
+  app.use('/api/auth/twitter', authLimiter);
+
+  // Request logging
+  app.use((req, res, next) => {
+    const start = Date.now();
+    res.on('finish', () => {
+      logger.info({ method: req.method, path: req.path, status: res.statusCode, ms: Date.now() - start });
+    });
+    next();
+  });
 
   // API gateway: route context paths to extracted services when SERVICE_URL is set
   if (config.moneyServiceUrl) {

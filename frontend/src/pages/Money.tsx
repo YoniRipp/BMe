@@ -4,6 +4,7 @@ import { useSettings } from '@/hooks/useSettings';
 import { useExchangeRates } from '@/features/money/useExchangeRates';
 import { PageTitle } from '@/components/layout/PageTitle';
 import { SearchBar } from '@/components/shared/SearchBar';
+import { ConfirmationDialog } from '@/components/shared/ConfirmationDialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -30,6 +31,7 @@ import { formatCurrency } from '@/lib/utils';
 import { format, isToday, isYesterday, parseISO } from 'date-fns';
 import type { BalancePeriod } from '@/features/money/useBalanceByPeriod';
 import { Plus } from 'lucide-react';
+import { toast } from 'sonner';
 
 function groupTransactionsByDate(transactions: Transaction[]): { date: string; label: string; transactions: Transaction[] }[] {
   const byDate = new Map<string, Transaction[]>();
@@ -93,6 +95,7 @@ export function Money() {
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | undefined>(undefined);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   const balanceForPeriod = balances[selectedPeriod];
 
@@ -104,8 +107,10 @@ export function Money() {
   const handleSave = (transaction: Omit<Transaction, 'id'>) => {
     if (editingTransaction) {
       updateTransaction(editingTransaction.id, transaction);
+      toast.success('Transaction updated');
     } else {
       addTransaction(transaction);
+      toast.success('Transaction added');
     }
     setEditingTransaction(undefined);
   };
@@ -247,7 +252,7 @@ export function Money() {
                           convertedAmount={convertToDisplay ? convertToDisplay(transaction.amount, transaction.currency ?? 'USD') : undefined}
                           displayCurrency={displayCurrency}
                           onEdit={handleEdit}
-                          onDelete={deleteTransaction}
+                          onDelete={setDeleteConfirmId}
                         />
                       ))}
                     </div>
@@ -286,6 +291,22 @@ export function Money() {
         onOpenChange={setModalOpen}
         onSave={handleSave}
         transaction={editingTransaction}
+      />
+
+      <ConfirmationDialog
+        open={!!deleteConfirmId}
+        onOpenChange={(open) => { if (!open) setDeleteConfirmId(null); }}
+        title="Delete transaction"
+        message="Are you sure you want to delete this transaction? This cannot be undone."
+        confirmLabel="Delete"
+        variant="destructive"
+        onConfirm={() => {
+          if (deleteConfirmId) {
+            deleteTransaction(deleteConfirmId);
+            toast.success('Transaction deleted');
+          }
+          setDeleteConfirmId(null);
+        }}
       />
     </div>
   );
