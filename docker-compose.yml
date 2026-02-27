@@ -1,0 +1,63 @@
+# BeMe – backend + frontend with Docker Compose
+#
+# Usage:
+#   docker compose up --build
+#   Open http://localhost:5173 (frontend). Backend at http://localhost:3000.
+#
+# Required env for backend: DATABASE_URL, JWT_SECRET; optional: GEMINI_API_KEY, CORS_ORIGIN, REDIS_URL.
+# Set VITE_API_URL (build-arg) and CORS_ORIGIN so the browser can reach the API (e.g. http://localhost:3000).
+# Redis is optional: set REDIS_URL=redis://redis:6379 and depends_on: [redis] for distributed rate limiting and food cache.
+
+services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    env_file:
+      - backend/.env
+    environment:
+      - PORT=3000
+      - NODE_ENV=production
+      - CORS_ORIGIN=http://localhost:5173
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - redis
+    # Uncomment if using a Postgres service in compose:
+    # depends_on:
+    #   - db
+    # environment:
+    #   DATABASE_URL: postgresql://user:pass@db:5432/beme
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: http://localhost:3000
+        VITE_GOOGLE_CLIENT_ID: ${VITE_GOOGLE_CLIENT_ID:-}
+    ports:
+      - "5173:3000"
+    environment:
+      - PORT=3000
+
+  # Optional: local Postgres. Uncomment and set backend DATABASE_URL to postgresql://beme:beme@db:5432/beme
+  # db:
+  #   image: postgres:16-alpine
+  #   environment:
+  #     POSTGRES_USER: beme
+  #     POSTGRES_PASSWORD: beme
+  #     POSTGRES_DB: beme
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+  #   ports:
+  #     - "5432:5432"
+
+# volumes:
+#   postgres_data:

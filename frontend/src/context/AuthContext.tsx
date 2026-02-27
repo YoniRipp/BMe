@@ -1,0 +1,102 @@
+import React, { createContext, useCallback, useEffect, useState } from 'react';
+import { User } from '@/types/user';
+import { authApi, setToken, getToken } from '@/features/auth/api';
+
+type AuthProviderName = 'google' | 'facebook' | 'twitter';
+
+interface AuthContextType {
+  user: User | null;
+  authLoading: boolean;
+  login: (email: string, password: string) => Promise<void>;
+  loginWithProvider: (provider: AuthProviderName, token: string) => Promise<void>;
+  loadUser: () => Promise<void>;
+  logout: () => void;
+  register: (email: string, password: string, name: string) => Promise<void>;
+}
+
+export const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+function apiUserToUser(a: { id: string; email: string; name: string; role: 'admin' | 'user'; createdAt?: string }): User {
+  return {
+    id: a.id,
+    email: a.email,
+    name: a.name,
+    role: a.role,
+    createdAt: a.createdAt,
+  };
+}
+
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const [user, setUser] = useState<User | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+
+  const loadUser = useCallback(async () => {
+    const token = getToken();
+    if (!token) {
+      setUser(null);
+      setAuthLoading(false);
+      return;
+    }
+    try {
+      const me = await authApi.me();
+      setUser(apiUserToUser(me));
+    } catch {
+      setToken(null);
+      setUser(null);
+    } finally {
+      setAuthLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadUser();
+  }, [loadUser]);
+
+  const login = useCallback(async (email: string, password: string) => {
+    const res = await authApi.login(email, password);
+    setToken(res.token);
+    setUser(apiUserToUser(res.user));
+  }, []);
+
+  const logout = useCallback(() => {
+    setToken(null);
+    setUser(null);
+  }, []);
+
+  useEffect(() => {
+    const onLogout = () => logout();
+    window.addEventListener('auth:logout', onLogout);
+    return () => window.removeEventListener('auth:logout', onLogout);
+  }, [logout]);
+
+  const register = useCallback(async (email: string, password: string, name: string) => {
+    const res = await authApi.register(email, password, name);
+    setToken(res.token);
+    setUser(apiUserToUser(res.user));
+  }, []);
+
+  const loginWithProvider = useCallback(async (provider: AuthProviderName, token: string) => {
+    const res =
+      provider === 'google'
+        ? await authApi.loginWithGoogle(token)
+        : provider === 'facebook'
+          ? await authApi.loginWithFacebook(token)
+          : await authApi.loginWithTwitter(token);
+    setToken(res.token);
+    setUser(apiUserToUser(res.user));
+  }, []);
+
+  return (
+    <AuthContext.Provider value={{ user, authLoading, login, loginWithProvider, loadUser, logout, register }}>
+      {children}
+    </AuthContext.Provider>
+  );
+}
+
+export function useAuth() {
+  const context = React.useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth must be used within AuthProvider');
+  }
+  return context;
+}

@@ -1,0 +1,166 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* base44 palette (hex ref: sage #7C9A82, cream #FAFAF7, charcoal #2D3436, terracotta #C67B5C, gold #C4A962, stone #636E72, mist #DFE6E9, cream-warm #F5F0E8, border #E8E5DF) */
+    --sage: 138 15% 54%;
+    --sage-light: 138 20% 68%;
+    --sage-dark: 130 16% 42%;
+    --cream: 60 33% 98%;
+    --cream-warm: 36 33% 93%;
+    --terracotta: 17 48% 60%;
+    --terracotta-light: 18 65% 75%;
+    --gold: 43 44% 58%;
+    --charcoal: 195 9% 18%;
+    --stone: 195 7% 42%;
+    --mist: 200 15% 91%;
+    --border-base44: 36 15% 90%;
+    /* Semantic tokens mapped to base44 */
+    --background: var(--cream);
+    --foreground: var(--charcoal);
+    --card: 0 0% 100%;
+    --card-foreground: var(--charcoal);
+    --popover: 0 0% 100%;
+    --popover-foreground: var(--charcoal);
+    --primary: var(--sage-dark);
+    --primary-foreground: 0 0% 100%;
+    --secondary: var(--cream-warm);
+    --secondary-foreground: var(--charcoal);
+    --muted: var(--cream-warm);
+    --muted-foreground: var(--stone);
+    --accent: var(--cream-warm);
+    --accent-foreground: var(--charcoal);
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: var(--border-base44);
+    --input: var(--border-base44);
+    --ring: var(--charcoal);
+    --radius: 0.5rem;
+    /* Sidebar (base44) */
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: var(--charcoal);
+    --sidebar-primary: var(--sage-dark);
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: var(--cream-warm);
+    --sidebar-accent-foreground: var(--charcoal);
+    --sidebar-border: var(--border-base44);
+    --sidebar-ring: var(--charcoal);
+    /* Chart */
+    --chart-1: 138 15% 54%;
+    --chart-2: 17 48% 60%;
+    --chart-3: 43 44% 58%;
+    --chart-4: 195 7% 42%;
+    --chart-5: 200 15% 91%;
+  }
+
+  .dark {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 210 40% 98%;
+    --primary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 212.7 26.8% 83.9%;
+    /* Sidebar (base44) */
+    --sidebar-background: 222.2 84% 4.9%;
+    --sidebar-foreground: 210 40% 98%;
+    --sidebar-primary: 210 40% 98%;
+    --sidebar-primary-foreground: 222.2 47.4% 11.2%;
+    --sidebar-accent: 217.2 32.6% 17.5%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 217.2 32.6% 17.5%;
+    --sidebar-ring: 212.7 26.8% 83.9%;
+    /* Chart */
+    --chart-1: 220 70% 50%;
+    --chart-2: 160 60% 45%;
+    --chart-3: 30 80% 55%;
+    --chart-4: 280 65% 60%;
+    --chart-5: 340 75% 55%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+/* Micro-interactions and animations */
+@layer utilities {
+  .animate-in {
+    animation: fadeIn 0.2s ease-in;
+  }
+
+  .fade-in {
+    animation: fadeIn 0.3s ease-in;
+  }
+
+  .slide-in {
+    animation: slideIn 0.3s ease-out;
+  }
+
+  .animate-fade-up {
+    animation: fadeUp 0.4s ease-out;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateY(-10px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes fadeUp {
+  from {
+    transform: translateY(8px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Focus visible styles for accessibility */
+*:focus-visible {
+  @apply outline-none ring-1 ring-ring ring-offset-2 ring-offset-background;
+}
+
+/* Smooth transitions */
+* {
+  transition-property: color, background-color, border-color, text-decoration-color, fill, stroke;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}

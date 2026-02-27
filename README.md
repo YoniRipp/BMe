@@ -1,981 +1,377 @@
-# BeMe - Life Management Application
+# BeMe – Life Management Application
 
-A comprehensive full-stack lifestyle management application with JWT authentication. Track your finances, fitness, wellness, and collaborate with groups - all in one beautiful, modern interface.
+**BeMe** (BMe) is a full-stack life-management app for tracking **money**, **body**, **energy**, **schedule**, **goals**, and **groups**, with an optional **voice agent** powered by Google Gemini. Built with **React**, **TypeScript**, **Vite**, and **Node/Express**; data is stored in **PostgreSQL**; optional **Redis** for rate limiting, caching, async voice processing, and event bus.
 
-## 🌟 Features
+## Features
 
-### 🏠 Dashboard (Home)
-- Financial summary with balance, income, and expenses
-- Daily schedule management
-- Quick stats (workouts, energy level, savings rate)
-- Quick navigation to all life areas
+### Dashboard (Home)
+- Financial summary (balance, income, expenses)
+- Daily schedule overview and quick edit
+- Quick stats (workouts, energy, savings)
+- Navigation to all areas
 
-### 💰 Money (Transactions)
-- Income and expense tracking
-- Monthly balance visualization
-- Interactive charts for financial trends
-- Transaction categorization
-- Recurring transaction support
-- Filter by income/expense/all
-- Financial statistics and insights
+### Money
+- Income and expense tracking with categories (Food, Housing, Transportation, etc.; income: Salary, Freelance, Investment, Gift)
+- Monthly balance and trend charts; balance by period (daily, weekly, monthly, yearly). Weekly period uses the current calendar week (Sunday–Saturday)
+- Transaction categories and recurring support; filter by income / expense / all
+- All transaction dates sent and stored as local calendar date (YYYY-MM-DD)
 
-### 💪 Body (Workouts)
-- Workout logging with exercise details
-- Weekly workout streak tracking
-- Duration and exercise set/rep tracking
-- Multiple workout types (strength, cardio, flexibility, sports)
-- Exercise notes and weight tracking
+### Body
+- Workout logging with exercise details: name, sets, reps, weight (kg). Title (default "Workout" or program name like "SS"), list of exercises
+- Weekly workout streak and frequency charts. Types: strength, cardio, flexibility, sports
 
-### ⚡ Energy & Wellness
-- Daily wellness check-ins
-- Sleep hours and quality tracking
-- Calorie tracking (consumed/burned)
-- Energy and stress level monitoring (1-5 scale)
-- Mood tracking
-- Food entry logging with macronutrients
-- Interactive charts for trends
+### Energy
+- Daily wellness check-ins and sleep hours tracking
+- Food entries with calories and macros; calorie and energy trend charts
 
-### 📅 Schedule
-- Daily schedule management
-- Time-blocked activities
-- Category-based organization
-- Active/inactive status
-- Group schedule support
+### Schedule
+- Daily schedule items with start/end time and category. Categories: Work, Exercise, Meal, Sleep, Personal, Social, Other. Optional recurrence
 
-### 🎯 Goals
-- Set goals for calories, workouts, and savings
-- Weekly, monthly, and yearly goal periods
-- Progress tracking
+### Goals
+- Goals by type: calories, workouts, savings. Periods: weekly, monthly, yearly
 
-### 👥 Groups (Collaboration)
-- Create and manage collaborative groups
-- Household, event, and project group types
-- Member management with roles (admin/member)
-- Group invitations system
-- Shared transactions and schedules
+### Groups
+- Create and manage groups (household, event, project); member list and invitations
 
-### 🔐 Authentication & Security
-- User registration and login
-- Secure password hashing (bcrypt)
-- JWT token-based authentication
-- Refresh token rotation
-- Protected routes
-- Session management with httpOnly cookies
+### Voice Agent
+- Speak in natural language to add or edit schedule, transactions, workouts, food, sleep, and goals. Powered by Google Gemini; requires `GEMINI_API_KEY`
+- **Text/transcript (sync)**: Send typed or transcribed text; backend returns parsed actions immediately
+- **Audio (async, requires Redis)**: Send base64 audio; backend enqueues job, returns jobId; client polls until complete
+- **Intents**: add/edit/delete for schedule, transaction, workout, food, sleep, goals. Food-only phrases (e.g. "Diet Coke") → add_food only; explicit amounts (e.g. "bought coffee for 5") → add_transaction
+- **Fallback**: If Gemini blocks, backend returns add_food with transcript as name and zero nutrition so the user is never blocked
 
-## 🛠️ Tech Stack
+### Authentication
+- Email/password signup and login
+- Social login: Google, Facebook, Twitter (when configured)
+- JWT-based sessions; protected routes require login
 
-### Frontend
-- **React** 18 with TypeScript
-- **Vite** - Fast build tool
-- **Tailwind CSS** - Utility-first styling
-- **React Router** v6 - Client-side routing
-- **Shadcn UI** - Beautiful UI components (Radix UI)
-- **Axios** - HTTP client
-- **Recharts** - Data visualization
-- **date-fns** - Date manipulation
-- **Lucide React** - Icon library
-- **Sonner** - Toast notifications
+## Technology Flow
 
-### Backend
-- **Node.js** 20+ with TypeScript
-- **Express** 4.18+ - Web framework
-- **PostgreSQL** 15+ - Relational database
-- **Prisma** ORM - Type-safe database access
-- **JWT** - Authentication tokens
-- **bcryptjs** - Password hashing
-- **Zod** - Schema validation
-- **Helmet** - Security headers
-- **CORS** - Cross-origin resource sharing
-- **express-rate-limit** - Rate limiting
-- **Morgan** - HTTP request logger
+Client → **Backend API or Gateway** → (optional proxy to Money/Schedule/Body/Energy/Goals services when `*_SERVICE_URL` set) → PostgreSQL. The API publishes domain events to an **event bus** (Redis BullMQ or SQS). An optional **event-consumer** process runs handlers (e.g. transaction analytics) in a separate deployable. The voice pipeline uses BullMQ for async job processing and Gemini for natural-language intent.
 
-## 📋 Prerequisites
+## Architecture
 
-Before you begin, ensure you have installed:
+```mermaid
+flowchart TB
+  User[User]
+  Frontend[Frontend React]
+  Gateway[Backend API or Gateway]
+  Redis[(Redis)]
+  DB[(PostgreSQL)]
+  Queue[BullMQ Voice Queue]
+  Worker[Voice Worker]
+  Gemini[Gemini API]
+  EventBus[Event Bus Redis or SQS]
+  EventConsumer[Event Consumer Process]
+  MoneySvc[Money Service optional]
+  OtherSvcs[Schedule Body Energy Goals optional]
 
-- **Node.js** 18 or higher ([Download](https://nodejs.org/))
-- **PostgreSQL** 15 or higher ([Download](https://www.postgresql.org/download/)) OR **Docker Desktop** ([Download](https://www.docker.com/products/docker-desktop))
-- **npm** (comes with Node.js)
-- **Git** (optional, for version control)
-
-Verify installations:
-```bash
-node --version    # Should be v18 or higher
-npm --version     # Should be v9 or higher
+  User --> Frontend
+  Frontend <-->|"REST JWT"| Gateway
+  Gateway <--> DB
+  Gateway --> EventBus
+  EventBus --> EventConsumer
+  EventConsumer --> Redis
+  Gateway --> Redis
+  Gateway --> Queue
+  Queue --> Worker
+  Worker --> Gemini
+  Worker --> Redis
+  Worker --> DB
+  Gateway -.->|"if MONEY_SERVICE_URL"| MoneySvc
+  Gateway -.->|"if *_SERVICE_URL"| OtherSvcs
+  MoneySvc --> DB
 ```
 
-## 🚀 Installation & Setup
+- **Frontend**: React SPA; talks to backend when `VITE_API_URL` is set; stores JWT in localStorage; uses local date and week (Sun–Sat) conventions
+- **Backend / Gateway**: Express API; auth, domain APIs (schedule, transactions, workouts, food entries, daily check-ins, goals), food search, voice `/api/voice/understand`, job polling `/api/jobs/:jobId`. When `MONEY_SERVICE_URL` (or other `*_SERVICE_URL`) is set, those paths are proxied to the given URL
+- **Event bus**: Redis (BullMQ) or SQS; API publishes domain events; optional **event-consumer** process consumes and runs handlers (e.g. transaction analytics)
+- **Redis** (optional): Rate limiting, food search cache, BullMQ voice queue, job result storage, event bus
+- **Voice worker**: Processes audio jobs via BullMQ; calls Gemini, writes result to Redis
 
-### Step 1: Clone the Repository
+### Event-driven architecture
 
-```bash
-git clone <repository-url>
-cd BMe
-```
+- **Bounded contexts** and event types: [docs/bounded-contexts.md](docs/bounded-contexts.md)
+- **Event envelope** and consumer contract: [docs/event-schema.md](docs/event-schema.md)
+- **Architecture principles**: [docs/architecture-principles.md](docs/architecture-principles.md)
 
-### Step 2: Set Up Database
+All write paths publish events; consumers can run in-process or as a separate deployable (`node workers/event-consumer.js`).
 
-You have two options for the database:
+## Voice Flow
 
-#### Option A: Using Docker (Recommended - Easiest)
+| Mode | Input | Flow | Redis |
+|------|-------|------|-------|
+| **Text** | `transcript` | `POST /api/voice/understand` → Gemini → `{ actions }` | Not required |
+| **Audio** | `audio` + `mimeType` | `POST` → job created in Redis, enqueued → `{ jobId, pollUrl }` → client polls `GET /api/jobs/:jobId` → worker runs Gemini → result in Redis | Required |
 
-1. Make sure Docker Desktop is installed and running
+Voice Live WebSocket is legacy and disabled; voice uses Browser Web Speech API for capture → text → sync endpoint, or audio → async job when Redis is enabled.
 
-2. Start PostgreSQL container:
-```bash
-cd backend
-docker compose up -d postgres
-```
+## Tech Stack
 
-This creates a PostgreSQL container on port 5432 with:
-- Database: `beme_dev`
-- User: `beme`
-- Password: `beme_dev_password`
+| Layer | Technologies |
+|-------|--------------|
+| Frontend | React 18, TypeScript, Vite, Tailwind CSS, Shadcn UI (Radix), Recharts, React Router v6, TanStack Query, React Context, Zod, React Hook Form, @hookform/resolvers |
+| Backend | Node.js (ES modules), Express, PostgreSQL (pg), JWT, bcrypt, CORS, express-rate-limit, Zod, Pino, Helmet |
+| Event bus | BullMQ (Redis), optional SQS ([backend/src/events/bus.js](backend/src/events/bus.js)); Zod event envelope ([backend/src/events/schema.js](backend/src/events/schema.js)) |
+| Gateway | http-proxy-middleware when `MONEY_SERVICE_URL` (or other `*_SERVICE_URL`) is set |
+| Per-context DB | Optional `MONEY_DATABASE_URL`, `SCHEDULE_DATABASE_URL`, etc. ([backend/src/db/pool.js](backend/src/db/pool.js)) |
+| Redis | redis, rate-limit-redis, BullMQ (optional) |
+| Voice | Google Gemini, function calling, relaxed safety, fallback on block |
+| Auth | jsonwebtoken, google-auth-library; optional social (Google, Facebook, Twitter) |
+| Migrations | node-pg-migrate |
 
-3. Verify it's running:
-```bash
-docker ps
-```
+### Redis Roles (when `REDIS_URL` set)
 
-You should see `backend-postgres-1` container with status "healthy".
+- **Rate limiting**: Distributed store via rate-limit-redis
+- **Food search cache**: 1-hour TTL
+- **BullMQ queue**: Async voice job processing
+- **Job results**: Stored in Redis for polling
+- **Event bus**: BullMQ queue `events` for domain events; API publishes; optional **event-consumer** process (`node workers/event-consumer.js`) consumes and runs handlers (e.g. transaction analytics). See Backend README.
 
-#### Option B: Local PostgreSQL Installation
+## Conventions
 
-1. Install PostgreSQL from [postgresql.org/download](https://www.postgresql.org/download/)
+- **Dates**: Local calendar date `YYYY-MM-DD`; `toLocalDateString` / `parseLocalDateString` in [frontend/src/lib/dateRanges.ts](frontend/src/lib/dateRanges.ts)
+- **Week**: Sunday–Saturday
+- **Weight**: kg in workouts and voice
 
-2. Create database:
-```bash
-psql -U postgres
-CREATE DATABASE beme_dev;
-CREATE USER beme WITH PASSWORD 'beme_dev_password';
-GRANT ALL PRIVILEGES ON DATABASE beme_dev TO beme;
-\q
-```
-
-Or use default postgres user:
-```bash
-psql -U postgres
-CREATE DATABASE beme_dev;
-\q
-```
-
-### Step 3: Backend Setup
-
-1. **Navigate to backend directory:**
-```bash
-cd backend
-```
-
-2. **Install dependencies:**
-```bash
-npm install
-```
-
-3. **Create environment file:**
-
-Create `.env` file in `backend/` directory:
-
-**For Docker:**
-```env
-DATABASE_URL="postgresql://beme:beme_dev_password@localhost:5432/beme_dev"
-```
-
-**For local PostgreSQL:**
-```env
-DATABASE_URL="postgresql://postgres:your_password@localhost:5432/beme_dev"
-```
-
-**Complete `.env` file:**
-```env
-# Database URL
-DATABASE_URL="postgresql://beme:beme_dev_password@localhost:5432/beme_dev"
-
-# JWT Secrets (IMPORTANT: Generate secure secrets!)
-# Run these commands to generate:
-# node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
-JWT_SECRET="your-32-character-minimum-secret-key-here"
-JWT_REFRESH_SECRET="your-32-character-minimum-refresh-secret-here"
-
-# Server Configuration
-NODE_ENV="development"
-PORT=3000
-CORS_ORIGIN="http://localhost:5173"
-
-# Token Expiration (optional)
-JWT_EXPIRES_IN="15m"
-JWT_REFRESH_EXPIRES_IN="7d"
-```
-
-**Generate JWT secrets:**
-```bash
-# Generate JWT_SECRET
-node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
-
-# Generate JWT_REFRESH_SECRET  
-node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
-```
-
-Copy the outputs into your `.env` file.
-
-4. **Set up database schema:**
-
-**Option 1: Using db push (Recommended for development):**
-```bash
-npx prisma db push
-npm run db:generate
-```
-
-**Option 2: Using migrations:**
-```bash
-npm run db:migrate
-npm run db:generate
-```
-
-5. **(Optional) Seed database with test data:**
-```bash
-npm run db:seed
-```
-
-This creates a test account:
-- **Email:** `test@example.com`
-- **Password:** `password123`
-
-### Step 4: Frontend Setup
-
-1. **Navigate back to root directory:**
-```bash
-cd ..
-```
-
-2. **Install dependencies:**
-```bash
-npm install
-```
-
-3. **(Optional) Create frontend environment file:**
-
-Create `.env` file in root directory:
-```env
-VITE_API_URL=http://localhost:3000/api
-```
-
-If you skip this, it defaults to `http://localhost:3000/api`.
-
-## ▶️ How to Run
-
-### Development Mode
-
-You need to run **both** the backend and frontend servers in separate terminals.
-
-#### Terminal 1 - Backend Server
-
-```bash
-cd backend
-npm run dev
-```
-
-**Expected output:**
-```
-Server is running on port 3000
-Environment: development
-CORS origin: http://localhost:5173
-```
-
-The backend API will be available at `http://localhost:3000`
-
-#### Terminal 2 - Frontend Server
-
-```bash
-# Make sure you're in the root directory (not backend)
-npm run dev
-```
-
-**Expected output:**
-```
-  VITE v4.x.x  ready in xxx ms
-
-  ➜  Local:   http://localhost:5173/
-  ➜  Network: use --host to expose
-```
-
-The frontend will be available at `http://localhost:5173`
-
-### Access the Application
-
-1. Open your browser
-2. Navigate to: **http://localhost:5173**
-3. You should see the login page
-
-### First Time Login
-
-**Option 1: Use Seeded Test Account** (if you ran `npm run db:seed`)
-- Email: `test@example.com`
-- Password: `password123`
-
-**Option 2: Create New Account**
-1. Click "Sign up" or navigate to `/signup`
-2. Fill in the form:
-   - Name
-   - Email
-   - Password (minimum 8 characters)
-3. Click "Create account"
-4. You'll be automatically logged in and redirected to the dashboard
-
-## 📝 Available Scripts
-
-### Backend Scripts (run from `backend/` directory)
-
-```bash
-npm run dev          # Start development server with hot reload
-npm run build        # Build TypeScript for production
-npm start            # Start production server
-npm run db:migrate   # Create and apply database migrations
-npm run db:generate  # Generate Prisma client
-npm run db:push      # Push schema changes to database (dev)
-npm run db:seed      # Seed database with sample data
-npm run db:studio    # Open Prisma Studio (database GUI)
-npm test             # Run tests
-npm run lint         # Type check TypeScript
-```
-
-### Frontend Scripts (run from root directory)
-
-```bash
-npm run dev          # Start development server
-npm run build        # Build for production
-npm run preview      # Preview production build locally
-npm test             # Run tests
-npm run lint         # Type check TypeScript
-```
-
-## 📡 API Documentation
-
-### Base URL
-- Development: `http://localhost:3000/api`
-- All endpoints require authentication unless specified
-
-### Authentication Endpoints
-
-#### Register User
-```http
-POST /api/auth/signup
-Content-Type: application/json
-
-{
-  "email": "user@example.com",
-  "password": "password123",
-  "name": "John Doe"
-}
-```
-
-**Response:**
-- Sets httpOnly cookie with access token
-- Returns user data and refresh token in body
-
-#### Login
-```http
-POST /api/auth/login
-Content-Type: application/json
-
-{
-  "email": "user@example.com",
-  "password": "password123"
-}
-```
-
-**Response:**
-- Sets httpOnly cookie with access token
-- Returns user data and refresh token in body
-
-#### Logout
-```http
-POST /api/auth/logout
-Content-Type: application/json
-
-{
-  "refreshToken": "your-refresh-token"
-}
-```
-
-#### Refresh Token
-```http
-POST /api/auth/refresh
-Content-Type: application/json
-
-{
-  "refreshToken": "your-refresh-token"
-}
-```
-
-**Response:** Returns new access token (set in httpOnly cookie)
-
-#### Get Current User
-```http
-GET /api/auth/me
-Cookie: accessToken=your-access-token
-```
-
-**Response:** Returns current user data
-
-### Transaction Endpoints
-
-```http
-GET    /api/transactions              # Get all transactions
-GET    /api/transactions/:id          # Get transaction by ID
-POST   /api/transactions              # Create transaction
-PUT    /api/transactions/:id          # Update transaction
-DELETE /api/transactions/:id          # Delete transaction
-GET    /api/transactions/stats        # Get statistics
-```
-
-**Example - Create Transaction:**
-```json
-{
-  "date": "2025-01-17",
-  "type": "expense",
-  "amount": 50.00,
-  "category": "Food",
-  "description": "Groceries",
-  "isRecurring": false
-}
-```
-
-### Workout Endpoints
-
-```http
-GET    /api/workouts          # Get all workouts
-GET    /api/workouts/:id      # Get workout by ID
-POST   /api/workouts          # Create workout
-PUT    /api/workouts/:id      # Update workout
-DELETE /api/workouts/:id      # Delete workout
-```
-
-**Example - Create Workout:**
-```json
-{
-  "date": "2025-01-17",
-  "title": "Morning Run",
-  "type": "cardio",
-  "durationMinutes": 30,
-  "exercises": [
-    {
-      "name": "Running",
-      "sets": 1,
-      "reps": 1
-    }
-  ],
-  "notes": "Great workout!"
-}
-```
-
-### Energy Endpoints
-
-```http
-# Check-ins
-GET    /api/energy/checkins          # Get all check-ins
-GET    /api/energy/checkins/:id      # Get check-in by ID
-POST   /api/energy/checkins          # Create check-in
-PUT    /api/energy/checkins/:id      # Update check-in
-DELETE /api/energy/checkins/:id      # Delete check-in
-
-# Food entries
-GET    /api/energy/food          # Get all food entries
-GET    /api/energy/food/:id      # Get food entry by ID
-POST   /api/energy/food          # Create food entry
-PUT    /api/energy/food/:id      # Update food entry
-DELETE /api/energy/food/:id      # Delete food entry
-```
-
-### Schedule Endpoints
-
-```http
-GET    /api/schedule          # Get all schedule items
-GET    /api/schedule/:id      # Get schedule item by ID
-POST   /api/schedule          # Create schedule item
-PUT    /api/schedule/:id      # Update schedule item
-DELETE /api/schedule/:id      # Delete schedule item
-```
-
-### Goals Endpoints
-
-```http
-GET    /api/goals          # Get all goals
-GET    /api/goals/:id      # Get goal by ID
-POST   /api/goals          # Create goal
-PUT    /api/goals/:id      # Update goal
-DELETE /api/goals/:id      # Delete goal
-```
-
-### Groups Endpoints
-
-```http
-GET    /api/groups                          # Get all groups
-GET    /api/groups/:id                      # Get group by ID
-POST   /api/groups                          # Create group
-PUT    /api/groups/:id                      # Update group
-DELETE /api/groups/:id                      # Delete group
-POST   /api/groups/:id/invite               # Invite member
-PUT    /api/groups/:id/members/:memberId/role  # Update member role
-DELETE /api/groups/:id/members/:memberId    # Remove member
-```
-
-### User Settings Endpoints
-
-```http
-GET    /api/users/settings    # Get user settings
-PUT    /api/users/settings    # Update user settings
-```
-
-### Response Format
-
-**Success Response:**
-```json
-{
-  "success": true,
-  "data": { ... },
-  "message": "Operation successful"
-}
-```
-
-**Error Response:**
-```json
-{
-  "success": false,
-  "error": {
-    "code": "ERROR_CODE",
-    "message": "Human-readable error message",
-    "details": { ... }
-  }
-}
-```
-
-## 🗄️ Database Management
-
-### Using Prisma Studio
-
-View and edit your database with a GUI:
-
-```bash
-cd backend
-npm run db:studio
-```
-
-Opens at `http://localhost:5555`
-
-### Reset Database (⚠️ Deletes All Data)
-
-```bash
-cd backend
-
-# Option 1: Using Prisma
-npx prisma migrate reset
-npm run db:seed  # Re-seed if needed
-
-# Option 2: Using db push
-npx prisma db push --force-reset
-npm run db:seed
-```
-
-### Create New Migration
-
-After changing `prisma/schema.prisma`:
-
-```bash
-cd backend
-npm run db:migrate
-npm run db:generate
-```
-
-Or for development (faster, no migration files):
-```bash
-npx prisma db push
-npm run db:generate
-```
-
-## 🔧 Troubleshooting
-
-### Issue: Docker Desktop Not Running
-
-**Error:** `unable to get image` or `connection refused`
-
-**Solution:**
-1. Open Docker Desktop application
-2. Wait until it shows "Docker Desktop is running" in system tray
-3. Verify: `docker ps` should work without errors
-
-### Issue: Database Connection Error
-
-**Error:** `Can't reach database server` or `Connection refused`
-
-**Solutions:**
-1. **If using Docker:**
-   ```bash
-   cd backend
-   docker compose up -d postgres
-   # Wait 10-20 seconds for database to start
-   ```
-
-2. **If using local PostgreSQL:**
-   - Check PostgreSQL is running (system services)
-   - Verify database exists: `psql -l | grep beme_dev`
-   - Check credentials in `.env` match your PostgreSQL user
-
-3. **Test connection:**
-   ```bash
-   docker exec -it backend-postgres-1 psql -U beme -d beme_dev
-   # Or for local:
-   psql $DATABASE_URL
-   ```
-
-### Issue: Environment Variable Not Found
-
-**Error:** `Environment variable not found: DATABASE_URL`
-
-**Solution:**
-1. Ensure `.env` file exists in `backend/` directory
-2. Verify `.env` file has all required variables
-3. Check for typos in variable names
-4. Make sure `.env` file is in the correct location
-
-### Issue: Prisma Advisory Lock Timeout
-
-**Error:** `Timed out trying to acquire a postgres advisory lock`
-
-**Solutions:**
-1. Restart PostgreSQL container:
-   ```bash
-   docker restart backend-postgres-1
-   ```
-
-2. Use `db push` instead of `migrate`:
-   ```bash
-   npx prisma db push
-   ```
-
-3. Close Prisma Studio if it's open
-4. Check for other Prisma processes running
-
-### Issue: Port Already in Use
-
-**Error:** `EADDRINUSE: address already in use :::3000`
-
-**Solutions:**
-1. **Windows:**
-   ```powershell
-   netstat -ano | findstr :3000
-   taskkill /PID <PID> /F
-   ```
-
-2. **Mac/Linux:**
-   ```bash
-   lsof -ti:3000 | xargs kill
-   ```
-
-3. Or change port in `backend/.env`:
-   ```env
-   PORT=3001
-   ```
-   Update `CORS_ORIGIN` and frontend `.env` if needed
-
-### Issue: JWT Secret Too Short
-
-**Error:** `JWT_SECRET must be at least 32 characters`
-
-**Solution:**
-Generate a longer secret:
-```bash
-node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
-```
-Copy output to `.env` file.
-
-### Issue: Frontend Can't Connect to Backend
-
-**Error:** CORS errors or 401 errors
-
-**Solutions:**
-1. Verify backend is running: Check `http://localhost:3000/health`
-2. Check `CORS_ORIGIN` in `backend/.env` matches frontend URL
-3. Clear browser cache and cookies
-4. Check browser console (F12) for specific errors
-5. Verify `VITE_API_URL` in frontend `.env` (if set)
-
-### Issue: Module Not Found Errors
-
-**Error:** Various "Cannot find module" errors
-
-**Solution:**
-```bash
-# Clean install - root directory
-rm -rf node_modules package-lock.json
-npm install
-
-# Clean install - backend directory
-cd backend
-rm -rf node_modules package-lock.json
-npm install
-```
-
-### Issue: Authentication Not Working
-
-**Symptoms:** Can't login, stuck on login page
-
-**Solutions:**
-1. Check backend logs for errors
-2. Verify JWT secrets are set correctly in `.env`
-3. Clear browser cookies for localhost
-4. Check browser console for errors
-5. Verify refresh token is stored in localStorage (F12 → Application → Local Storage)
-
-## 🏗️ Production Build
-
-### Build Backend
-
-```bash
-cd backend
-npm run build
-npm start
-```
-
-The built files will be in `backend/dist/` directory.
-
-### Build Frontend
-
-```bash
-# From root directory
-npm run build
-```
-
-The built files will be in `dist/` directory.
-
-To preview the production build:
-```bash
-npm run preview
-```
-
-### Production Environment Variables
-
-Make sure to set proper values for production:
-
-**Backend `.env`:**
-```env
-NODE_ENV="production"
-DATABASE_URL="postgresql://user:password@host:5432/beme_prod"
-JWT_SECRET="strong-production-secret-minimum-32-chars"
-JWT_REFRESH_SECRET="strong-production-refresh-secret"
-CORS_ORIGIN="https://your-domain.com"
-```
-
-**Frontend `.env`:**
-```env
-VITE_API_URL=https://api.your-domain.com/api
-```
-
-## 🐳 Docker Deployment
-
-### Start PostgreSQL with Docker
-
-```bash
-cd backend
-docker compose up -d postgres
-```
-
-### Stop Docker Services
-
-```bash
-cd backend
-docker compose down
-```
-
-### View Docker Logs
-
-```bash
-docker logs backend-postgres-1
-```
-
-## 📂 Project Structure
+## Project Structure
 
 ```
 BMe/
-├── backend/                          # Backend API server
+├── backend/
+│   ├── app.js              # Express app, CORS, rate limit, gateway proxy (when *_SERVICE_URL), routes
+│   ├── index.js            # Entry: config, DB, server, voice worker
+│   ├── money-service.js    # Optional standalone Money (transactions) API
+│   ├── schedule-service.js # Optional Schedule API
+│   ├── body-service.js     # Optional Body (workouts) API
+│   ├── energy-service.js   # Optional Energy (food entries, daily check-ins) API
+│   ├── goals-service.js    # Optional Goals API
+│   ├── workers/
+│   │   └── event-consumer.js # Standalone event consumer (no HTTP)
 │   ├── src/
-│   │   ├── config/                  # Configuration files
-│   │   │   ├── env.ts              # Environment validation
-│   │   │   ├── database.ts         # Prisma client
-│   │   │   └── cors.ts             # CORS config
-│   │   ├── controllers/            # Route handlers
-│   │   │   ├── auth.controller.ts
-│   │   │   ├── transactions.controller.ts
-│   │   │   └── ...
-│   │   ├── middleware/             # Express middleware
-│   │   │   ├── auth.middleware.ts
-│   │   │   ├── error.middleware.ts
-│   │   │   ├── validator.middleware.ts
-│   │   │   └── rateLimiter.ts
-│   │   ├── routes/                 # API routes
-│   │   │   ├── auth.routes.ts
-│   │   │   ├── transactions.routes.ts
-│   │   │   └── ...
-│   │   ├── services/               # Business logic
-│   │   │   ├── auth.service.ts
-│   │   │   ├── jwt.service.ts
-│   │   │   └── ...
-│   │   ├── types/                  # TypeScript types
-│   │   ├── utils/                  # Utilities
-│   │   ├── app.ts                  # Express app setup
-│   │   └── server.ts               # Server entry point
-│   ├── prisma/
-│   │   ├── schema.prisma           # Database schema
-│   │   ├── migrations/             # Migration files
-│   │   └── seed.ts                 # Seed script
-│   ├── tests/                      # Test files
-│   ├── .env                        # Environment variables (gitignored)
-│   ├── docker-compose.yml          # Docker configuration
-│   ├── Dockerfile                  # Docker image
-│   └── package.json
-│
-├── src/                             # Frontend React application
-│   ├── components/
-│   │   ├── auth/                   # Authentication components
-│   │   │   └── ProtectedRoute.tsx
-│   │   ├── layout/                 # Layout components
-│   │   ├── ui/                     # UI components (Shadcn)
-│   │   ├── money/                  # Money feature components
-│   │   ├── body/                   # Workout components
-│   │   ├── energy/                 # Energy/wellness components
-│   │   ├── home/                   # Dashboard components
-│   │   ├── groups/                 # Groups components
-│   │   └── shared/                 # Shared components
-│   ├── context/                    # React Context providers
-│   │   ├── AuthContext.tsx         # Authentication context
-│   │   ├── AppContext.tsx          # App context
-│   │   ├── TransactionContext.tsx  # Transactions context
-│   │   └── ...
-│   ├── hooks/                      # Custom React hooks
-│   ├── lib/
-│   │   ├── api/                    # API client
-│   │   │   └── client.ts          # Axios instance
-│   │   └── ...                     # Utilities
-│   ├── pages/                      # Page components
-│   │   ├── Login.tsx
-│   │   ├── Signup.tsx
-│   │   ├── Home.tsx
-│   │   └── ...
-│   ├── types/                      # TypeScript types
-│   ├── App.tsx                     # Main app component
-│   └── main.tsx                    # Entry point
-│
-├── public/                          # Static assets
-├── .env                            # Frontend environment variables
-├── package.json                    # Frontend dependencies
-└── README.md                       # This file
+│   │   ├── config/         # Env, Zod validation
+│   │   ├── db/             # Pool (getPool per context), schema, init
+│   │   ├── events/         # bus.js, schema.js, publish.js, transports/sqs.js, consumers/transactionAnalytics.js
+│   │   ├── redis/          # Redis client (optional)
+│   │   ├── queue/          # BullMQ voice queue
+│   │   ├── workers/        # Voice job worker
+│   │   ├── middleware/     # Auth, error handler, validateBody
+│   │   ├── routes/         # API route mount; conditionally excludes context routes when *_SERVICE_URL set
+│   │   ├── controllers/    # Request handlers
+│   │   ├── services/       # Business logic
+│   │   ├── models/         # Data access
+│   │   └── lib/            # Logger
+│   ├── voice/              # Gemini tool declarations
+│   ├── migrations/         # node-pg-migrate
+│   ├── mcp-server/         # MCP server (see backend/mcp-server/README.md)
+│   └── scripts/            # importFoundationFoods, etc.
+├── frontend/
+│   ├── src/
+│   │   ├── components/     # Layout, shared, ui, feature-specific
+│   │   ├── context/        # Auth, app, notifications, features
+│   │   ├── core/api/       # API client, auth, feature APIs
+│   │   ├── features/       # money, body, energy, goals, schedule, groups
+│   │   ├── hooks/          # useTransactions, useWorkouts, etc.
+│   │   ├── lib/            # voiceApi, dateRanges, queryClient, storage
+│   │   ├── pages/          # Home, Money, Body, Energy, etc.
+│   │   ├── schemas/        # Zod (transaction, workout, foodEntry, voice)
+│   │   └── routes.tsx      # React Router, protected routes
+│   └── vite.config.ts
+├── docker-compose.yml
+├── README.md
+├── CHANGELOG.md
+└── backend/README.md, frontend/README.md
 ```
 
-## 🔐 Security Features
+## Deployment Modes
 
-- **Password Hashing:** bcrypt with 12 salt rounds
-- **JWT Authentication:** Access tokens (15 min) and refresh tokens (7 days)
-- **httpOnly Cookies:** Prevents XSS attacks
-- **Rate Limiting:** Protects against brute force attacks
-- **CORS Configuration:** Controlled cross-origin requests
-- **Helmet:** Security headers protection
-- **Input Validation:** Zod schema validation on all inputs
-- **SQL Injection Prevention:** Prisma ORM parameterized queries
+- **Mode A — Single process (default):** One backend process (`node index.js`). All routes local; events in-memory or Redis (no separate consumer if Redis not set).
+- **Mode B — API + event consumer:** Two processes: `node index.js` (API, publishes to Redis) and `node workers/event-consumer.js` (consumes from Redis, e.g. transaction analytics). Requires `REDIS_URL`.
+- **Mode C — Gateway + extracted services:** Set `MONEY_SERVICE_URL`, etc.; run money-service.js (and others) as separate services; main app proxies `/api/transactions`, `/api/money/*`, etc. to those URLs. Client still uses a single `VITE_API_URL` (the gateway).
 
-## 📊 Database Schema
+## Branches and tags
 
-The application uses PostgreSQL with the following main tables:
+We use a single integration branch and movable tags for environment promotion. CI runs on `main`; tags indicate which commit each environment runs (see [docs/WORKFLOW.md](docs/WORKFLOW.md) for the full flow and diagram).
 
-- `users` - User accounts and authentication
-- `refresh_tokens` - Refresh token storage
-- `transactions` - Financial transactions
-- `workouts` - Workout logs
-- `energy_checkins` - Daily wellness check-ins
-- `food_entries` - Food/nutrition entries
-- `schedule_items` - Daily schedule items
-- `goals` - User goals
-- `groups` - Collaborative groups
-- `group_members` - Group membership
-- `group_invitations` - Group invitations
-- `user_settings` - User preferences
+| Branch | Purpose |
+|--------|--------|
+| **main** | Single long-lived branch. All merges go here. CI runs here. Source for tags. |
+| **feature/\*** (optional) | Short-lived branches for work; merge into `main` via PR. |
 
-See `backend/prisma/schema.prisma` for complete schema definition.
+| Tag | Points to | Use |
+|-----|-----------|-----|
+| **dev** | Latest `main` (or chosen commit) | Dev / preview deploy |
+| **stage** | Candidate for production | Staging deploy |
+| **production** or **v1.2.3** | Released version | Production deploy |
 
-## ✅ Verification Checklist
+**Minimal dev sequence:** Commit on `main` (or merge a feature into `main`) → push → CI runs → move `dev` tag to that commit (`git tag -f dev && git push -f origin dev`) so the dev environment runs it. Promote to stage/production by moving those tags when ready.
 
-After setup, verify everything works:
+## Quick Start
 
-- [ ] Docker/PostgreSQL is running
-- [ ] Backend `.env` file is configured correctly
-- [ ] Database schema is created (`npm run db:push` or `db:migrate`)
-- [ ] Prisma client is generated (`npm run db:generate`)
-- [ ] Backend server starts without errors
-- [ ] Frontend server starts without errors
-- [ ] Can access frontend at http://localhost:5173
-- [ ] Can create a new account
-- [ ] Can login with credentials
-- [ ] Can access protected routes (dashboard, etc.)
-- [ ] API calls work (check browser Network tab)
+### Prerequisites
 
-## 🧪 Testing
+- Node.js 18+
+- PostgreSQL (or Supabase) for data, auth, food search, voice
 
-### Backend Tests
+### Frontend only
+
+```bash
+git clone <repo-url>
+cd BMe
+npm install
+cd frontend && npm install
+npm run dev
+```
+
+Open **http://localhost:5173**. Without a backend, the app redirects to login.
+
+### Backend
 
 ```bash
 cd backend
-npm test
-npm run test:watch
-npm run test:coverage
+npm install
+cp .env.example .env   # then edit .env
+npm start
 ```
 
-### Frontend Tests
+If `.env.example` is missing, see [backend/README.md](backend/README.md) Configuration for required variables.
+
+From root: `npm run start:backend` or `npm run dev:backend` (watch mode).
+
+Required in `backend/.env`: `DATABASE_URL`, `JWT_SECRET`. For voice: `GEMINI_API_KEY`. Optional: `REDIS_URL` (required for audio voice and event bus). For event consumer (Mode B): run `npm run start:consumer` from `backend/` when using Redis.
+
+Set `VITE_API_URL=http://localhost:3000` in `frontend/.env.development` so the frontend calls the API.
+
+## Environment Variables
+
+### Backend (`backend/.env`)
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `DATABASE_URL` | For data/auth/voice/food | PostgreSQL connection string |
+| `JWT_SECRET` | Yes in production | Secret for signing JWTs |
+| `GEMINI_API_KEY` | For voice | Google Gemini API key |
+| `GEMINI_MODEL` | No | Model name (default: `gemini-2.5-flash`) |
+| `PORT` | No | Server port (default: 3000) |
+| `CORS_ORIGIN` | No | Allowed origin (default from FRONTEND_ORIGIN) |
+| `FRONTEND_ORIGIN` | No | Frontend origin (default: `http://localhost:5173`) |
+| `REDIS_URL` | For audio voice / rate limit / cache / event bus | Redis URL. When unset: in-memory rate limit, no cache, transcript-only voice |
+| `EVENT_TRANSPORT` | No | `redis` \| `sqs`; default `redis` |
+| `EVENT_QUEUE_URL` | When `EVENT_TRANSPORT=sqs` | SQS queue URL |
+| `AWS_REGION` | When using SQS | AWS region |
+| `MONEY_DATABASE_URL`, `SCHEDULE_DATABASE_URL`, `BODY_DATABASE_URL`, `ENERGY_DATABASE_URL`, `GOALS_DATABASE_URL` | No | Per-context DB; fallback `DATABASE_URL` |
+| `MONEY_SERVICE_URL`, `SCHEDULE_SERVICE_URL`, `BODY_SERVICE_URL`, `ENERGY_SERVICE_URL`, `GOALS_SERVICE_URL` | No | When set, main app proxies those paths to the given URL |
+| `GOOGLE_CLIENT_ID` | For Google login | OAuth client ID |
+| `FACEBOOK_APP_ID` | For Facebook login | Facebook app ID |
+| `TWITTER_CLIENT_ID`, `TWITTER_CLIENT_SECRET`, `TWITTER_REDIRECT_URI` | For Twitter login | Twitter OAuth |
+
+### Frontend (`frontend/.env.development`)
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `VITE_API_URL` | For backend | Backend URL (e.g. `http://localhost:3000`) |
+| `VITE_GOOGLE_CLIENT_ID` | For Google login | Same as backend `GOOGLE_CLIENT_ID` |
+
+## Docker
+
+**Backend only**
 
 ```bash
-npm test
-npm run test:ui
-npm run test:coverage
+docker build -t beme-backend ./backend
+docker run -p 3000:3000 --env-file backend/.env beme-backend
 ```
 
-## 📚 Additional Resources
+**Frontend only** (API URL at build time)
 
-- [Backend API Documentation](backend/README.md)
-- [Prisma Documentation](https://www.prisma.io/docs)
-- [Express.js Documentation](https://expressjs.com/)
-- [React Documentation](https://react.dev/)
-- [Vite Documentation](https://vitejs.dev/)
+```bash
+docker build -t beme-frontend --build-arg VITE_API_URL=http://localhost:3000 ./frontend
+docker run -p 5173:3000 beme-frontend
+```
 
-## 🆘 Getting Help
+**Docker Compose** (backend, frontend, Redis)
 
-If you encounter issues:
+```bash
+docker compose up --build
+```
 
-1. Check error messages in the terminal
-2. Check browser console (F12) for frontend errors
-3. Verify all prerequisites are installed
-4. Ensure database is running and accessible
-5. Verify `.env` files are configured correctly
-6. Review the troubleshooting section above
-7. Check if ports 3000 and 5173 are available
-8. Verify Docker Desktop is running (if using Docker)
+- Frontend: http://localhost:5173
+- Backend: http://localhost:3000
 
-## 🎯 Next Steps
+Compose sets `REDIS_URL=redis://redis:6379`, `CORS_ORIGIN=http://localhost:5173`. Create `backend/.env` with `DATABASE_URL` and `JWT_SECRET`.
 
-Once everything is running:
+## Deployment (Railway)
 
-1. ✅ Explore the application features
-2. ✅ Check out the API endpoints using Postman or browser dev tools
-3. ✅ Review the code structure
-4. ✅ Customize for your needs
-5. ✅ Deploy to production
+- **Backend**: Set `DATABASE_URL`, `JWT_SECRET`, `CORS_ORIGIN` (frontend origin, e.g. `https://your-frontend.up.railway.app`), `GEMINI_API_KEY`. For Redis, use variable reference: `REDIS_URL=${{Redis.REDIS_URL}}` (Redis service in same project)
+- **Frontend**: Build with `VITE_API_URL` = backend URL. Set build arg at deploy
+- **Health**: `GET /health` (200); `GET /ready` (200 if DB and Redis reachable)
 
-## 📄 License
+## Data Flow
 
-MIT
+- User logs in → backend returns JWT → frontend stores in localStorage, sends `Authorization: Bearer <token>` on every request
+- Backend validates JWT, attaches `req.user`; domain APIs scoped by user ID
+- **Server state**: TanStack Query (useQuery/useMutation); React Hook Form + Zod for forms; voice responses parsed with Zod
+- **Food search** (`GET /api/food/search`) is public. **Voice** requires auth
 
-## 🤝 Contributing
+## Food Data Import
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+USDA Foundation Foods for food search and voice "add food":
 
----
+1. Place Foundation Foods JSON in project root (or path expected by script)
+2. Set `DATABASE_URL` in `backend/.env`
+3. `cd backend && npm run import:foods`
 
-**Happy coding! 🎉**
+Optional: `npm run remove:non-foundation-foods` to prune foods not in JSON
 
-For detailed backend API documentation, see [backend/README.md](backend/README.md).
+## MCP Server
+
+Optional stdio server exposing schedule, transactions, goals as tools. See [backend/mcp-server/README.md](backend/mcp-server/README.md). Configure `BEME_MCP_SECRET` and `BEME_MCP_USER_ID` for authenticated access.
+
+## Root Scripts
+
+| Script | Description |
+|--------|-------------|
+| `npm run dev` | Start frontend dev server |
+| `npm run build` | Build frontend |
+| `npm run preview` | Serve frontend build |
+| `npm run lint` | Frontend TypeScript check |
+| `npm run lint:backend` | Backend syntax check |
+| `npm run test` | Frontend tests |
+| `npm run test:backend` | Backend tests |
+| `npm run test:all` | Backend + frontend tests |
+| `npm run start:backend` | Start backend |
+| `npm run dev:backend` | Backend with watch mode |
+
+From `backend/`: `npm run start:consumer`, `npm run start:money`, `npm run start:schedule`, `npm run start:body`, `npm run start:energy`, `npm run start:goals` (optional entrypoints for event consumer and extracted services).
+
+## Building for Production
+
+- **Frontend**: `npm run build` → `frontend/dist`. Serve with static host or `server.cjs`
+- **Backend**: `NODE_ENV=production`, `JWT_SECRET`, `DATABASE_URL`; `npm run start:backend`
+
+## Documentation
+
+- [docs/README.md](docs/README.md) — Documentation index
+- [docs/RUNNING.md](docs/RUNNING.md) — Running locally, on Railway, or on AWS
+- [docs/WORKFLOW.md](docs/WORKFLOW.md) — Branches, tags, and dev workflow
+- [docs/bounded-contexts.md](docs/bounded-contexts.md) — Bounded contexts and event types
+- [docs/event-schema.md](docs/event-schema.md) — Event envelope and consumer contract
+- [docs/architecture-principles.md](docs/architecture-principles.md) — Event-driven and cross-context rules
+- [docs/architecture-current-railway-supabase.md](docs/architecture-current-railway-supabase.md) — Current architecture (Railway + Supabase)
+- [docs/architecture-target-aws.md](docs/architecture-target-aws.md) — Target architecture (AWS)
+- [docs/scale-harden-aws.md](docs/scale-harden-aws.md) — Short-term and AWS scale/harden plans
+
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for release history.
+
+## License
+
+MIT. See [LICENSE](LICENSE) for details.
+
+## Security
+
+To report a security vulnerability, see [SECURITY.md](SECURITY.md).
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) and [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md). Contributions welcome.
