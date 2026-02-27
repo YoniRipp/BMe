@@ -67,7 +67,7 @@ jobs:
       - name: Validate manifest
         run: |
           node -e "
-            const manifest = require('./dist/manifest.webmanifest');
+            const manifest = JSON.parse(require('fs').readFileSync('./dist/manifest.webmanifest', 'utf8'));
             const required = ['name', 'short_name', 'icons', 'start_url', 'display'];
             const missing = required.filter(k => !manifest[k]);
             if (missing.length) {
