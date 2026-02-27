@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import { useCallback } from 'react';
 import { Mic, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useSchedule } from '@/hooks/useSchedule';
@@ -6,19 +6,10 @@ import { useTransactions } from '@/hooks/useTransactions';
 import { useEnergy } from '@/hooks/useEnergy';
 import { useWorkouts } from '@/hooks/useWorkouts';
 import { useGoals } from '@/hooks/useGoals';
-import { understandTranscript } from '@/lib/voiceApi';
+import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
 import { executeVoiceAction, type VoiceExecutorContext } from '@/lib/voiceActionExecutor';
 import { toast } from '@/components/shared/ToastProvider';
 import { cn } from '@/lib/utils';
-
-function getSpeechRecognition(): typeof window.SpeechRecognition | null {
-  if (typeof window === 'undefined') return null;
-  return (window as Window & { SpeechRecognition?: typeof window.SpeechRecognition }).SpeechRecognition
-    ?? (window as Window & { webkitSpeechRecognition?: typeof window.SpeechRecognition }).webkitSpeechRecognition
-    ?? null;
-}
-
-type State = 'idle' | 'listening' | 'processing';
 
 interface VoiceAgentButtonProps {
   /** When provided, the button only toggles the voice panel (one tap open, one tap close). */
@@ -33,13 +24,16 @@ export function VoiceAgentButton({ panelOpen, onTogglePanel }: VoiceAgentButtonP
   const { workouts, addWorkout, updateWorkout, deleteWorkout } = useWorkouts();
   const { goals, addGoal, updateGoal, deleteGoal } = useGoals();
 
-  const [state, setState] = useState<State>('idle');
-  const [transcript, setTranscript] = useState('');
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
-  const committedRef = useRef('');
-
-  const SpeechRecognitionClass = getSpeechRecognition();
-  const lang = 'he-IL';
+  const {
+    isAvailable,
+    isListening,
+    isProcessing,
+    startListening,
+    stopListening,
+    getVoiceResult,
+  } = useSpeechRecognition({
+    language: 'he-IL',
+  });
 
   const voiceContext = {
     scheduleItems,
@@ -69,83 +63,22 @@ export function VoiceAgentButton({ panelOpen, onTogglePanel }: VoiceAgentButtonP
     deleteGoal,
   } as VoiceExecutorContext;
 
-  const stopListening = useCallback(() => {
-    const rec = recognitionRef.current;
-    if (rec) {
-      try {
-        rec.stop();
-      } catch {
-        // already stopped
-      }
-      recognitionRef.current = null;
-    }
-  }, []);
-
-  const startListening = useCallback(() => {
-    if (!SpeechRecognitionClass) {
-      toast.error('Voice not supported', { description: 'Please use Chrome or Edge.' });
-      return;
-    }
-    setState('listening');
-    setTranscript('');
-    committedRef.current = '';
-    const rec = new SpeechRecognitionClass();
-    rec.continuous = true;
-    rec.interimResults = true;
-    rec.lang = lang;
-    rec.onresult = (event: SpeechRecognitionEvent) => {
-      let interim = '';
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        const result = event.results[i];
-        const text = result[0].transcript;
-        if (result.isFinal) {
-          committedRef.current += text;
-        } else {
-          interim += text;
-        }
-      }
-      setTranscript(committedRef.current + interim);
-    };
-    rec.onerror = (event: SpeechRecognitionErrorEvent) => {
-      if (event.error === 'no-speech') {
-        toast.error('No speech detected. Try again.');
-      } else if (event.error === 'not-allowed') {
-        toast.error('Microphone access denied. Please allow and try again.');
-      } else {
-        toast.error(`Error: ${event.error}`);
-      }
-      recognitionRef.current = null;
-      setState('idle');
-    };
-    rec.onend = () => {
-      recognitionRef.current = null;
-      setState((s) => (s === 'listening' ? 'idle' : s));
-    };
-    try {
-      rec.start();
-      recognitionRef.current = rec;
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Failed to start listening');
-      setState('idle');
-    }
-  }, [SpeechRecognitionClass]);
-
-  const handleClick = async () => {
+  const handleClick = useCallback(async () => {
     if (onTogglePanel != null) {
       onTogglePanel();
       return;
     }
-    if (state === 'listening') {
-      const text = transcript.trim();
-      if (!text) {
-        toast.error('No speech captured. Try again.');
-        stopListening();
-        return;
-      }
-      setState('processing');
-      stopListening();
+
+    if (isListening) {
       try {
-        const result = await understandTranscript(text, lang);
+        await stopListening();
+        const result = await getVoiceResult();
+
+        if (!result || result.actions.length === 0 || result.actions[0].intent === 'unknown') {
+          toast.error('No speech captured or not understood. Try again.');
+          return;
+        }
+
         const succeeded: string[] = [];
         const failed: { action: string; reason: string }[] = [];
 
@@ -173,18 +106,24 @@ export function VoiceAgentButton({ panelOpen, onTogglePanel }: VoiceAgentButtonP
       } catch (e) {
         const msg = e instanceof Error ? e.message : 'Network or server error';
         toast.error('Voice request failed', { description: msg });
-      } finally {
-        setState('idle');
-        setTranscript('');
-        committedRef.current = '';
       }
       return;
     }
-    if (state === 'idle') {
-      startListening();
-    }
-  };
 
+    if (!isAvailable) {
+      toast.error('Voice not supported', { description: 'Microphone access required.' });
+      return;
+    }
+
+    try {
+      await startListening();
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Failed to start listening';
+      toast.error('Voice error', { description: msg });
+    }
+  }, [onTogglePanel, isListening, isAvailable, startListening, stopListening, getVoiceResult, voiceContext]);
+
+  const state = isListening ? 'listening' : isProcessing ? 'processing' : 'idle';
   const isActive = onTogglePanel != null ? panelOpen : state === 'listening' || state === 'processing';
 
   return (

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -12,7 +12,7 @@ import { useTransactions } from '@/hooks/useTransactions';
 import { useEnergy } from '@/hooks/useEnergy';
 import { useWorkouts } from '@/hooks/useWorkouts';
 import { useGoals } from '@/hooks/useGoals';
-import { submitVoiceAudio, pollForVoiceResult, blobToBase64 } from '@/lib/voiceApi';
+import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
 import { executeVoiceAction, type VoiceExecutorContext } from '@/lib/voiceActionExecutor';
 import { toast } from '@/components/shared/ToastProvider';
 import { LocalErrorBoundary } from '@/components/shared/LocalErrorBoundary';
@@ -22,10 +22,6 @@ interface VoiceAgentPanelProps {
   onOpenChange: (open: boolean) => void;
 }
 
-function isMediaRecorderSupported(): boolean {
-  return typeof window !== 'undefined' && !!window.MediaRecorder;
-}
-
 export function VoiceAgentPanel({ open, onOpenChange }: VoiceAgentPanelProps) {
   const { scheduleItems, addScheduleItems, updateScheduleItem, deleteScheduleItem, getScheduleItemById } = useSchedule();
   const { transactions, addTransaction, updateTransaction, deleteTransaction } = useTransactions();
@@ -33,14 +29,22 @@ export function VoiceAgentPanel({ open, onOpenChange }: VoiceAgentPanelProps) {
   const { workouts, addWorkout, updateWorkout, deleteWorkout } = useWorkouts();
   const { goals, addGoal, updateGoal, deleteGoal } = useGoals();
 
-  const [isRecording, setIsRecording] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const audioChunksRef = useRef<Blob[]>([]);
-  const streamRef = useRef<MediaStream | null>(null);
+  const [transcript, setTranscript] = useState('');
 
-  const isSupported = isMediaRecorderSupported();
+  const {
+    isNative,
+    isAvailable,
+    isListening,
+    isProcessing,
+    currentTranscript,
+    startListening,
+    stopListening,
+    getVoiceResult,
+  } = useSpeechRecognition({
+    language: 'he-IL',
+    onPartialResult: setTranscript,
+  });
 
   const voiceContext = {
     scheduleItems,
@@ -70,25 +74,36 @@ export function VoiceAgentPanel({ open, onOpenChange }: VoiceAgentPanelProps) {
     deleteGoal,
   } as VoiceExecutorContext;
 
-  const processRecording = useCallback(async () => {
-    const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-    if (blob.size === 0) {
-      setError('No audio recorded');
-      return;
-    }
-
-    const base64 = await blobToBase64(blob);
-    setIsProcessing(true);
+  const handleStartRecording = useCallback(async () => {
     setError(null);
-
+    setTranscript('');
     try {
-      const { jobId } = await submitVoiceAudio(base64, 'audio/webm');
-      const result = await pollForVoiceResult(jobId);
+      await startListening();
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Failed to start recording';
+      setError(msg);
+      toast.error('Microphone', { description: msg });
+    }
+  }, [startListening]);
+
+  const handleStopRecording = useCallback(async () => {
+    try {
+      await stopListening();
+      const result = await getVoiceResult();
+
+      if (!result || result.actions.length === 0) {
+        setError('No audio recorded or not understood');
+        return;
+      }
 
       const succeeded: string[] = [];
       const failed: string[] = [];
 
       for (const action of result.actions) {
+        if (action.intent === 'unknown') {
+          failed.push('Not understood');
+          continue;
+        }
         try {
           const r = await executeVoiceAction(action, voiceContext);
           if (r.success) succeeded.push(r.message ?? action.intent);
@@ -111,58 +126,17 @@ export function VoiceAgentPanel({ open, onOpenChange }: VoiceAgentPanelProps) {
       const msg = e instanceof Error ? e.message : 'Network or server error';
       setError(msg);
       toast.error('Voice request failed', { description: msg });
-    } finally {
-      setIsProcessing(false);
     }
-  }, [voiceContext]);
+  }, [stopListening, getVoiceResult, voiceContext]);
 
-  const stopRecording = useCallback(() => {
-    const recorder = mediaRecorderRef.current;
-    if (recorder && recorder.state !== 'inactive') {
-      recorder.stop();
-    }
-    mediaRecorderRef.current = null;
-    setIsRecording(false);
-  }, []);
-
-  const startRecording = useCallback(async () => {
-    setError(null);
-    audioChunksRef.current = [];
-
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      streamRef.current = stream;
-
-      const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
-        ? 'audio/webm;codecs=opus'
-        : 'audio/webm';
-      const recorder = new MediaRecorder(stream, { mimeType });
-
-      recorder.ondataavailable = (e: BlobEvent) => {
-        if (e.data.size > 0) audioChunksRef.current.push(e.data);
-      };
-
-      recorder.onstop = () => {
-        stream.getTracks().forEach((t) => t.stop());
-        streamRef.current = null;
-        void processRecording();
-      };
-
-      mediaRecorderRef.current = recorder;
-      recorder.start();
-      setIsRecording(true);
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Failed to access microphone';
-      setError(msg);
-      toast.error('Microphone', { description: msg });
-    }
-  }, [processRecording]);
-
+  // Stop recording when dialog closes
   useEffect(() => {
-    if (!open) stopRecording();
-  }, [open, stopRecording]);
+    if (!open && isListening) {
+      stopListening().catch(() => {});
+    }
+  }, [open, isListening, stopListening]);
 
-  useEffect(() => () => stopRecording(), [stopRecording]);
+  const displayTranscript = currentTranscript || transcript;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -174,39 +148,51 @@ export function VoiceAgentPanel({ open, onOpenChange }: VoiceAgentPanelProps) {
           <DialogTitle>מרח / Voice Agent</DialogTitle>
         </DialogHeader>
         <LocalErrorBoundary label="Voice">
-        {!isSupported ? (
-          <div className="py-4 text-sm text-muted-foreground">
-            Voice is not supported in this browser. Please use Chrome or Edge.
-          </div>
-        ) : (
-          <div className="space-y-4 py-2">
-            <div className="flex gap-2">
-              {!isRecording && !isProcessing ? (
-                <Button type="button" onClick={startRecording} className="flex-1">
-                  <Mic className="mr-2 h-4 w-4" />
-                  Start recording / התחל הקלטה
-                </Button>
-              ) : isRecording ? (
-                <Button type="button" variant="destructive" onClick={stopRecording} className="flex-1">
-                  <Square className="mr-2 h-4 w-4" />
-                  Stop / עצור
-                </Button>
-              ) : (
-                <Button type="button" disabled className="flex-1">
-                  Processing...
-                </Button>
+          {!isAvailable ? (
+            <div className="py-4 text-sm text-muted-foreground">
+              Voice is not supported in this browser. Microphone access required.
+            </div>
+          ) : (
+            <div className="space-y-4 py-2">
+              {isNative && (
+                <p className="text-xs text-muted-foreground">
+                  Using native speech recognition
+                </p>
+              )}
+
+              <div className="flex gap-2">
+                {!isListening && !isProcessing ? (
+                  <Button type="button" onClick={handleStartRecording} className="flex-1">
+                    <Mic className="mr-2 h-4 w-4" />
+                    Start recording / התחל הקלטה
+                  </Button>
+                ) : isListening ? (
+                  <Button type="button" variant="destructive" onClick={handleStopRecording} className="flex-1">
+                    <Square className="mr-2 h-4 w-4" />
+                    Stop / עצור
+                  </Button>
+                ) : (
+                  <Button type="button" disabled className="flex-1">
+                    Processing...
+                  </Button>
+                )}
+              </div>
+
+              {displayTranscript && isListening && (
+                <p className="text-sm text-muted-foreground italic" role="status" aria-live="polite">
+                  "{displayTranscript}"
+                </p>
+              )}
+
+              {error && <p className="text-sm text-destructive">{error}</p>}
+
+              {isProcessing && (
+                <p className="text-sm text-muted-foreground" role="status" aria-live="polite">
+                  Processing voice...
+                </p>
               )}
             </div>
-
-            {error && <p className="text-sm text-destructive">{error}</p>}
-
-            {isProcessing && (
-              <p className="text-sm text-muted-foreground" role="status" aria-live="polite">
-                Processing voice...
-              </p>
-            )}
-          </div>
-        )}
+          )}
         </LocalErrorBoundary>
       </DialogContent>
     </Dialog>
