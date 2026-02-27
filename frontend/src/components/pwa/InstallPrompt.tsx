@@ -1,0 +1,61 @@
+import { X, Download, Share } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { useInstallPrompt } from '@/hooks/useInstallPrompt';
+import { FEATURE_FLAGS } from '@/lib/featureFlags';
+
+export function InstallPrompt() {
+  const { isInstallable, isIOS, promptInstall, dismiss } = useInstallPrompt();
+
+  if (!FEATURE_FLAGS.PWA_ENABLED || !isInstallable) {
+    return null;
+  }
+
+  const handleInstall = async () => {
+    const accepted = await promptInstall();
+    if (!accepted) {
+      dismiss();
+    }
+  };
+
+  return (
+    <Card className="fixed bottom-20 left-4 right-4 z-50 p-4 shadow-lg md:left-auto md:right-4 md:w-80 md:bottom-4 bg-background border animate-in slide-in-from-bottom-4">
+      <button
+        onClick={dismiss}
+        className="absolute right-2 top-2 p-1 rounded-full hover:bg-muted transition-colors"
+        aria-label="Dismiss"
+      >
+        <X className="h-4 w-4 text-muted-foreground" />
+      </button>
+
+      <div className="flex items-start gap-3 pr-6">
+        <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+          <img src="/logo.png" alt="BMe" className="w-6 h-6" />
+        </div>
+
+        <div className="flex-1 min-w-0">
+          <h3 className="font-semibold text-sm">Install BMe App</h3>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            {isIOS
+              ? 'Tap Share then "Add to Home Screen"'
+              : 'Install for quick access and offline use'}
+          </p>
+        </div>
+      </div>
+
+      {!isIOS && (
+        <Button onClick={handleInstall} size="sm" className="w-full mt-3">
+          <Download className="h-4 w-4 mr-2" />
+          Install
+        </Button>
+      )}
+
+      {isIOS && (
+        <div className="mt-3 flex items-center justify-center gap-2 text-xs text-muted-foreground">
+          <Share className="h-4 w-4" />
+          <span>Tap Share → Add to Home Screen</span>
+        </div>
+      )}
+    </Card>
+  );
+}
