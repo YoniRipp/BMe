@@ -255,11 +255,7 @@ function buildAddSchedule(args, ctx) {
   const todayStr = ctx?.todayStr ?? new Date().toISOString().slice(0, 10);
   const dateStr = parseDate(args.date, todayStr);
   const tz = ctx?.timezone;
-  // #region agent log
-  fetch('http://127.0.0.1:7246/ingest/e2e403c5-3c70-4f1e-adfb-38e8c147c460', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'voice.js:buildAddSchedule:entry', message: 'buildAddSchedule', data: { todayStr, dateStr, tz: tz ?? null }, timestamp: Date.now(), hypothesisId: 'H1' }) }).catch(() => {});
-  // #endregion
   let items = Array.isArray(args.items) ? args.items : [];
-  let firstItemLogged = false;
   items = items
     .filter((it) => it && typeof it.title === 'string' && it.title.trim())
     .map((it) => {
@@ -269,12 +265,6 @@ function buildAddSchedule(args, ctx) {
       if (tz) {
         const startUtc = localToUtcDateAndTime(itemDate, startTime, tz);
         const endUtc = localToUtcDateAndTime(itemDate, endTime, tz);
-        if (!firstItemLogged) {
-          firstItemLogged = true;
-          // #region agent log
-          fetch('http://127.0.0.1:7246/ingest/e2e403c5-3c70-4f1e-adfb-38e8c147c460', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'voice.js:buildAddSchedule:firstItem', message: 'local to UTC', data: { itemDate, startTime, endTime, tz, startUtc, endUtc }, timestamp: Date.now(), hypothesisId: 'H3' }) }).catch(() => {});
-          // #endregion
-        }
         if (startUtc && endUtc) {
           return {
             title: String(it.title).trim(),
@@ -303,9 +293,6 @@ async function buildAddFood(args, ctx) {
   const amount = Number(args.amount);
   const numAmount = Number.isFinite(amount) && amount > 0 ? amount : 100;
   const unit = args.unit ? String(args.unit).trim().toLowerCase() : 'g';
-  // #region agent log
-  fetch('http://127.0.0.1:7246/ingest/e2e403c5-3c70-4f1e-adfb-38e8c147c460', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'voice.js:buildAddFood:entry', message: 'buildAddFood args', data: { food, rawAmount: args.amount, numAmount, unit }, timestamp: Date.now(), hypothesisId: 'H1' }) }).catch(() => {});
-  // #endregion
   const action = {
     food,
     amount: numAmount,
@@ -339,9 +326,6 @@ async function buildAddFood(args, ctx) {
           source = 'gemini';
         }
       }
-      // #region agent log
-      fetch('http://127.0.0.1:7246/ingest/e2e403c5-3c70-4f1e-adfb-38e8c147c460', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'voice.js:buildAddFood:afterLookup', message: 'nutrition source', data: { source, hasNutrition: !!nutrition }, timestamp: Date.now(), hypothesisId: 'H1' }) }).catch(() => {});
-      // #endregion
       if (nutrition) {
         action.name = nutrition.name;
         action.calories = nutrition.calories;
@@ -370,9 +354,6 @@ async function buildAddFood(args, ctx) {
     action.carbs = 0;
     action.fats = 0;
   }
-  // #region agent log
-  fetch('http://127.0.0.1:7246/ingest/e2e403c5-3c70-4f1e-adfb-38e8c147c460', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'voice.js:buildAddFood:return', message: 'add_food action out', data: { name: action.name, calories: action.calories, portionAmount: action.portionAmount, portionUnit: action.portionUnit }, timestamp: Date.now(), hypothesisId: 'H2' }) }).catch(() => {});
-  // #endregion
   return action;
 }
 
@@ -487,9 +468,6 @@ export async function parseTranscript(text, lang = 'auto', userId = null, option
   }
   const todayStr = options.today && /^\d{4}-\d{2}-\d{2}$/.test(options.today) ? options.today : new Date().toISOString().slice(0, 10);
   const ctx = { todayStr, timezone: options.timezone || undefined };
-  // #region agent log
-  fetch('http://127.0.0.1:7246/ingest/e2e403c5-3c70-4f1e-adfb-38e8c147c460', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'voice.js:parseTranscript:ctx', message: 'ctx for voice', data: { todayStr, timezone: ctx.timezone }, timestamp: Date.now(), hypothesisId: 'H3' }) }).catch(() => {});
-  // #endregion
   const genAI = new GoogleGenerativeAI(config.geminiApiKey);
   const safetySettings = [
     { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },

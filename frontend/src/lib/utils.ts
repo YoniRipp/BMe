@@ -59,9 +59,6 @@ export function utcScheduleTimeToLocal(dateStr: string, timeStr: string, timeZon
     hour12: true,
   });
   const result = formatter.format(utc);
-  // #region agent log
-  fetch('http://127.0.0.1:7246/ingest/e2e403c5-3c70-4f1e-adfb-38e8c147c460', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'utils.ts:utcScheduleTimeToLocal', message: 'UTC to local display', data: { dateStr, timeStr, timeZone: tz, result }, timestamp: Date.now(), hypothesisId: 'H2' }) }).catch(() => {});
-  // #endregion
   return result;
 }
 

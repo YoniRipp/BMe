@@ -27,6 +27,12 @@ const AuthCallback = lazy(() =>
 const InviteJoin = lazy(() =>
   import('./pages/InviteJoin').then((m) => ({ default: m.InviteJoin }))
 );
+const ForgotPassword = lazy(() =>
+  import('./pages/ForgotPassword').then((m) => ({ default: m.ForgotPassword }))
+);
+const NotFound = lazy(() =>
+  import('./pages/NotFound').then((m) => ({ default: m.NotFound }))
+);
 
 function ProtectedRoutes() {
   const { user, authLoading } = useAuth();
@@ -52,10 +58,7 @@ function ProtectedRoutes() {
 
 function AdminRouteGuard({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
-  // #region agent log
   const isAdmin = user?.role === 'admin';
-  fetch('http://127.0.0.1:7246/ingest/e2e403c5-3c70-4f1e-adfb-38e8c147c460', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'routes.tsx:AdminRouteGuard', message: 'guard check', data: { userRole: user?.role, isAdmin, willRedirect: !isAdmin }, timestamp: Date.now(), hypothesisId: 'H1' }) }).catch(() => {});
-  // #endregion
   if (!isAdmin) {
     return <Navigate to="/" replace />;
   }
@@ -161,6 +164,14 @@ function ProtectedAppRoutes() {
             </AdminRouteGuard>
           }
         />
+        <Route
+          path="*"
+          element={
+            <Suspense fallback={<LoadingSpinner text="Loading..." />}>
+              <NotFound />
+            </Suspense>
+          }
+        />
       </Route>
     </Routes>
   );
@@ -199,6 +210,14 @@ export function AppRoutes() {
           element={
             <Suspense fallback={<LoadingSpinner text="Loading..." />}>
               <InviteJoin />
+            </Suspense>
+          }
+        />
+        <Route
+          path="/forgot-password"
+          element={
+            <Suspense fallback={<LoadingSpinner text="Loading..." />}>
+              <ForgotPassword />
             </Suspense>
           }
         />

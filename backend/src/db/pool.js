@@ -26,12 +26,15 @@ function getConnectionString(context) {
   return config.dbUrl || null;
 }
 
+const poolMax = Math.max(1, parseInt(process.env.DB_POOL_MAX, 10) || 10);
+const sslRejectUnauthorized = process.env.DB_SSL_REJECT_UNAUTHORIZED !== 'false';
+
 function createPool(connectionString) {
   const connectionStringNoQuery = connectionString.split('?')[0];
   return new Pool({
     connectionString: connectionStringNoQuery,
-    ssl: { rejectUnauthorized: false },
-    max: 20,
+    ssl: { rejectUnauthorized: sslRejectUnauthorized },
+    max: poolMax,
     idleTimeoutMillis: 30000,
   });
 }
