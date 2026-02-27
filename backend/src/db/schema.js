@@ -6,6 +6,7 @@ import { getPool } from './pool.js';
 export async function initSchema() {
   const client = await getPool().connect();
   try {
+    await client.query('BEGIN');
     await client.query(`
       CREATE TABLE IF NOT EXISTS users (
         id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -203,6 +204,22 @@ export async function initSchema() {
     await client.query(`CREATE INDEX IF NOT EXISTS idx_workouts_user_date ON workouts(user_id, date DESC);`).catch(() => {});
     await client.query(`CREATE INDEX IF NOT EXISTS idx_food_entries_user_date ON food_entries(user_id, date DESC);`).catch(() => {});
     await client.query(`CREATE INDEX IF NOT EXISTS idx_daily_check_ins_user_date ON daily_check_ins(user_id, date DESC);`).catch(() => {});
+
+    // Password reset columns
+    await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token_hash text;`).catch(() => {});
+    await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token_expires timestamptz;`).catch(() => {});
+
+    // updated_at columns for key tables
+    await client.query(`ALTER TABLE transactions ADD COLUMN IF NOT EXISTS updated_at timestamptz DEFAULT now();`).catch(() => {});
+    await client.query(`ALTER TABLE schedule_items ADD COLUMN IF NOT EXISTS updated_at timestamptz DEFAULT now();`).catch(() => {});
+    await client.query(`ALTER TABLE workouts ADD COLUMN IF NOT EXISTS updated_at timestamptz DEFAULT now();`).catch(() => {});
+    await client.query(`ALTER TABLE food_entries ADD COLUMN IF NOT EXISTS updated_at timestamptz DEFAULT now();`).catch(() => {});
+    await client.query(`ALTER TABLE goals ADD COLUMN IF NOT EXISTS updated_at timestamptz DEFAULT now();`).catch(() => {});
+
+    await client.query('COMMIT');
+  } catch (e) {
+    await client.query('ROLLBACK').catch(() => {});
+    throw e;
   } finally {
     client.release();
   }

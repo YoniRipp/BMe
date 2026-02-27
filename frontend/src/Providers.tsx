@@ -27,28 +27,38 @@ export function Providers({ children }: { children: React.ReactNode }) {
 }
 
 /**
- * Authenticated-app providers. Use only inside ProtectedRoutes after auth check.
- * Order: AppProvider → TransactionProvider → WorkoutProvider → EnergyProvider →
- * ScheduleProvider → GroupProvider → GoalsProvider → NotificationProvider → children.
+ * Compose an array of providers into a single wrapper to flatten nesting.
  */
-export function AppProviders({ children }: { children: React.ReactNode }) {
-  return (
-    <QueryClientProvider client={queryClient}>
-      <AppProvider>
-        <TransactionProvider>
-          <WorkoutProvider>
-            <EnergyProvider>
-              <ScheduleProvider>
-                <GroupProvider>
-                  <GoalsProvider>
-                    <NotificationProvider>{children}</NotificationProvider>
-                  </GoalsProvider>
-                </GroupProvider>
-              </ScheduleProvider>
-            </EnergyProvider>
-          </WorkoutProvider>
-        </TransactionProvider>
-      </AppProvider>
-    </QueryClientProvider>
+function composeProviders(
+  providers: React.FC<{ children: React.ReactNode }>[],
+  children: React.ReactNode
+): React.ReactElement {
+  return providers.reduceRight<React.ReactElement>(
+    (acc, Provider) => <Provider>{acc}</Provider>,
+    <>{children}</>
   );
+}
+
+const QCP: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+  <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+);
+
+/**
+ * Authenticated-app providers. Use only inside ProtectedRoutes after auth check.
+ * Composed flat to reduce nesting depth and improve readability.
+ */
+const APP_PROVIDERS: React.FC<{ children: React.ReactNode }>[] = [
+  QCP,
+  AppProvider,
+  TransactionProvider,
+  WorkoutProvider,
+  EnergyProvider,
+  ScheduleProvider,
+  GroupProvider,
+  GoalsProvider,
+  NotificationProvider,
+];
+
+export function AppProviders({ children }: { children: React.ReactNode }) {
+  return composeProviders(APP_PROVIDERS, children);
 }

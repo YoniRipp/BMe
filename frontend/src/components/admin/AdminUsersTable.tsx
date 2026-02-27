@@ -47,13 +47,7 @@ export function AdminUsersTable() {
     try {
       const list = await usersApi.list();
       setUsers(list);
-      // #region agent log
-      fetch('http://127.0.0.1:7246/ingest/e2e403c5-3c70-4f1e-adfb-38e8c147c460', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'AdminUsersTable.tsx:fetchUsers', message: 'users loaded', data: { count: list.length }, timestamp: Date.now(), hypothesisId: 'H4' }) }).catch(() => {});
-      // #endregion
     } catch (e) {
-      // #region agent log
-      fetch('http://127.0.0.1:7246/ingest/e2e403c5-3c70-4f1e-adfb-38e8c147c460', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'AdminUsersTable.tsx:fetchUsers', message: 'users fetch failed', data: { error: e instanceof Error ? e.message : String(e) }, timestamp: Date.now(), hypothesisId: 'H4' }) }).catch(() => {});
-      // #endregion
       toast.error(e instanceof Error ? e.message : 'Failed to load users');
       setUsers([]);
     } finally {
@@ -62,9 +56,6 @@ export function AdminUsersTable() {
   }, []);
 
   useEffect(() => {
-    // #region agent log
-    fetch('http://127.0.0.1:7246/ingest/e2e403c5-3c70-4f1e-adfb-38e8c147c460', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'AdminUsersTable.tsx:useEffect', message: 'AdminUsersTable mounted', data: {}, timestamp: Date.now(), hypothesisId: 'H3' }) }).catch(() => {});
-    // #endregion
     fetchUsers();
   }, [fetchUsers]);
 

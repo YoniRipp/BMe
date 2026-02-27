@@ -19,8 +19,12 @@ export function Signup() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters');
+    if (password.length < 8) {
+      setError('Password must be at least 8 characters');
+      return;
+    }
+    if (!/[A-Z]/.test(password) || !/[a-z]/.test(password) || !/\d/.test(password)) {
+      setError('Password must contain at least one uppercase letter, one lowercase letter, and one digit');
       return;
     }
     setLoading(true);
@@ -81,25 +85,25 @@ export function Signup() {
                 autoComplete="new-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="At least 6 characters"
+                placeholder="At least 8 characters"
                 required
-                minLength={6}
+                minLength={8}
               />
             </div>
           </CardContent>
           <CardFooter className="flex flex-col gap-4">
-            <SocialLoginButtons />
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading ? 'Creating account...' : 'Sign up'}
+            </Button>
             <div className="relative my-2">
               <div className="absolute inset-0 flex items-center">
                 <span className="w-full border-t" />
               </div>
               <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-card px-2 text-muted-foreground">Or sign up with email</span>
+                <span className="bg-card px-2 text-muted-foreground">Or continue with</span>
               </div>
             </div>
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? 'Creating account...' : 'Sign up'}
-            </Button>
+            <SocialLoginButtons />
             <p className="text-sm text-muted-foreground">
               Already have an account?{' '}
               <Link to="/login" className="text-primary underline-offset-4 hover:underline">

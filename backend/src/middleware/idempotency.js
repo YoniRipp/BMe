@@ -5,12 +5,23 @@
  * and cache 2xx responses for 24h.
  */
 const TTL_MS = 24 * 60 * 60 * 1000;
+const MAX_CACHE_SIZE = 10000;
 const cache = new Map();
 
 function prune() {
   const now = Date.now();
   for (const [key, entry] of cache.entries()) {
     if (entry.expiresAt <= now) cache.delete(key);
+  }
+  // Evict oldest entries if still over limit
+  if (cache.size > MAX_CACHE_SIZE) {
+    const toRemove = cache.size - MAX_CACHE_SIZE;
+    let removed = 0;
+    for (const key of cache.keys()) {
+      if (removed >= toRemove) break;
+      cache.delete(key);
+      removed++;
+    }
   }
 }
 

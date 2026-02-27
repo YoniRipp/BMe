@@ -255,11 +255,7 @@ function buildAddSchedule(args, ctx) {
   const todayStr = ctx?.todayStr ?? new Date().toISOString().slice(0, 10);
   const dateStr = parseDate(args.date, todayStr);
   const tz = ctx?.timezone;
-  // #region agent log
-  fetch('http://127.0.0.1:7246/ingest/e2e403c5-3c70-4f1e-adfb-38e8c147c460', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'voice.js:buildAddSchedule:entry', message: 'buildAddSchedule', data: { todayStr, dateStr, tz: tz ?? null }, timestamp: Date.now(), hypothesisId: 'H1' }) }).catch(() => {});
-  // #endregion
   let items = Array.isArray(args.items) ? args.items : [];
-  let firstItemLogged = false;
   items = items
     .filter((it) => it && typeof it.title === 'string' && it.title.trim())
     .map((it) => {
@@ -269,12 +265,6 @@ function buildAddSchedule(args, ctx) {
       if (tz) {
         const startUtc = localToUtcDateAndTime(itemDate, startTime, tz);
         const endUtc = localToUtcDateAndTime(itemDate, endTime, tz);
-        if (!firstItemLogged) {
-          firstItemLogged = true;
-          // #region agent log
-          fetch('http://127.0.0.1:7246/ingest/e2e403c5-3c70-4f1e-adfb-38e8c147c460', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'voice.js:buildAddSchedule:firstItem', message: 'local to UTC', data: { itemDate, startTime, endTime, tz, startUtc, endUtc }, timestamp: Date.now(), hypothesisId: 'H3' }) }).catch(() => {});
-          // #endregion
-        }
         if (startUtc && endUtc) {
           return {
             title: String(it.title).trim(),
@@ -303,9 +293,6 @@ async function buildAddFood(args, ctx) {
   const amount = Number(args.amount);
   const numAmount = Number.isFinite(amount) && amount > 0 ? amount : 100;
   const unit = args.unit ? String(args.unit).trim().toLowerCase() : 'g';
-  // #region agent log
-  fetch('http://127.0.0.1:7246/ingest/e2e403c5-3c70-4f1e-adfb-38e8c147c460', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'voice.js:buildAddFood:entry', message: 'buildAddFood args', data: { food, rawAmount: args.amount, numAmount, unit }, timestamp: Date.now(), hypothesisId: 'H1' }) }).catch(() => {});
-  // #endregion
   const action = {
     food,
     amount: numAmount,
@@ -339,9 +326,6 @@ async function buildAddFood(args, ctx) {
           source = 'gemini';
         }
       }
-      // #region agent log
-      fetch('http://127.0.0.1:7246/ingest/e2e403c5-3c70-4f1e-adfb-38e8c147c460', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'voice.js:buildAddFood:afterLookup', message: 'nutrition source', data: { source, hasNutrition: !!nutrition }, timestamp: Date.now(), hypothesisId: 'H1' }) }).catch(() => {});
-      // #endregion
       if (nutrition) {
         action.name = nutrition.name;
         action.calories = nutrition.calories;
@@ -370,9 +354,6 @@ async function buildAddFood(args, ctx) {
     action.carbs = 0;
     action.fats = 0;
   }
-  // #region agent log
-  fetch('http://127.0.0.1:7246/ingest/e2e403c5-3c70-4f1e-adfb-38e8c147c460', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'voice.js:buildAddFood:return', message: 'add_food action out', data: { name: action.name, calories: action.calories, portionAmount: action.portionAmount, portionUnit: action.portionUnit }, timestamp: Date.now(), hypothesisId: 'H2' }) }).catch(() => {});
-  // #endregion
   return action;
 }
 
@@ -474,22 +455,8 @@ async function fallbackOrUnknown(transcript, todayStr, reason, userId) {
   return { actions: [{ intent: 'unknown' }] };
 }
 
-/**
- * @param {string} text
- * @param {string} [lang]
- * @param {string} [userId] - For error logging
- * @param {{ today?: string, timezone?: string }} [options] - User's local today (YYYY-MM-DD) and IANA timezone for UTC conversion
- * @returns {Promise<{ actions: object[] }>}
- */
-export async function parseTranscript(text, lang = 'auto', userId = null, options = {}) {
-  if (!config.geminiApiKey) {
-    throw new Error('Voice service not configured (missing GEMINI_API_KEY)');
-  }
-  const todayStr = options.today && /^\d{4}-\d{2}-\d{2}$/.test(options.today) ? options.today : new Date().toISOString().slice(0, 10);
-  const ctx = { todayStr, timezone: options.timezone || undefined };
-  // #region agent log
-  fetch('http://127.0.0.1:7246/ingest/e2e403c5-3c70-4f1e-adfb-38e8c147c460', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'voice.js:parseTranscript:ctx', message: 'ctx for voice', data: { todayStr, timezone: ctx.timezone }, timestamp: Date.now(), hypothesisId: 'H3' }) }).catch(() => {});
-  // #endregion
+/** Shared Gemini model initialization with safety settings. */
+function getGeminiModel() {
   const genAI = new GoogleGenerativeAI(config.geminiApiKey);
   const safetySettings = [
     { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
@@ -497,24 +464,11 @@ export async function parseTranscript(text, lang = 'auto', userId = null, option
     { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
     { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
   ];
-  const model = genAI.getGenerativeModel({ model: config.geminiModel, safetySettings });
+  return genAI.getGenerativeModel({ model: config.geminiModel, safetySettings });
+}
 
-  let result;
-  try {
-    result = await model.generateContent({
-      contents: [{ role: 'user', parts: [{ text: `${VOICE_PROMPT}\n\nUser transcript (lang: ${lang}):\n${text}` }] }],
-      tools: VOICE_TOOLS,
-    });
-  } catch (e) {
-    logger.error({ err: e }, 'Gemini voice parse blocked or error');
-    return fallbackOrUnknown(text, todayStr, e?.message ?? String(e), userId);
-  }
-
-  const response = result.response;
-  if (!response) {
-    logger.error('Gemini voice parse: empty response');
-    return fallbackOrUnknown(text, todayStr, 'empty response', userId);
-  }
+/** Shared logic for processing Gemini response into actions. */
+async function processGeminiResponse(response, ctx) {
   const functionCalls = response.functionCalls?.() ?? [];
   const actions = [];
 
@@ -558,6 +512,41 @@ export async function parseTranscript(text, lang = 'auto', userId = null, option
 }
 
 /**
+ * @param {string} text
+ * @param {string} [lang]
+ * @param {string} [userId] - For error logging
+ * @param {{ today?: string, timezone?: string }} [options] - User's local today (YYYY-MM-DD) and IANA timezone for UTC conversion
+ * @returns {Promise<{ actions: object[] }>}
+ */
+export async function parseTranscript(text, lang = 'auto', userId = null, options = {}) {
+  if (!config.geminiApiKey) {
+    throw new Error('Voice service not configured (missing GEMINI_API_KEY)');
+  }
+  const todayStr = options.today && /^\d{4}-\d{2}-\d{2}$/.test(options.today) ? options.today : new Date().toISOString().slice(0, 10);
+  const ctx = { todayStr, timezone: options.timezone || undefined };
+  const model = getGeminiModel();
+
+  let result;
+  try {
+    result = await model.generateContent({
+      contents: [{ role: 'user', parts: [{ text: `${VOICE_PROMPT}\n\nUser transcript (lang: ${lang}):\n${text}` }] }],
+      tools: VOICE_TOOLS,
+    });
+  } catch (e) {
+    logger.error({ err: e }, 'Gemini voice parse blocked or error');
+    return fallbackOrUnknown(text, todayStr, e?.message ?? String(e), userId);
+  }
+
+  const response = result.response;
+  if (!response) {
+    logger.error('Gemini voice parse: empty response');
+    return fallbackOrUnknown(text, todayStr, 'empty response', userId);
+  }
+
+  return processGeminiResponse(response, ctx);
+}
+
+/**
  * Parse audio into actions. Same logic as parseTranscript but with audio input.
  * @param {string} audioBase64 - Base64-encoded audio
  * @param {string} mimeType - e.g. "audio/webm"
@@ -571,15 +560,7 @@ export async function parseAudio(audioBase64, mimeType, userId = null, options =
   }
   const todayStr = options.today && /^\d{4}-\d{2}-\d{2}$/.test(options.today) ? options.today : new Date().toISOString().slice(0, 10);
   const ctx = { todayStr, timezone: options.timezone || undefined };
-
-  const genAI = new GoogleGenerativeAI(config.geminiApiKey);
-  const safetySettings = [
-    { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
-    { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
-    { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
-    { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
-  ];
-  const model = genAI.getGenerativeModel({ model: config.geminiModel, safetySettings });
+  const model = getGeminiModel();
 
   let result;
   try {
@@ -604,44 +585,6 @@ export async function parseAudio(audioBase64, mimeType, userId = null, options =
     logger.error('Gemini voice parse audio: empty response');
     return { actions: [{ intent: 'unknown' }] };
   }
-  const functionCalls = response.functionCalls?.() ?? [];
-  const actions = [];
 
-  for (const fc of functionCalls) {
-    const name = fc.name;
-    const args = fc.args || {};
-    const handler = HANDLERS[name];
-
-    if (!handler) {
-      logger.warn({ name }, 'Voice: unknown function');
-      actions.push({ intent: 'unknown', message: `Action "${name}" is not supported` });
-      continue;
-    }
-
-    const schema = VOICE_ARG_SCHEMAS[name];
-    let validatedArgs = args;
-    if (schema) {
-      const parsed = schema.safeParse(args);
-      if (!parsed.success) {
-        logger.warn({ name, errors: parsed.error.flatten() }, 'Voice: invalid args');
-        continue;
-      }
-      validatedArgs = parsed.data;
-    }
-
-    const action = { intent: name };
-    const result_ = await handler(validatedArgs, ctx);
-
-    if (result_.merge) Object.assign(action, result_.merge);
-    if (result_.items?.length) action.items = result_.items;
-
-    const isEmptyItems = result_.items && result_.items.length === 0;
-    if (!isEmptyItems) actions.push(action);
-  }
-
-  if (actions.length === 0) {
-    actions.push({ intent: 'unknown' });
-  }
-
-  return { actions };
+  return processGeminiResponse(response, ctx);
 }

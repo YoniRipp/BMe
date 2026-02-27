@@ -10,10 +10,30 @@ import { config } from '../config/index.js';
 import { getPool } from '../db/index.js';
 import { requireAuth } from '../middleware/auth.js';
 import { publishEvent } from '../events/publish.js';
+import { logger } from '../lib/logger.js';
 
 const SALT_ROUNDS = 10;
 const TOKEN_EXPIRY = '7d';
+const PKCE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+const PKCE_MAX_SIZE = 1000;
 const twitterPKCEStore = new Map();
+
+function pkcePrune() {
+  const now = Date.now();
+  for (const [key, entry] of twitterPKCEStore.entries()) {
+    if (entry.expiresAt <= now) twitterPKCEStore.delete(key);
+  }
+  // Evict oldest if over max
+  if (twitterPKCEStore.size > PKCE_MAX_SIZE) {
+    const toRemove = twitterPKCEStore.size - PKCE_MAX_SIZE;
+    let removed = 0;
+    for (const key of twitterPKCEStore.keys()) {
+      if (removed >= toRemove) break;
+      twitterPKCEStore.delete(key);
+      removed++;
+    }
+  }
+}
 
 function rowToUser(row) {
   return {
@@ -31,8 +51,11 @@ async function register(req, res) {
     if (!email || typeof email !== 'string' || !email.trim()) {
       return res.status(400).json({ error: 'email is required' });
     }
-    if (!password || typeof password !== 'string' || password.length < 6) {
-      return res.status(400).json({ error: 'password must be at least 6 characters' });
+    if (!password || typeof password !== 'string' || password.length < 8) {
+      return res.status(400).json({ error: 'password must be at least 8 characters' });
+    }
+    if (!/[A-Z]/.test(password) || !/[a-z]/.test(password) || !/\d/.test(password)) {
+      return res.status(400).json({ error: 'password must contain at least one uppercase letter, one lowercase letter, and one digit' });
     }
     if (!name || typeof name !== 'string' || !name.trim()) {
       return res.status(400).json({ error: 'name is required' });
@@ -57,7 +80,7 @@ async function register(req, res) {
     if (e.code === '23505') {
       return res.status(409).json({ error: 'Email already registered' });
     }
-    console.error('register error:', e?.message ?? e);
+    logger.error({ err: e }, 'register error');
     res.status(500).json({ error: e?.message ?? 'Registration failed' });
   }
 }
@@ -93,7 +116,7 @@ async function login(req, res) {
     publishEvent('auth.UserLoggedIn', { userId: user.id, method: 'email' }, user.id).catch(() => {});
     res.json({ user, token });
   } catch (e) {
-    console.error('login error:', e?.message ?? e);
+    logger.error({ err: e }, 'login error');
     res.status(500).json({ error: e?.message ?? 'Login failed' });
   }
 }
@@ -110,7 +133,7 @@ async function me(req, res) {
     }
     res.json(rowToUser(result.rows[0]));
   } catch (e) {
-    console.error('me error:', e?.message ?? e);
+    logger.error({ err: e }, 'me error');
     res.status(500).json({ error: e?.message ?? 'Failed to get user' });
   }
 }
@@ -197,7 +220,7 @@ async function loginGoogle(req, res) {
       });
       if (!userRes.ok) {
         const text = await userRes.text();
-        console.error('Google userinfo error:', userRes.status, text);
+        logger.error({ status: userRes.status, text }, 'Google userinfo error');
         return res.status(401).json({ error: 'Invalid Google token' });
       }
       const data = await userRes.json();
@@ -218,7 +241,7 @@ async function loginGoogle(req, res) {
     publishEvent('auth.UserLoggedIn', { userId: user.id, method: 'google' }, user.id).catch(() => {});
     res.json({ user, token: jwtToken });
   } catch (e) {
-    console.error('loginGoogle error:', e?.message ?? e);
+    logger.error({ err: e }, 'loginGoogle error');
     res.status(401).json({ error: e?.message ?? 'Google sign-in failed' });
   }
 }
@@ -232,11 +255,13 @@ async function loginFacebook(req, res) {
     if (!token) {
       return res.status(400).json({ error: 'token is required' });
     }
-    const url = `https://graph.facebook.com/me?fields=id,email,name&access_token=${encodeURIComponent(token)}`;
-    const response = await fetch(url);
+    const url = 'https://graph.facebook.com/me?fields=id,email,name';
+    const response = await fetch(url, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
     if (!response.ok) {
       const text = await response.text();
-      console.error('Facebook Graph error:', response.status, text);
+      logger.error({ status: response.status, text }, 'Facebook Graph error');
       return res.status(401).json({ error: 'Invalid Facebook token' });
     }
     const data = await response.json();
@@ -256,7 +281,7 @@ async function loginFacebook(req, res) {
     publishEvent('auth.UserLoggedIn', { userId: user.id, method: 'facebook' }, user.id).catch(() => {});
     res.json({ user, token: jwtToken });
   } catch (e) {
-    console.error('loginFacebook error:', e?.message ?? e);
+    logger.error({ err: e }, 'loginFacebook error');
     res.status(401).json({ error: e?.message ?? 'Facebook sign-in failed' });
   }
 }
@@ -275,7 +300,7 @@ async function loginTwitter(req, res) {
     });
     if (!response.ok) {
       const text = await response.text();
-      console.error('Twitter API error:', response.status, text);
+      logger.error({ status: response.status, text }, 'Twitter API error');
       return res.status(401).json({ error: 'Invalid Twitter token' });
     }
     const data = await response.json();
@@ -296,7 +321,7 @@ async function loginTwitter(req, res) {
     publishEvent('auth.UserLoggedIn', { userId: user.id, method: 'twitter' }, user.id).catch(() => {});
     res.json({ user, token: jwtToken });
   } catch (e) {
-    console.error('loginTwitter error:', e?.message ?? e);
+    logger.error({ err: e }, 'loginTwitter error');
     res.status(401).json({ error: e?.message ?? 'Twitter sign-in failed' });
   }
 }
@@ -314,7 +339,8 @@ function twitterRedirect(req, res) {
   const codeChallenge = base64UrlEncode(
     crypto.createHash('sha256').update(codeVerifier).digest()
   );
-  twitterPKCEStore.set(state, { codeVerifier });
+  pkcePrune();
+  twitterPKCEStore.set(state, { codeVerifier, expiresAt: Date.now() + PKCE_TTL_MS });
   const params = new URLSearchParams({
     response_type: 'code',
     client_id: config.twitterClientId,
@@ -329,8 +355,9 @@ function twitterRedirect(req, res) {
 
 async function twitterCallback(req, res) {
   const { code, state } = req.query ?? {};
+  pkcePrune();
   const stored = state && twitterPKCEStore.get(state);
-  if (!code || typeof code !== 'string' || !stored) {
+  if (!code || typeof code !== 'string' || !stored || stored.expiresAt <= Date.now()) {
     return res.redirect(`${config.frontendOrigin}/login?error=twitter_callback_failed`);
   }
   twitterPKCEStore.delete(state);
@@ -352,7 +379,7 @@ async function twitterCallback(req, res) {
     });
     if (!tokenRes.ok) {
       const text = await tokenRes.text();
-      console.error('Twitter token exchange error:', tokenRes.status, text);
+      logger.error({ status: tokenRes.status, text }, 'Twitter token exchange error');
       return res.redirect(`${config.frontendOrigin}/login?error=twitter_token_failed`);
     }
     const tokenData = await tokenRes.json();
@@ -384,8 +411,83 @@ async function twitterCallback(req, res) {
     const redirectUrl = `${config.frontendOrigin}/auth/callback?token=${encodeURIComponent(jwtToken)}`;
     res.redirect(redirectUrl);
   } catch (e) {
-    console.error('twitterCallback error:', e?.message ?? e);
+    logger.error({ err: e }, 'twitterCallback error');
     res.redirect(`${config.frontendOrigin}/login?error=twitter_callback_failed`);
+  }
+}
+
+const RESET_TOKEN_EXPIRY_MS = 60 * 60 * 1000; // 1 hour
+
+async function forgotPassword(req, res) {
+  try {
+    const { email } = req.body ?? {};
+    if (!email || typeof email !== 'string' || !email.trim()) {
+      return res.status(400).json({ error: 'email is required' });
+    }
+    const pool = getPool();
+    const result = await pool.query('SELECT id, email FROM users WHERE email = $1', [email.trim().toLowerCase()]);
+    // Always return success to avoid user enumeration
+    if (result.rows.length === 0) {
+      return res.json({ message: 'If an account exists, a reset link has been sent.' });
+    }
+    const user = result.rows[0];
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    const resetTokenHash = crypto.createHash('sha256').update(resetToken).digest('hex');
+    const expiresAt = new Date(Date.now() + RESET_TOKEN_EXPIRY_MS);
+    await pool.query(
+      'UPDATE users SET reset_token_hash = $1, reset_token_expires = $2 WHERE id = $3',
+      [resetTokenHash, expiresAt, user.id]
+    );
+    const baseUrl = (config.frontendOrigin || '').replace(/\/$/, '');
+    const resetLink = `${baseUrl}/reset-password?token=${resetToken}&email=${encodeURIComponent(user.email)}`;
+    try {
+      const { sendMail } = await import('../lib/email.js');
+      await sendMail({
+        to: user.email,
+        subject: 'Reset your BeMe password',
+        html: `<p>Click the link below to reset your password. This link expires in 1 hour.</p><p><a href="${resetLink}">Reset Password</a></p><p>If you didn't request this, you can safely ignore this email.</p>`,
+      });
+    } catch (emailErr) {
+      logger.error({ err: emailErr }, 'Failed to send reset email');
+    }
+    res.json({ message: 'If an account exists, a reset link has been sent.' });
+  } catch (e) {
+    logger.error({ err: e }, 'forgotPassword error');
+    res.status(500).json({ error: 'Failed to process request' });
+  }
+}
+
+async function resetPassword(req, res) {
+  try {
+    const { token, email, password } = req.body ?? {};
+    if (!token || !email || !password) {
+      return res.status(400).json({ error: 'token, email, and password are required' });
+    }
+    if (password.length < 8) {
+      return res.status(400).json({ error: 'password must be at least 8 characters' });
+    }
+    if (!/[A-Z]/.test(password) || !/[a-z]/.test(password) || !/\d/.test(password)) {
+      return res.status(400).json({ error: 'password must contain at least one uppercase letter, one lowercase letter, and one digit' });
+    }
+    const resetTokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    const pool = getPool();
+    const result = await pool.query(
+      'SELECT id FROM users WHERE email = $1 AND reset_token_hash = $2 AND reset_token_expires > NOW()',
+      [email.trim().toLowerCase(), resetTokenHash]
+    );
+    if (result.rows.length === 0) {
+      return res.status(400).json({ error: 'Invalid or expired reset token' });
+    }
+    const userId = result.rows[0].id;
+    const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
+    await pool.query(
+      'UPDATE users SET password_hash = $1, reset_token_hash = NULL, reset_token_expires = NULL WHERE id = $2',
+      [passwordHash, userId]
+    );
+    res.json({ message: 'Password has been reset successfully' });
+  } catch (e) {
+    logger.error({ err: e }, 'resetPassword error');
+    res.status(500).json({ error: 'Failed to reset password' });
   }
 }
 
@@ -398,5 +500,7 @@ router.post('/api/auth/twitter', loginTwitter);
 router.get('/api/auth/twitter/redirect', twitterRedirect);
 router.get('/api/auth/twitter/callback', twitterCallback);
 router.get('/api/auth/me', requireAuth, me);
+router.post('/api/auth/forgot-password', forgotPassword);
+router.post('/api/auth/reset-password', resetPassword);
 
 export default router;

@@ -81,21 +81,27 @@ export function ScheduleModal({ open, onOpenChange, onSave, item, initialDate, i
     }
   }, [item, open, initialDate, initialGroupId]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const [saving, setSaving] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onSave({
-      date: formData.date,
-      title: formData.title,
-      startTime: formData.startTime,
-      endTime: formData.endTime,
-      category: formData.category,
-      emoji: CATEGORY_EMOJIS[formData.category],
-      order: formData.order,
-      isActive: formData.isActive,
-      color: formData.color || undefined,
-      groupId: formData.groupId || undefined,
-    });
-    // Parent closes modal after successful save (add or update)
+    setSaving(true);
+    try {
+      await onSave({
+        date: formData.date,
+        title: formData.title,
+        startTime: formData.startTime,
+        endTime: formData.endTime,
+        category: formData.category,
+        emoji: CATEGORY_EMOJIS[formData.category],
+        order: formData.order,
+        isActive: formData.isActive,
+        color: formData.color || undefined,
+        groupId: formData.groupId || undefined,
+      });
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -214,8 +220,8 @@ export function ScheduleModal({ open, onOpenChange, onSave, item, initialDate, i
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit">
-              {item ? 'Update' : 'Add'} Item
+            <Button type="submit" disabled={saving}>
+              {saving ? 'Saving...' : `${item ? 'Update' : 'Add'} Item`}
             </Button>
           </DialogFooter>
         </form>

@@ -69,18 +69,21 @@ export function Login() {
             </div>
           </CardContent>
           <CardFooter className="flex flex-col gap-4">
-            <SocialLoginButtons />
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading ? 'Signing in...' : 'Sign in'}
+            </Button>
+            <Link to="/forgot-password" className="text-sm text-muted-foreground hover:text-primary transition-colors">
+              Forgot your password?
+            </Link>
             <div className="relative my-2">
               <div className="absolute inset-0 flex items-center">
                 <span className="w-full border-t" />
               </div>
               <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-card px-2 text-muted-foreground">Or continue with email</span>
+                <span className="bg-card px-2 text-muted-foreground">Or continue with</span>
               </div>
             </div>
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? 'Signing in...' : 'Sign in'}
-            </Button>
+            <SocialLoginButtons />
             <p className="text-sm text-muted-foreground">
               Don&apos;t have an account?{' '}
               <Link to="/signup" className="text-primary underline-offset-4 hover:underline">
