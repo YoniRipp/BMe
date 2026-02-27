@@ -56,6 +56,7 @@ export async function createApp() {
   }
 
   const app = express();
+  app.set('trust proxy', 1);
   const corsOrigin = config.corsOrigin;
   const corsOptions = { origin: corsOrigin };
   app.use(cors(corsOptions));
