@@ -62,7 +62,7 @@
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.2.1",
     "@vitest/coverage-v8": "^1.0.4",
-    "autoprefixer": "^10.4.17",
+    "autoprefixer": "^10.4.27",
     "express": "^5.0.1",
     "jsdom": "^23.0.1",
     "postcss": "^8.4.35",
