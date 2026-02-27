@@ -4,10 +4,12 @@ import { Workout } from '@/types/workout';
 import { PageTitle } from '@/components/layout/PageTitle';
 import { WorkoutCard } from '@/components/body/WorkoutCard';
 import { WorkoutModal } from '@/components/body/WorkoutModal';
+import { ConfirmationDialog } from '@/components/shared/ConfirmationDialog';
 import { ContentWithLoading } from '@/components/shared/ContentWithLoading';
 import { SearchBar } from '@/components/shared/SearchBar';
 import { Card } from '@/components/ui/card';
 import { Plus } from 'lucide-react';
+import { toast } from 'sonner';
 import { format, isToday, isYesterday, parseISO, isWithinInterval } from 'date-fns';
 import { getPeriodRange } from '@/lib/dateRanges';
 
@@ -34,6 +36,7 @@ export function Body() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingWorkout, setEditingWorkout] = useState<Workout | undefined>(undefined);
   const [searchQuery, setSearchQuery] = useState('');
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   const filteredWorkouts = useMemo(() => {
     let filtered = workouts;
@@ -74,8 +77,10 @@ export function Body() {
   const handleSave = (workout: Omit<Workout, 'id'>) => {
     if (editingWorkout) {
       updateWorkout(editingWorkout.id, workout);
+      toast.success('Workout updated');
     } else {
       addWorkout(workout);
+      toast.success('Workout added');
     }
     setEditingWorkout(undefined);
   };
@@ -134,7 +139,7 @@ export function Body() {
                           key={workout.id}
                           workout={workout}
                           onEdit={handleEdit}
-                          onDelete={deleteWorkout}
+                          onDelete={setDeleteConfirmId}
                         />
                       ))}
                     </div>
@@ -156,7 +161,7 @@ export function Body() {
                               key={workout.id}
                               workout={workout}
                               onEdit={handleEdit}
-                              onDelete={deleteWorkout}
+                              onDelete={setDeleteConfirmId}
                             />
                           ))}
                         </div>
@@ -182,6 +187,22 @@ export function Body() {
         onOpenChange={setModalOpen}
         onSave={handleSave}
         workout={editingWorkout}
+      />
+
+      <ConfirmationDialog
+        open={!!deleteConfirmId}
+        onOpenChange={(open) => { if (!open) setDeleteConfirmId(null); }}
+        title="Delete workout"
+        message="Are you sure you want to delete this workout? This cannot be undone."
+        confirmLabel="Delete"
+        variant="destructive"
+        onConfirm={() => {
+          if (deleteConfirmId) {
+            deleteWorkout(deleteConfirmId);
+            toast.success('Workout deleted');
+          }
+          setDeleteConfirmId(null);
+        }}
       />
     </div>
   );
