@@ -60,9 +60,6 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
     });
   } catch (e) {
     clearTimeout(timeoutId);
-    // #region agent log
-    fetch('http://127.0.0.1:7246/ingest/e2e403c5-3c70-4f1e-adfb-38e8c147c460',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'b94650'},body:JSON.stringify({sessionId:'b94650',location:'client.ts:fetch_catch',message:'Fetch threw',data:{path,err:String(e),name:e instanceof Error?e.name:'',url:`${API_BASE}${path}`},timestamp:Date.now(),hypothesisId:'H4_H5'})}).catch(()=>{});
-    // #endregion
     if (e instanceof Error && e.name === 'AbortError') {
       throw new Error('Request timed out');
     }
@@ -77,9 +74,6 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
   if (!res.ok) {
     const err = (await res.json().catch(() => ({}))) as { error?: string };
     const msg = err.error ?? res.statusText;
-    // #region agent log
-    fetch('http://127.0.0.1:7246/ingest/e2e403c5-3c70-4f1e-adfb-38e8c147c460',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'b94650'},body:JSON.stringify({sessionId:'b94650',location:'client.ts:!res.ok',message:'API error response',data:{status:res.status,path,msg,url:`${API_BASE}${path}`},timestamp:Date.now(),hypothesisId:'H1_H2_H3'})}).catch(()=>{});
-    // #endregion
     throw new Error(msg);
   }
   if (res.status === 204) return undefined as T;
