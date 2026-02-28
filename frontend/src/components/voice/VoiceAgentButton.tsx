@@ -88,10 +88,10 @@ export function VoiceAgentButton({ panelOpen, onTogglePanel }: VoiceAgentButtonP
             if (r.success) {
               succeeded.push(r.message ?? action.intent);
             } else {
-              failed.push({ action: action.intent, reason: r.message ?? 'Failed' });
+              failed.push({ action: action.intent, reason: r.message ?? 'Could not complete action. Please try again.' });
             }
           } catch (e) {
-            failed.push({ action: action.intent ?? 'unknown', reason: e instanceof Error ? e.message : 'Action failed' });
+            failed.push({ action: action.intent ?? 'unknown', reason: e instanceof Error ? e.message : 'Could not complete action. Please try again.' });
           }
         }
 
@@ -101,25 +101,25 @@ export function VoiceAgentButton({ panelOpen, onTogglePanel }: VoiceAgentButtonP
           toast.success(`Added ${succeeded.length} item(s). ${failed.length} failed: ${failed.map((f) => f.reason).join('; ')}`);
         } else if (failed.length > 0) {
           const msg = failed[0].reason;
-          toast.error('Could not complete', { description: msg });
+          toast.error('Voice action failed', { description: msg });
         }
       } catch (e) {
-        const msg = e instanceof Error ? e.message : 'Network or server error';
-        toast.error('Voice request failed', { description: msg });
+        const msg = e instanceof Error ? e.message : 'Network or server error. Please try again.';
+        toast.error('Voice processing failed', { description: msg });
       }
       return;
     }
 
     if (!isAvailable) {
-      toast.error('Voice not supported', { description: 'Microphone access required.' });
+      toast.error('Voice not available', { description: 'Microphone access required. Please use Chrome or Edge.' });
       return;
     }
 
     try {
       await startListening();
     } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Failed to start listening';
-      toast.error('Voice error', { description: msg });
+      const msg = e instanceof Error ? e.message : 'Could not start listening. Please check microphone permissions.';
+      toast.error('Could not start recording', { description: msg });
     }
   }, [onTogglePanel, isListening, isAvailable, startListening, stopListening, getVoiceResult, voiceContext]);
 

@@ -130,7 +130,7 @@ export function FoodEntryModal({ open, onOpenChange, onSave, entry }: FoodEntryM
       })
       .catch((e) => {
         if (!cancelled) {
-          setSearchError(e instanceof Error ? e.message : 'Search failed');
+          setSearchError(e instanceof Error ? e.message : 'Could not search for food. Please try again.');
           setSearchResults([]);
         }
       })

@@ -36,7 +36,7 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
   });
 
   const workoutsError = workoutsQueryError
-    ? (workoutsQueryError instanceof Error ? workoutsQueryError.message : 'Failed to load workouts')
+    ? (workoutsQueryError instanceof Error ? workoutsQueryError.message : 'Could not load workouts. Please try again.')
     : null;
 
   const refetchWorkouts = useCallback(async () => {

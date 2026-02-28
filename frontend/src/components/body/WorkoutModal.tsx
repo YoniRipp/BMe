@@ -172,8 +172,8 @@ export function WorkoutModal({ open, onOpenChange, onSave, workout }: WorkoutMod
       storage.set(STORAGE_KEYS.WORKOUT_TEMPLATES, updatedTemplates);
       setTemplates(updatedTemplates);
       toast.success('Workout saved as template!');
-    } catch {
-      toast.error('Failed to save template. Please try again.');
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Could not save template. Please try again.');
     }
   };
 

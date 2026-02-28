@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useRef, useState, useEffect } from 'react';
 import { submitVoiceAudio, pollForVoiceResult, blobToBase64, type VoiceUnderstandResult } from '@/lib/voiceApi';
 
 interface UseWebSpeechOptions {
@@ -34,19 +34,53 @@ export function useWebSpeech(options: UseWebSpeechOptions = {}): UseWebSpeechRet
   const audioChunksRef = useRef<Blob[]>([]);
   const streamRef = useRef<MediaStream | null>(null);
   const lastResultRef = useRef<VoiceUnderstandResult | null>(null);
+  const isMountedRef = useRef(true);
+  const isListeningRef = useRef(false);
 
   const isAvailable = isMediaRecorderSupported();
+
+  // Cleanup helper to stop stream and recorder
+  const cleanup = useCallback(() => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      try {
+        mediaRecorderRef.current.stop();
+      } catch {
+        // Ignore
+      }
+    }
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
+    }
+    mediaRecorderRef.current = null;
+    isListeningRef.current = false;
+  }, []);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      cleanup();
+    };
+  }, [cleanup]);
 
   const startListening = useCallback(async (): Promise<void> => {
     if (!isAvailable) {
       throw new Error('MediaRecorder not supported in this browser');
     }
 
+    // Guard against double start
+    if (isListeningRef.current) {
+      return;
+    }
+
     audioChunksRef.current = [];
     lastResultRef.current = null;
 
+    let stream: MediaStream | null = null;
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
 
       const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
@@ -63,17 +97,43 @@ export function useWebSpeech(options: UseWebSpeechOptions = {}): UseWebSpeechRet
         }
       };
 
+      recorder.onerror = () => {
+        cleanup();
+        if (isMountedRef.current) {
+          setIsListening(false);
+        }
+      };
+
       mediaRecorderRef.current = recorder;
       recorder.start();
+      isListeningRef.current = true;
       setIsListening(true);
 
       // Signal that we're recording (no real-time transcript for MediaRecorder)
       onPartialResult?.('Recording...');
     } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Failed to access microphone';
+      // Clean up stream if MediaRecorder constructor or start failed
+      if (stream) {
+        stream.getTracks().forEach((t) => t.stop());
+        streamRef.current = null;
+      }
+      let msg: string;
+      if (e instanceof Error) {
+        if (e.name === 'NotAllowedError') {
+          msg = 'Microphone access denied. Please allow microphone permission in your browser.';
+        } else if (e.name === 'NotFoundError') {
+          msg = 'No microphone found. Connect a microphone and try again.';
+        } else if (e.name === 'NotReadableError') {
+          msg = 'Microphone is in use by another application.';
+        } else {
+          msg = e.message;
+        }
+      } else {
+        msg = 'Could not access microphone. Please check your browser permissions.';
+      }
       throw new Error(msg);
     }
-  }, [isAvailable, onPartialResult]);
+  }, [isAvailable, onPartialResult, cleanup]);
 
   const stopListening = useCallback(async (): Promise<string> => {
     return new Promise((resolve, reject) => {
@@ -81,7 +141,10 @@ export function useWebSpeech(options: UseWebSpeechOptions = {}): UseWebSpeechRet
       const stream = streamRef.current;
 
       if (!recorder || recorder.state === 'inactive') {
-        setIsListening(false);
+        isListeningRef.current = false;
+        if (isMountedRef.current) {
+          setIsListening(false);
+        }
         resolve('');
         return;
       }
@@ -91,7 +154,10 @@ export function useWebSpeech(options: UseWebSpeechOptions = {}): UseWebSpeechRet
         stream?.getTracks().forEach((t) => t.stop());
         streamRef.current = null;
         mediaRecorderRef.current = null;
-        setIsListening(false);
+        isListeningRef.current = false;
+        if (isMountedRef.current) {
+          setIsListening(false);
+        }
 
         // Process the recording
         const mimeType = recorder.mimeType || 'audio/webm';
@@ -102,7 +168,9 @@ export function useWebSpeech(options: UseWebSpeechOptions = {}): UseWebSpeechRet
           return;
         }
 
-        setIsProcessing(true);
+        if (isMountedRef.current) {
+          setIsProcessing(true);
+        }
 
         try {
           const base64 = await blobToBase64(blob);
@@ -117,10 +185,14 @@ export function useWebSpeech(options: UseWebSpeechOptions = {}): UseWebSpeechRet
             transcript = `Processed: ${firstAction.intent}`;
           }
 
-          setIsProcessing(false);
+          if (isMountedRef.current) {
+            setIsProcessing(false);
+          }
           resolve(transcript);
         } catch (e) {
-          setIsProcessing(false);
+          if (isMountedRef.current) {
+            setIsProcessing(false);
+          }
           reject(e);
         }
       };

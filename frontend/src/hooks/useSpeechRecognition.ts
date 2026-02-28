@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useState, useMemo } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { useNativeSpeech } from './useNativeSpeech';
 import { useWebSpeech } from './useWebSpeech';
@@ -41,8 +41,12 @@ export function useSpeechRecognition(
   const native = useNativeSpeech({ language, onPartialResult });
   const web = useWebSpeech({ language, onPartialResult });
 
-  // Select the appropriate implementation
-  const impl = isNative && native.isAvailable ? native : web;
+  // Memoize implementation selection to prevent callback recreation every render
+  const useNativeImpl = isNative && native.isAvailable;
+  const impl = useMemo(
+    () => (useNativeImpl ? native : web),
+    [useNativeImpl, native, web]
+  );
 
   const startListening = useCallback(async (): Promise<void> => {
     setLastResult(null);
@@ -52,7 +56,7 @@ export function useSpeechRecognition(
   const stopListening = useCallback(async (): Promise<void> => {
     const transcript = await impl.stopListening();
 
-    if (isNative && native.isAvailable) {
+    if (useNativeImpl) {
       // Native: we have a transcript, send to backend for Gemini understanding
       if (transcript.trim()) {
         setIsProcessing(true);
@@ -61,7 +65,9 @@ export function useSpeechRecognition(
           setLastResult(result);
         } catch (e) {
           console.error('Failed to understand transcript:', e);
-          setLastResult({ actions: [{ intent: 'unknown' }] });
+          setLastResult({
+            actions: [{ intent: 'unknown', message: e instanceof Error ? e.message : 'Could not understand. Please try again.' }],
+          });
         } finally {
           setIsProcessing(false);
         }
@@ -73,14 +79,14 @@ export function useSpeechRecognition(
       const webResult = await web.getVoiceResult();
       setLastResult(webResult);
     }
-  }, [impl, isNative, native.isAvailable, web, language]);
+  }, [impl, useNativeImpl, web, language]);
 
   const getVoiceResult = useCallback(async (): Promise<VoiceUnderstandResult> => {
     return lastResult ?? { actions: [{ intent: 'unknown' }] };
   }, [lastResult]);
 
   return {
-    isNative: isNative && native.isAvailable,
+    isNative: useNativeImpl,
     isAvailable: impl.isAvailable,
     isListening: impl.isListening,
     isProcessing: isProcessing || impl.isProcessing,

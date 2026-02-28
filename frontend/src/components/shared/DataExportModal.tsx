@@ -45,7 +45,7 @@ export function DataExportModal({ open, onOpenChange }: DataExportModalProps) {
       toast.success('Data exported successfully!');
       onOpenChange(false);
     } catch (error) {
-      toast.error('Failed to export data');
+      toast.error(error instanceof Error ? error.message : 'Could not export data. Please try again.');
     }
   };
 
@@ -61,7 +61,7 @@ export function DataExportModal({ open, onOpenChange }: DataExportModalProps) {
       toast.success(`${type.charAt(0).toUpperCase() + type.slice(1)} exported successfully!`);
       onOpenChange(false);
     } catch (error) {
-      toast.error(`Failed to export ${type}`);
+      toast.error(error instanceof Error ? error.message : `Could not export ${type}. Please try again.`);
     }
   };
 
@@ -83,10 +83,10 @@ export function DataExportModal({ open, onOpenChange }: DataExportModalProps) {
             window.location.reload();
           }, 1500);
         } else {
-          toast.error(result.error || 'Failed to import data');
+          toast.error(result.error || 'Could not import data. Please try again.');
         }
       } catch (error) {
-        toast.error('Failed to read file');
+        toast.error(error instanceof Error ? error.message : 'Could not read file. Please try again.');
       } finally {
         setImporting(false);
         onOpenChange(false);
@@ -94,7 +94,7 @@ export function DataExportModal({ open, onOpenChange }: DataExportModalProps) {
     };
 
     reader.onerror = () => {
-      toast.error('Failed to read file');
+      toast.error('Could not read file. Please try again.');
       setImporting(false);
     };
 

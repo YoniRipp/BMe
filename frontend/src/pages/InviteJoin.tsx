@@ -42,7 +42,7 @@ export function InviteJoin() {
     groupsApi
       .getInvitationByToken(token)
       .then((data) => setInvitation(data))
-      .catch(() => setInviteError('Invitation not found or expired'))
+      .catch((err) => setInviteError(err instanceof Error ? err.message : 'Invitation not found or expired'))
       .finally(() => setInviteLoading(false));
   }, [token]);
 
@@ -58,7 +58,7 @@ export function InviteJoin() {
       .acceptInviteByToken(token)
       .then(() => navigate(`/groups/${invitation.groupId}`, { replace: true }))
       .catch((err) => {
-        setAcceptError(err instanceof Error ? err.message : 'Failed to join group');
+        setAcceptError(err instanceof Error ? err.message : 'Could not join group. Please try again.');
       })
       .finally(() => setAcceptLoading(false));
   }, [invitation, user, authLoading, token, navigate]);
@@ -72,8 +72,12 @@ export function InviteJoin() {
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError('');
-    if (password.length < 6) {
-      setFormError('Password must be at least 6 characters');
+    if (password.length < 8) {
+      setFormError('Password must be at least 8 characters');
+      return;
+    }
+    if (!/[A-Z]/.test(password) || !/[a-z]/.test(password) || !/\d/.test(password)) {
+      setFormError('Password must contain at least one uppercase letter, one lowercase letter, and one digit');
       return;
     }
     setFormLoading(true);
@@ -81,7 +85,7 @@ export function InviteJoin() {
       await register(email.trim(), password, name.trim());
       // useEffect will run when user is set and call acceptInviteByToken + navigate
     } catch (err) {
-      setFormError(err instanceof Error ? err.message : 'Sign up failed');
+      setFormError(err instanceof Error ? err.message : 'An error occurred. Please try again.');
     } finally {
       setFormLoading(false);
     }
@@ -95,7 +99,7 @@ export function InviteJoin() {
       await login(email.trim(), password);
       // useEffect will run when user is set and call acceptInviteByToken + navigate
     } catch (err) {
-      setFormError(err instanceof Error ? err.message : 'Login failed');
+      setFormError(err instanceof Error ? err.message : 'An error occurred. Please try again.');
     } finally {
       setFormLoading(false);
     }
@@ -234,9 +238,9 @@ export function InviteJoin() {
                   autoComplete="new-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="At least 6 characters"
+                  placeholder="At least 8 characters"
                   required
-                  minLength={6}
+                  minLength={8}
                 />
               </div>
               <Button type="submit" className="w-full" disabled={formLoading}>

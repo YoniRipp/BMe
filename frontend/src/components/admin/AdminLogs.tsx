@@ -91,7 +91,7 @@ export function AdminLogs() {
     adminApi
       .getLogs(logTab)
       .then(setLogs)
-      .catch(() => toast.error('Failed to load logs'))
+      .catch((e) => toast.error(e instanceof Error ? e.message : 'Could not load logs. Please try again.'))
       .finally(() => setLogsLoading(false));
   }, [logTab]);
 
@@ -112,8 +112,8 @@ export function AdminLogs() {
           else setEvents((prev) => [...prev, ...r.events]);
           setNextCursor(r.nextCursor);
         })
-        .catch(() => {
-          toast.error('Failed to load activity');
+        .catch((e) => {
+          toast.error(e instanceof Error ? e.message : 'Could not load activity. Please try again.');
         })
         .finally(() => setActivityLoading(false));
     },

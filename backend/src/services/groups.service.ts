@@ -97,7 +97,10 @@ export class GroupsService {
   }
 
   static async update(id: string, userId: string, data: UpdateGroupDto) {
-    // Check if user is owner or admin
+    const exists = await prisma.group.findUnique({ where: { id } });
+    if (!exists) {
+      throw new NotFoundError('Group not found');
+    }
     const group = await prisma.group.findFirst({
       where: {
         id,
@@ -107,9 +110,8 @@ export class GroupsService {
         ],
       },
     });
-
     if (!group) {
-      throw new NotFoundError('Group not found or you do not have permission');
+      throw new AppError('You do not have permission to update this group', StatusCodes.FORBIDDEN);
     }
 
     return prisma.group.update({
@@ -119,13 +121,15 @@ export class GroupsService {
   }
 
   static async delete(id: string, userId: string) {
-    // Only owner can delete
+    const exists = await prisma.group.findUnique({ where: { id } });
+    if (!exists) {
+      throw new NotFoundError('Group not found');
+    }
     const group = await prisma.group.findFirst({
       where: { id, ownerId: userId },
     });
-
     if (!group) {
-      throw new NotFoundError('Group not found or you do not have permission');
+      throw new AppError('Only the group owner can delete this group', StatusCodes.FORBIDDEN);
     }
 
     await prisma.group.delete({
@@ -134,6 +138,10 @@ export class GroupsService {
   }
 
   static async inviteMember(groupId: string, userId: string, data: InviteMemberDto) {
+    const exists = await prisma.group.findUnique({ where: { id: groupId } });
+    if (!exists) {
+      throw new NotFoundError('Group not found');
+    }
     const group = await prisma.group.findFirst({
       where: {
         id: groupId,
@@ -143,9 +151,8 @@ export class GroupsService {
         ],
       },
     });
-
     if (!group) {
-      throw new NotFoundError('Group not found or you do not have permission');
+      throw new AppError('You do not have permission to invite members to this group', StatusCodes.FORBIDDEN);
     }
 
     // Check if user is already a member
@@ -180,7 +187,10 @@ export class GroupsService {
     userId: string,
     data: UpdateMemberRoleDto
   ) {
-    // Check if user is owner or admin
+    const exists = await prisma.group.findUnique({ where: { id: groupId } });
+    if (!exists) {
+      throw new NotFoundError('Group not found');
+    }
     const group = await prisma.group.findFirst({
       where: {
         id: groupId,
@@ -190,9 +200,8 @@ export class GroupsService {
         ],
       },
     });
-
     if (!group) {
-      throw new NotFoundError('Group not found or you do not have permission');
+      throw new AppError('You do not have permission to update roles in this group', StatusCodes.FORBIDDEN);
     }
 
     return prisma.groupMember.update({
@@ -202,7 +211,10 @@ export class GroupsService {
   }
 
   static async removeMember(groupId: string, memberId: string, userId: string) {
-    // Check if user is owner or admin
+    const exists = await prisma.group.findUnique({ where: { id: groupId } });
+    if (!exists) {
+      throw new NotFoundError('Group not found');
+    }
     const group = await prisma.group.findFirst({
       where: {
         id: groupId,
@@ -212,9 +224,8 @@ export class GroupsService {
         ],
       },
     });
-
     if (!group) {
-      throw new NotFoundError('Group not found or you do not have permission');
+      throw new AppError('You do not have permission to remove members from this group', StatusCodes.FORBIDDEN);
     }
 
     await prisma.groupMember.delete({

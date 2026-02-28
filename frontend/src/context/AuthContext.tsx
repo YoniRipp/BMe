@@ -10,7 +10,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   loginWithProvider: (provider: AuthProviderName, token: string) => Promise<void>;
   loadUser: () => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
   register: (email: string, password: string, name: string) => Promise<void>;
 }
 
@@ -58,13 +58,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(apiUserToUser(res.user));
   }, []);
 
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
+    // Call backend to invalidate refresh token (best effort)
+    try {
+      await authApi.logout();
+    } catch {
+      // Ignore errors - we still want to clear local state
+    }
     setToken(null);
     setUser(null);
   }, []);
 
   useEffect(() => {
-    const onLogout = () => logout();
+    const onLogout = () => {
+      logout().catch(() => {});
+    };
     window.addEventListener('auth:logout', onLogout);
     return () => window.removeEventListener('auth:logout', onLogout);
   }, [logout]);

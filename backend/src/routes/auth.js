@@ -16,7 +16,10 @@ const SALT_ROUNDS = 10;
 const TOKEN_EXPIRY = '7d';
 const PKCE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 const PKCE_MAX_SIZE = 1000;
+const AUTH_CODE_TTL_MS = 60 * 1000; // 1 minute - auth codes are short-lived
+const AUTH_CODE_MAX_SIZE = 1000;
 const twitterPKCEStore = new Map();
+const authCodeStore = new Map();
 
 function pkcePrune() {
   const now = Date.now();
@@ -33,6 +36,43 @@ function pkcePrune() {
       removed++;
     }
   }
+}
+
+function authCodePrune() {
+  const now = Date.now();
+  for (const [key, entry] of authCodeStore.entries()) {
+    if (entry.expiresAt <= now) authCodeStore.delete(key);
+  }
+  if (authCodeStore.size > AUTH_CODE_MAX_SIZE) {
+    const toRemove = authCodeStore.size - AUTH_CODE_MAX_SIZE;
+    let removed = 0;
+    for (const key of authCodeStore.keys()) {
+      if (removed >= toRemove) break;
+      authCodeStore.delete(key);
+      removed++;
+    }
+  }
+}
+
+function generateAuthCode(token) {
+  authCodePrune();
+  const code = crypto.randomBytes(32).toString('hex');
+  authCodeStore.set(code, {
+    token,
+    expiresAt: Date.now() + AUTH_CODE_TTL_MS,
+  });
+  return code;
+}
+
+function exchangeAuthCode(code) {
+  authCodePrune();
+  const entry = authCodeStore.get(code);
+  if (!entry || entry.expiresAt <= Date.now()) {
+    authCodeStore.delete(code);
+    return null;
+  }
+  authCodeStore.delete(code);
+  return entry.token;
 }
 
 function rowToUser(row) {
@@ -81,7 +121,7 @@ async function register(req, res) {
       return res.status(409).json({ error: 'Email already registered' });
     }
     logger.error({ err: e }, 'register error');
-    res.status(500).json({ error: e?.message ?? 'Registration failed' });
+    res.status(500).json({ error: e?.message ?? 'Could not complete registration. Please try again.' });
   }
 }
 
@@ -117,7 +157,7 @@ async function login(req, res) {
     res.json({ user, token });
   } catch (e) {
     logger.error({ err: e }, 'login error');
-    res.status(500).json({ error: e?.message ?? 'Login failed' });
+    res.status(500).json({ error: e?.message ?? 'Could not sign in. Please try again.' });
   }
 }
 
@@ -134,7 +174,7 @@ async function me(req, res) {
     res.json(rowToUser(result.rows[0]));
   } catch (e) {
     logger.error({ err: e }, 'me error');
-    res.status(500).json({ error: e?.message ?? 'Failed to get user' });
+    res.status(500).json({ error: e?.message ?? 'Could not get user. Please try again.' });
   }
 }
 
@@ -221,7 +261,7 @@ async function loginGoogle(req, res) {
       if (!userRes.ok) {
         const text = await userRes.text();
         logger.error({ status: userRes.status, text }, 'Google userinfo error');
-        return res.status(401).json({ error: 'Invalid Google token' });
+        return res.status(401).json({ error: 'Google sign-in failed: token could not be verified. Please try again.' });
       }
       const data = await userRes.json();
       sub = data?.id;
@@ -229,7 +269,7 @@ async function loginGoogle(req, res) {
       name = [data?.given_name, data?.family_name].filter(Boolean).join(' ') || data?.name || email || 'User';
     }
     if (!sub) {
-      return res.status(401).json({ error: 'Invalid Google token' });
+      return res.status(401).json({ error: 'Google sign-in failed: no user ID returned. Please try again.' });
     }
     const pool = getPool();
     const { user, token: jwtToken } = await findOrCreateProviderUser(pool, {
@@ -242,7 +282,7 @@ async function loginGoogle(req, res) {
     res.json({ user, token: jwtToken });
   } catch (e) {
     logger.error({ err: e }, 'loginGoogle error');
-    res.status(401).json({ error: e?.message ?? 'Google sign-in failed' });
+    res.status(401).json({ error: e?.message ?? 'Could not complete Google sign-in. Please try again.' });
   }
 }
 
@@ -262,14 +302,14 @@ async function loginFacebook(req, res) {
     if (!response.ok) {
       const text = await response.text();
       logger.error({ status: response.status, text }, 'Facebook Graph error');
-      return res.status(401).json({ error: 'Invalid Facebook token' });
+      return res.status(401).json({ error: 'Facebook sign-in failed: token could not be verified. Please try again.' });
     }
     const data = await response.json();
     const providerId = data?.id;
     const email = data?.email || '';
     const name = data?.name || email || 'User';
     if (!providerId) {
-      return res.status(401).json({ error: 'Invalid Facebook token' });
+      return res.status(401).json({ error: 'Facebook sign-in failed: no user ID returned. Please try again.' });
     }
     const pool = getPool();
     const { user, token: jwtToken } = await findOrCreateProviderUser(pool, {
@@ -282,7 +322,7 @@ async function loginFacebook(req, res) {
     res.json({ user, token: jwtToken });
   } catch (e) {
     logger.error({ err: e }, 'loginFacebook error');
-    res.status(401).json({ error: e?.message ?? 'Facebook sign-in failed' });
+    res.status(401).json({ error: e?.message ?? 'Could not complete Facebook sign-in. Please try again.' });
   }
 }
 
@@ -309,7 +349,7 @@ async function loginTwitter(req, res) {
     const name = userData?.name || userData?.username || 'User';
     const email = '';
     if (!providerId) {
-      return res.status(401).json({ error: 'Invalid Twitter token' });
+      return res.status(401).json({ error: 'Twitter sign-in failed: no user ID returned. Please try again.' });
     }
     const pool = getPool();
     const { user, token: jwtToken } = await findOrCreateProviderUser(pool, {
@@ -322,7 +362,7 @@ async function loginTwitter(req, res) {
     res.json({ user, token: jwtToken });
   } catch (e) {
     logger.error({ err: e }, 'loginTwitter error');
-    res.status(401).json({ error: e?.message ?? 'Twitter sign-in failed' });
+    res.status(401).json({ error: e?.message ?? 'Could not complete Twitter sign-in. Please try again.' });
   }
 }
 
@@ -408,7 +448,8 @@ async function twitterCallback(req, res) {
       name,
     });
     publishEvent('auth.UserLoggedIn', { userId: user.id, method: 'twitter' }, user.id).catch(() => {});
-    const redirectUrl = `${config.frontendOrigin}/auth/callback?token=${encodeURIComponent(jwtToken)}`;
+    const authCode = generateAuthCode(jwtToken);
+    const redirectUrl = `${config.frontendOrigin}/auth/callback?code=${encodeURIComponent(authCode)}`;
     res.redirect(redirectUrl);
   } catch (e) {
     logger.error({ err: e }, 'twitterCallback error');
@@ -453,7 +494,7 @@ async function forgotPassword(req, res) {
     res.json({ message: 'If an account exists, a reset link has been sent.' });
   } catch (e) {
     logger.error({ err: e }, 'forgotPassword error');
-    res.status(500).json({ error: 'Failed to process request' });
+    res.status(500).json({ error: 'Could not send password reset email. Please try again.' });
   }
 }
 
@@ -487,7 +528,30 @@ async function resetPassword(req, res) {
     res.json({ message: 'Password has been reset successfully' });
   } catch (e) {
     logger.error({ err: e }, 'resetPassword error');
-    res.status(500).json({ error: 'Failed to reset password' });
+    res.status(500).json({ error: 'Could not reset password. Please try again.' });
+  }
+}
+
+async function exchangeCode(req, res) {
+  try {
+    const { code } = req.body ?? {};
+    if (!code || typeof code !== 'string') {
+      return res.status(400).json({ error: 'Auth code is required' });
+    }
+    const token = exchangeAuthCode(code);
+    if (!token) {
+      return res.status(400).json({ error: 'Invalid or expired auth code' });
+    }
+    const payload = jwt.verify(token, config.jwtSecret);
+    const pool = getPool();
+    const { rows } = await pool.query('SELECT * FROM users WHERE id = $1', [payload.sub]);
+    if (!rows[0]) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    res.json({ user: rowToUser(rows[0]), token });
+  } catch (e) {
+    logger.error({ err: e }, 'exchangeCode error');
+    res.status(400).json({ error: 'Invalid auth code' });
   }
 }
 
@@ -499,6 +563,7 @@ router.post('/api/auth/facebook', loginFacebook);
 router.post('/api/auth/twitter', loginTwitter);
 router.get('/api/auth/twitter/redirect', twitterRedirect);
 router.get('/api/auth/twitter/callback', twitterCallback);
+router.post('/api/auth/exchange', exchangeCode);
 router.get('/api/auth/me', requireAuth, me);
 router.post('/api/auth/forgot-password', forgotPassword);
 router.post('/api/auth/reset-password', resetPassword);

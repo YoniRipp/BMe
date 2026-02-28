@@ -156,7 +156,7 @@ const deleteGoalSchema = z.object({
   goalId: z.string().optional(),
 });
 
-const unknownSchema = z.object({ intent: z.literal('unknown') });
+const unknownSchema = z.object({ intent: z.literal('unknown'), message: z.string().optional() });
 
 export const voiceActionSchema = z.discriminatedUnion('intent', [
   addScheduleSchema,

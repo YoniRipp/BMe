@@ -80,7 +80,7 @@ export function VoiceAgentPanel({ open, onOpenChange }: VoiceAgentPanelProps) {
     try {
       await startListening();
     } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Failed to start recording';
+      const msg = e instanceof Error ? e.message : 'Could not start recording. Please check microphone permissions.';
       setError(msg);
       toast.error('Microphone', { description: msg });
     }
@@ -92,7 +92,7 @@ export function VoiceAgentPanel({ open, onOpenChange }: VoiceAgentPanelProps) {
       const result = await getVoiceResult();
 
       if (!result || result.actions.length === 0) {
-        setError('No audio recorded or not understood');
+        setError('Could not understand your recording. Please try again.');
         return;
       }
 
@@ -107,9 +107,9 @@ export function VoiceAgentPanel({ open, onOpenChange }: VoiceAgentPanelProps) {
         try {
           const r = await executeVoiceAction(action, voiceContext);
           if (r.success) succeeded.push(r.message ?? action.intent);
-          else failed.push(r.message ?? 'Failed');
+          else failed.push(r.message ?? 'Could not complete action. Please try again.');
         } catch (e) {
-          failed.push(e instanceof Error ? e.message : 'Action failed');
+          failed.push(e instanceof Error ? e.message : 'Could not complete action. Please try again.');
         }
       }
 
@@ -123,9 +123,9 @@ export function VoiceAgentPanel({ open, onOpenChange }: VoiceAgentPanelProps) {
         setError(failed[0]);
       }
     } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Network or server error';
+      const msg = e instanceof Error ? e.message : 'Network or server error. Please try again.';
       setError(msg);
-      toast.error('Voice request failed', { description: msg });
+      toast.error('Voice processing failed', { description: msg });
     }
   }, [stopListening, getVoiceResult, voiceContext]);
 

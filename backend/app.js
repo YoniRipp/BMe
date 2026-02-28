@@ -106,6 +106,9 @@ export async function createApp() {
     next();
   });
 
+  // Apply rate limiter to all /api routes BEFORE proxy and API router
+  app.use('/api', apiLimiter);
+
   // API gateway: route context paths to extracted services when SERVICE_URL is set
   if (config.moneyServiceUrl) {
     app.use('/api/money', createProxyMiddleware({ target: config.moneyServiceUrl, changeOrigin: true, pathRewrite: { '^/api/money': '/api' } }));
@@ -128,7 +131,6 @@ export async function createApp() {
 
   // All API routes (auth, users, schedule, transactions when not proxied, workouts, food, voice, etc.)
   if (config.isDbConfigured) {
-    app.use('/api', apiLimiter);
     app.use(apiRouter);
   }
 

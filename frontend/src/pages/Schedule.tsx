@@ -12,6 +12,7 @@ import { Card } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Calendar, Plus, CalendarDays, CalendarRange, List } from 'lucide-react';
 import { format, subDays, isSameDay } from 'date-fns';
+import { toast } from 'sonner';
 import { ScheduleItem as ScheduleItemType } from '@/types/schedule';
 import { utcScheduleToLocalDateStr } from '@/lib/utils';
 
@@ -76,8 +77,8 @@ export function Schedule() {
       }
       setEditingSchedule(undefined);
       setScheduleModalOpen(false);
-    } catch {
-      // Error already set in context
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Could not save schedule item. Please try again.');
     }
   };
 

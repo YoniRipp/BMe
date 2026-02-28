@@ -36,7 +36,7 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
   });
 
   const transactionsError = transactionsQueryError
-    ? (transactionsQueryError instanceof Error ? transactionsQueryError.message : 'Failed to load transactions')
+    ? (transactionsQueryError instanceof Error ? transactionsQueryError.message : 'Could not load transactions. Please try again.')
     : null;
 
   const refetchTransactions = useCallback(async () => {

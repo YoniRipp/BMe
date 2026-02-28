@@ -16,6 +16,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ContentWithLoading } from '@/components/shared/ContentWithLoading';
 import { Plus, Settings, ArrowLeft } from 'lucide-react';
+import { toast } from 'sonner';
 import { ScheduleItem as ScheduleItemType } from '@/types/schedule';
 import { Transaction } from '@/types/transaction';
 
@@ -94,8 +95,8 @@ export function GroupDetail() {
       }
       setEditingSchedule(undefined);
       setScheduleModalOpen(false);
-    } catch {
-      // Error in context
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Could not save schedule item. Please try again.');
     }
   };
 
@@ -108,8 +109,8 @@ export function GroupDetail() {
       }
       setEditingTransaction(undefined);
       setTransactionModalOpen(false);
-    } catch {
-      // Error in context
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Could not save transaction. Please try again.');
     }
   };
 

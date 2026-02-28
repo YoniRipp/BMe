@@ -24,7 +24,7 @@ export function Settings() {
       toast.success('All data cleared');
       window.location.reload();
     } catch {
-      toast.error('Failed to clear data');
+      toast.error('Could not clear data. Please try again.');
     }
   };
 
@@ -33,7 +33,7 @@ export function Settings() {
       updateSettings(DEFAULT_SETTINGS);
       toast.success('Settings reset to defaults');
     } catch {
-      toast.error('Failed to reset settings');
+      toast.error('Could not reset settings. Please try again.');
     }
   };
 
