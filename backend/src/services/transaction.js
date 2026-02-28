@@ -7,6 +7,7 @@ import { parseDate, validateNonNegative } from '../utils/validation.js';
 import { requireId, requireFound, normOneOf, buildUpdates } from '../utils/serviceHelpers.js';
 import * as transactionModel from '../models/transaction.js';
 import { publishEvent } from '../events/publish.js';
+import { upsertEmbedding, buildEmbeddingText, deleteEmbedding } from './embeddings.js';
 
 const TYPE_ERROR = 'type must be income or expense';
 
@@ -46,6 +47,7 @@ export async function create(userId, body) {
     groupId,
   });
   await publishEvent('money.TransactionCreated', transaction, userId);
+  upsertEmbedding(userId, 'transaction', transaction.id, buildEmbeddingText('transaction', transaction));
   return transaction;
 }
 
@@ -65,6 +67,7 @@ export async function update(userId, id, body) {
   const updated = await transactionModel.update(id, userId, updates);
   requireFound(updated, 'Transaction');
   await publishEvent('money.TransactionUpdated', updated, userId);
+  upsertEmbedding(userId, 'transaction', updated.id, buildEmbeddingText('transaction', updated));
   return updated;
 }
 
@@ -73,6 +76,7 @@ export async function remove(userId, id) {
   const deleted = await transactionModel.deleteById(id, userId);
   requireFound(deleted, 'Transaction');
   await publishEvent('money.TransactionDeleted', { id }, userId);
+  deleteEmbedding(id, 'transaction');
 }
 
 export async function getBalance(userId, month) {

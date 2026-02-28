@@ -1,0 +1,14 @@
+/**
+ * AI Insights routes.
+ */
+import { Router } from 'express';
+import { requireAuth } from '../middleware/auth.js';
+import * as insightsController from '../controllers/insights.js';
+
+const router = Router();
+
+router.get('/api/insights', requireAuth, insightsController.getInsights);
+router.get('/api/insights/stats', requireAuth, insightsController.getStats);
+router.get('/api/insights/today', requireAuth, insightsController.getTodayRecommendations);
+
+export default router;

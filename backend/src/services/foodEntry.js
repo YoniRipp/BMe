@@ -5,6 +5,7 @@ import { parseDate, validateNonNegative, requireNonEmptyString, normTime } from 
 import { requireId, requireFound, buildUpdates } from '../utils/serviceHelpers.js';
 import * as foodEntryModel from '../models/foodEntry.js';
 import { publishEvent } from '../events/publish.js';
+import { upsertEmbedding, buildEmbeddingText, deleteEmbedding } from './embeddings.js';
 
 export async function list(userId) {
   return foodEntryModel.findByUserId(userId);
@@ -32,6 +33,7 @@ export async function create(userId, body) {
     endTime: optionalTime(endTime),
   });
   await publishEvent('energy.FoodEntryCreated', entry, userId);
+  upsertEmbedding(userId, 'food_entry', entry.id, buildEmbeddingText('food_entry', entry));
   return entry;
 }
 
@@ -53,6 +55,7 @@ export async function update(userId, id, body) {
   const updated = await foodEntryModel.update(id, userId, updates);
   requireFound(updated, 'Food entry');
   await publishEvent('energy.FoodEntryUpdated', updated, userId);
+  upsertEmbedding(userId, 'food_entry', updated.id, buildEmbeddingText('food_entry', updated));
   return updated;
 }
 
@@ -61,4 +64,5 @@ export async function remove(userId, id) {
   const deleted = await foodEntryModel.deleteById(id, userId);
   requireFound(deleted, 'Food entry');
   await publishEvent('energy.FoodEntryDeleted', { id }, userId);
+  deleteEmbedding(id, 'food_entry');
 }
