@@ -9,6 +9,7 @@ import { requireNonEmptyString } from '../utils/validation.js';
 import { requireId, requireFound, normOneOf, buildUpdates, trim } from '../utils/serviceHelpers.js';
 import * as scheduleModel from '../models/schedule.js';
 import { publishEvent } from '../events/publish.js';
+import { upsertEmbedding, buildEmbeddingText, deleteEmbedding } from './embeddings.js';
 
 export async function list(userId) {
   return scheduleModel.findByUserId(userId);
@@ -40,6 +41,7 @@ export async function create(userId, body) {
     date: dateStr,
   });
   await publishEvent('schedule.ScheduleItemAdded', item, userId);
+  upsertEmbedding(userId, 'schedule', item.id, buildEmbeddingText('schedule', item));
   return item;
 }
 
@@ -83,6 +85,7 @@ export async function update(userId, id, body) {
   const updated = await scheduleModel.update(id, userId, updates);
   requireFound(updated, 'Schedule item');
   await publishEvent('schedule.ScheduleItemUpdated', updated, userId);
+  upsertEmbedding(userId, 'schedule', updated.id, buildEmbeddingText('schedule', updated));
   return updated;
 }
 
@@ -91,4 +94,5 @@ export async function remove(userId, id) {
   const deleted = await scheduleModel.deleteById(id, userId);
   requireFound(deleted, 'Schedule item');
   await publishEvent('schedule.ScheduleItemDeleted', { id }, userId);
+  deleteEmbedding(id, 'schedule');
 }

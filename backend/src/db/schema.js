@@ -216,6 +216,50 @@ export async function initSchema() {
     await client.query(`ALTER TABLE food_entries ADD COLUMN IF NOT EXISTS updated_at timestamptz DEFAULT now();`).catch(() => {});
     await client.query(`ALTER TABLE goals ADD COLUMN IF NOT EXISTS updated_at timestamptz DEFAULT now();`).catch(() => {});
 
+    // pgvector extension + semantic search table (non-fatal: pgvector may not be installed in all envs)
+    await client.query(`CREATE EXTENSION IF NOT EXISTS vector;`).catch(() => {});
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS user_embeddings (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        record_type text NOT NULL,
+        record_id text NOT NULL,
+        content_text text NOT NULL,
+        embedding vector(768),
+        created_at timestamptz DEFAULT now(),
+        updated_at timestamptz DEFAULT now(),
+        UNIQUE (record_id, record_type)
+      );
+    `).catch(() => {});
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_user_embeddings_user_type
+      ON user_embeddings (user_id, record_type);
+    `).catch(() => {});
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_user_embeddings_hnsw
+      ON user_embeddings USING hnsw (embedding vector_cosine_ops);
+    `).catch(() => {});
+
+    // AI-generated daily stats cache
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS user_daily_stats (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        date date NOT NULL,
+        total_calories numeric DEFAULT 0,
+        total_income numeric DEFAULT 0,
+        total_expenses numeric DEFAULT 0,
+        workout_count int DEFAULT 0,
+        sleep_hours numeric,
+        updated_at timestamptz DEFAULT now(),
+        UNIQUE (user_id, date)
+      );
+    `).catch(() => {});
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_user_daily_stats_user_date
+      ON user_daily_stats (user_id, date DESC);
+    `).catch(() => {});
+
     await client.query('COMMIT');
   } catch (e) {
     await client.query('ROLLBACK').catch(() => {});

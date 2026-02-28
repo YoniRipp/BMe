@@ -17,6 +17,9 @@ import foodSearchRouter from './foodSearch.js';
 import voiceRouter from './voice.js';
 import jobsRouter from './jobs.js';
 import adminRouter from './admin.js';
+import searchRouter from './search.js';
+import insightsRouter from './insights.js';
+import uploadsRouter from './uploads.js';
 
 const router = Router();
 
@@ -35,5 +38,8 @@ router.use(groupRouter);
 router.use(foodSearchRouter);
 router.use(voiceRouter);
 router.use(jobsRouter);
+router.use(searchRouter);
+router.use(insightsRouter);
+router.use(uploadsRouter);
 
 export default router;

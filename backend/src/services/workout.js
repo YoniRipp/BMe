@@ -8,6 +8,7 @@ import { requireNonEmptyString } from '../utils/validation.js';
 import { requireId, requireFound, normOneOf, buildUpdates, trim, identity } from '../utils/serviceHelpers.js';
 import * as workoutModel from '../models/workout.js';
 import { publishEvent } from '../events/publish.js';
+import { upsertEmbedding, buildEmbeddingText, deleteEmbedding } from './embeddings.js';
 
 const TYPE_ERROR = 'type must be one of: ' + WORKOUT_TYPES.join(', ');
 
@@ -28,6 +29,7 @@ export async function create(userId, body) {
     notes,
   });
   await publishEvent('body.WorkoutCreated', workout, userId);
+  upsertEmbedding(userId, 'workout', workout.id, buildEmbeddingText('workout', workout));
   return workout;
 }
 
@@ -44,6 +46,7 @@ export async function update(userId, id, body) {
   const updated = await workoutModel.update(id, userId, updates);
   requireFound(updated, 'Workout');
   await publishEvent('body.WorkoutUpdated', updated, userId);
+  upsertEmbedding(userId, 'workout', updated.id, buildEmbeddingText('workout', updated));
   return updated;
 }
 
@@ -52,4 +55,5 @@ export async function remove(userId, id) {
   const deleted = await workoutModel.deleteById(id, userId);
   requireFound(deleted, 'Workout');
   await publishEvent('body.WorkoutDeleted', { id }, userId);
+  deleteEmbedding(id, 'workout');
 }

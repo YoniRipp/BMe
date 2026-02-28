@@ -18,6 +18,7 @@ import {
 import { FinancialInsightsSection } from '@/components/insights/FinancialInsightsSection';
 import { FitnessInsightsSection } from '@/components/insights/FitnessInsightsSection';
 import { HealthInsightsSection } from '@/components/insights/HealthInsightsSection';
+import { AiInsightsSection } from '@/components/insights/AiInsightsSection';
 
 export function Insights() {
   const { transactions } = useTransactions();
@@ -93,6 +94,7 @@ export function Insights() {
   return (
     <div className="max-w-6xl mx-auto space-y-6">
       <PageTitle title="Insights" subtitle="Analytics and trends" />
+      <AiInsightsSection />
       <FinancialInsightsSection
         spendingTrend={spendingTrend}
         spendingTrendData={spendingTrendData}
