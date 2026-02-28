@@ -23,6 +23,8 @@ async function start() {
       logger.info('Database schema initialized');
     } catch (e) {
       logger.error({ err: e }, 'Database init failed - exiting');
+      console.error('Database init failed:', e?.message ?? String(e));
+      if (e?.code) console.error('Error code:', e.code);
       process.exit(1);
     }
   }
