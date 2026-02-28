@@ -3,7 +3,7 @@
  */
 import { config } from './src/config/index.js';
 import { initSchema } from './src/db/index.js';
-import { closePool } from './src/db/pool.js';
+import { closePool, ensureDefaultPool } from './src/db/pool.js';
 import { createApp } from './app.js';
 import { closeRedis } from './src/redis/client.js';
 import { closeQueue } from './src/queue/index.js';
@@ -25,6 +25,7 @@ async function start() {
   // Initialize database if configured - exit on failure since API requires it
   if (config.isDbConfigured) {
     try {
+      await ensureDefaultPool();
       await initSchema();
       logger.info('Database schema initialized');
     } catch (e) {
