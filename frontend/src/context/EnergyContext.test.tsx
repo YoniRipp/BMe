@@ -100,7 +100,7 @@ describe('EnergyContext', () => {
       });
     });
 
-    expect(result.current.foodEntries).toHaveLength(2);
+    await waitFor(() => expect(result.current.foodEntries).toHaveLength(2));
   });
 
   it('updates checkIn', async () => {
