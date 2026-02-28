@@ -36,7 +36,7 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
   });
 
   const scheduleError = scheduleQueryError
-    ? (scheduleQueryError instanceof Error ? scheduleQueryError.message : 'Failed to load schedule')
+    ? (scheduleQueryError instanceof Error ? scheduleQueryError.message : 'Could not load schedule. Please try again.')
     : null;
 
   const refetchSchedule = useCallback(async () => {

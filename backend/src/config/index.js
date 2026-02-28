@@ -20,6 +20,7 @@ const isProduction = process.env.NODE_ENV === 'production';
 
 const configSchema = z.object({
   port: z.coerce.number().int().min(1).max(65535),
+  host: z.string().optional(),
   dbUrl: z.string().optional(),
   isDbConfigured: z.boolean(),
   geminiApiKey: z.string().optional(),
@@ -30,7 +31,9 @@ const configSchema = z.object({
   corsOrigin: isProduction
     ? z.string().min(1, 'CORS_ORIGIN must be set to an explicit origin in production')
     : z.union([z.string(), z.boolean(), z.undefined()]),
-  frontendOrigin: z.string(),
+  frontendOrigin: isProduction
+    ? z.string().min(1, 'FRONTEND_ORIGIN must be set in production')
+    : z.string().optional(),
   googleClientId: z.string().optional(),
   facebookAppId: z.string().optional(),
   twitterClientId: z.string().optional(),
@@ -63,7 +66,7 @@ const JWT_SECRET = process.env.JWT_SECRET || (isProduction ? null : 'dev-secret-
 const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN || process.env.CORS_ORIGIN;
 const CORS_ORIGIN = process.env.CORS_ORIGIN != null && process.env.CORS_ORIGIN !== ''
   ? process.env.CORS_ORIGIN
-  : (isProduction ? FRONTEND_ORIGIN : undefined);
+  : (isProduction ? FRONTEND_ORIGIN : true);
 if (isProduction && (CORS_ORIGIN === true || CORS_ORIGIN === 'true')) {
   throw new Error('CORS_ORIGIN must be an explicit origin in production, not true');
 }
@@ -73,6 +76,7 @@ if (isProduction && !process.env.CORS_ORIGIN) {
 
 const rawConfig = {
   port: Number(PORT),
+  host: process.env.HOST,
   dbUrl: DATABASE_URL,
   isDbConfigured: !!DATABASE_URL,
   geminiApiKey: process.env.GEMINI_API_KEY,

@@ -370,6 +370,6 @@ export async function executeVoiceAction(action: VoiceAction, context: VoiceExec
     if (!handler) return { success: false, message: 'Could not understand' };
     return await handler(action, context);
   } catch (e) {
-    return { success: false, message: e instanceof Error ? e.message : 'Unknown error' };
+    return { success: false, message: e instanceof Error ? e.message : 'An error occurred. Please try again.' };
   }
 }

@@ -28,8 +28,15 @@ export function useNativeSpeech(options: UseNativeSpeechOptions = {}): UseNative
   const [isAvailable, setIsAvailable] = useState(false);
   const [currentTranscript, setCurrentTranscript] = useState('');
   const transcriptRef = useRef('');
+  const isListeningRef = useRef(false);
+  const onPartialResultRef = useRef(onPartialResult);
 
   const isNative = Capacitor.isNativePlatform();
+
+  // Keep onPartialResult ref up to date to avoid stale closures
+  useEffect(() => {
+    onPartialResultRef.current = onPartialResult;
+  }, [onPartialResult]);
 
   useEffect(() => {
     if (isNative) {
@@ -46,6 +53,11 @@ export function useNativeSpeech(options: UseNativeSpeechOptions = {}): UseNative
       throw new Error('Native speech recognition not available');
     }
 
+    // Guard against double start
+    if (isListeningRef.current) {
+      return;
+    }
+
     const permResult = await SpeechRecognition.requestPermissions();
     if (!permResult.speechRecognition || permResult.speechRecognition === 'denied') {
       throw new Error('Speech recognition permission denied');
@@ -53,21 +65,30 @@ export function useNativeSpeech(options: UseNativeSpeechOptions = {}): UseNative
 
     transcriptRef.current = '';
     setCurrentTranscript('');
-    setIsListening(true);
 
+    // Add listener before starting
     await SpeechRecognition.addListener('partialResults', (data) => {
       const text = data.matches?.[0] ?? '';
       transcriptRef.current = text;
       setCurrentTranscript(text);
-      onPartialResult?.(text);
+      onPartialResultRef.current?.(text);
     });
 
-    await SpeechRecognition.start({
-      language,
-      partialResults: true,
-      popup: false,
-    });
-  }, [isNative, isAvailable, language, onPartialResult]);
+    try {
+      await SpeechRecognition.start({
+        language,
+        partialResults: true,
+        popup: false,
+      });
+      // Only set listening state AFTER successful start
+      isListeningRef.current = true;
+      setIsListening(true);
+    } catch (e) {
+      // Remove listener if start failed
+      await SpeechRecognition.removeAllListeners().catch(() => {});
+      throw e;
+    }
+  }, [isNative, isAvailable, language]);
 
   const stopListening = useCallback(async (): Promise<string> => {
     if (!isNative) return '';
@@ -79,20 +100,21 @@ export function useNativeSpeech(options: UseNativeSpeechOptions = {}): UseNative
     }
 
     await SpeechRecognition.removeAllListeners();
+    isListeningRef.current = false;
     setIsListening(false);
 
     return transcriptRef.current;
   }, [isNative]);
 
-  // Cleanup on unmount
+  // Cleanup on unmount - use ref to avoid stale closure issues
   useEffect(() => {
     return () => {
-      if (isNative && isListening) {
+      if (isNative && isListeningRef.current) {
         SpeechRecognition.stop().catch(() => {});
         SpeechRecognition.removeAllListeners().catch(() => {});
       }
     };
-  }, [isNative, isListening]);
+  }, [isNative]);
 
   return {
     isNative,

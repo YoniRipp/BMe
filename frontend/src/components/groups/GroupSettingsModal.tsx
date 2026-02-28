@@ -83,7 +83,7 @@ export function GroupSettingsModal({ open, onOpenChange, group }: GroupSettingsM
       await inviteToGroup(currentGroup.id, email);
       setInviteEmail('');
     } catch (e) {
-      setInviteError(e instanceof Error ? e.message : 'Failed to invite');
+      setInviteError(e instanceof Error ? e.message : 'Could not send invitation. Please try again.');
     }
   };
 

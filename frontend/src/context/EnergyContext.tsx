@@ -52,9 +52,9 @@ export function EnergyProvider({ children }: { children: React.ReactNode }) {
   const energyLoading = checkInsQuery.isLoading || foodEntriesQuery.isLoading;
   const energyError =
     checkInsQuery.error
-      ? (checkInsQuery.error instanceof Error ? checkInsQuery.error.message : 'Failed to load check-ins')
+      ? (checkInsQuery.error instanceof Error ? checkInsQuery.error.message : 'Could not load check-ins. Please try again.')
       : foodEntriesQuery.error
-        ? (foodEntriesQuery.error instanceof Error ? foodEntriesQuery.error.message : 'Failed to load food entries')
+        ? (foodEntriesQuery.error instanceof Error ? foodEntriesQuery.error.message : 'Could not load food entries. Please try again.')
         : null;
 
   const refetchEnergy = useCallback(async () => {

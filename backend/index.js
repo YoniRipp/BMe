@@ -16,17 +16,19 @@ subscribe('money.TransactionCreated', (event) => {
 });
 
 async function start() {
+  // Initialize database if configured - exit on failure since API requires it
   if (config.isDbConfigured) {
     try {
       await initSchema();
       logger.info('Database schema initialized');
     } catch (e) {
-      logger.error({ err: e }, 'Database init failed');
+      logger.error({ err: e }, 'Database init failed - exiting');
+      process.exit(1);
     }
   }
   const app = await createApp();
-  const server = app.listen(config.port, () => {
-    logger.info({ port: config.port }, 'BMe backend listening');
+  const server = app.listen(config.port, config.host || '0.0.0.0', () => {
+    logger.info({ port: config.port, host: config.host || '0.0.0.0' }, 'BMe backend listening');
   });
 
   let voiceWorker = null;
@@ -79,18 +81,57 @@ async function start() {
   // });
 
   async function shutdown() {
-    server.close(() => {
-      logger.info('HTTP server closed');
+    let exitCode = 0;
+
+    // Wait for HTTP server to close properly
+    await new Promise((resolve) => {
+      server.close(() => {
+        logger.info('HTTP server closed');
+        resolve();
+      });
     });
+
+    // Close voice worker with error handling
     if (voiceWorker) {
-      await voiceWorker.close();
-      logger.info('Voice worker closed');
+      try {
+        await voiceWorker.close();
+        logger.info('Voice worker closed');
+      } catch (e) {
+        logger.error({ err: e }, 'Failed to close voice worker');
+        exitCode = 1;
+      }
     }
-    await closeEventsBus();
-    await closeQueue();
-    await closePool();
-    await closeRedis();
-    process.exit(0);
+
+    // Close each resource with individual error handling
+    try {
+      await closeEventsBus();
+    } catch (e) {
+      logger.error({ err: e }, 'Failed to close events bus');
+      exitCode = 1;
+    }
+
+    try {
+      await closeQueue();
+    } catch (e) {
+      logger.error({ err: e }, 'Failed to close queue');
+      exitCode = 1;
+    }
+
+    try {
+      await closePool();
+    } catch (e) {
+      logger.error({ err: e }, 'Failed to close database pool');
+      exitCode = 1;
+    }
+
+    try {
+      await closeRedis();
+    } catch (e) {
+      logger.error({ err: e }, 'Failed to close Redis');
+      exitCode = 1;
+    }
+
+    process.exit(exitCode);
   }
   process.on('SIGTERM', shutdown);
   process.on('SIGINT', shutdown);

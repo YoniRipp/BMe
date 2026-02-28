@@ -63,7 +63,7 @@ export const storage = {
       // Recursively convert date strings back to Date objects
       return reviveDates(parsed) as T;
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorMessage = error instanceof Error ? error.message : 'An error occurred. Please try again.';
       console.error(`Error reading from localStorage (${key}):`, errorMessage);
       return null;
     }
@@ -114,7 +114,7 @@ export const storage = {
     try {
       localStorage.removeItem(key);
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorMessage = error instanceof Error ? error.message : 'An error occurred. Please try again.';
       console.error(`Error removing from localStorage (${key}):`, errorMessage);
       throw new Error(errorMessage);
     }
@@ -128,7 +128,7 @@ export const storage = {
     try {
       localStorage.clear();
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorMessage = error instanceof Error ? error.message : 'An error occurred. Please try again.';
       console.error('Error clearing localStorage:', errorMessage);
       throw new Error(errorMessage);
     }

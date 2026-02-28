@@ -20,7 +20,7 @@ export function useLocalStorage<T>(key: string, initialValue: T) {
       setStoredValue(valueToStore);
       storage.set(key, valueToStore);
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorMessage = error instanceof Error ? error.message : 'An error occurred. Please try again.';
       console.error(`Error setting ${key} in localStorage:`, errorMessage);
       // Show user-friendly error message (will be replaced with toast notifications later)
       // For now, we'll log it and the UI will show stale data

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useGoogleLogin } from '@react-oauth/google';
+import { toast } from 'sonner';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
@@ -31,12 +32,17 @@ export function SocialLoginButtons() {
         await loginWithProvider('google', tokenResponse.access_token);
         navigate('/', { replace: true });
       } catch (e) {
-        console.error(e);
+        const message = e instanceof Error ? e.message : 'Could not complete Google sign-in. Please try again.';
+        toast.error(message);
       } finally {
         setLoading(null);
       }
     },
-    onError: () => setLoading(null),
+    onError: (error) => {
+      setLoading(null);
+      const msg = error?.error_description || error?.error || 'Google sign-in was cancelled or encountered an error';
+      toast.error(msg);
+    },
     flow: 'implicit',
   });
 

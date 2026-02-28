@@ -28,7 +28,7 @@ async function listUsers(req, res) {
     res.json(result.rows.map(rowToUser));
   } catch (e) {
     console.error('list users error:', e?.message ?? e);
-    res.status(500).json({ error: e?.message ?? 'Failed to list users' });
+    res.status(500).json({ error: e?.message ?? 'Could not list users. Please try again.' });
   }
 }
 
@@ -38,8 +38,11 @@ async function createUser(req, res) {
     if (!email || typeof email !== 'string' || !email.trim()) {
       return res.status(400).json({ error: 'email is required' });
     }
-    if (!password || typeof password !== 'string' || password.length < 6) {
-      return res.status(400).json({ error: 'password must be at least 6 characters' });
+    if (!password || typeof password !== 'string' || password.length < 8) {
+      return res.status(400).json({ error: 'password must be at least 8 characters' });
+    }
+    if (!/[A-Z]/.test(password) || !/[a-z]/.test(password) || !/\d/.test(password)) {
+      return res.status(400).json({ error: 'password must contain at least one uppercase letter, one lowercase letter, and one digit' });
     }
     if (!name || typeof name !== 'string' || !name.trim()) {
       return res.status(400).json({ error: 'name is required' });
@@ -60,7 +63,7 @@ async function createUser(req, res) {
       return res.status(409).json({ error: 'Email already registered' });
     }
     console.error('create user error:', e?.message ?? e);
-    res.status(500).json({ error: e?.message ?? 'Failed to create user' });
+    res.status(500).json({ error: e?.message ?? 'Could not create user. Please try again.' });
   }
 }
 
@@ -75,7 +78,13 @@ async function updateUser(req, res) {
     let i = 1;
     if (name !== undefined) { updates.push(`name = $${i}`); values.push(typeof name === 'string' ? name.trim() : name); i++; }
     if (role !== undefined) { updates.push(`role = $${i}`); values.push(role === 'admin' ? 'admin' : 'user'); i++; }
-    if (password !== undefined && typeof password === 'string' && password.length >= 6) {
+    if (password !== undefined && typeof password === 'string') {
+      if (password.length < 8) {
+        return res.status(400).json({ error: 'password must be at least 8 characters' });
+      }
+      if (!/[A-Z]/.test(password) || !/[a-z]/.test(password) || !/\d/.test(password)) {
+        return res.status(400).json({ error: 'password must contain at least one uppercase letter, one lowercase letter, and one digit' });
+      }
       const password_hash = await bcrypt.hash(password, SALT_ROUNDS);
       updates.push(`password_hash = $${i}`); values.push(password_hash); i++;
     }
@@ -90,7 +99,7 @@ async function updateUser(req, res) {
     res.json(rowToUser(result.rows[0]));
   } catch (e) {
     console.error('update user error:', e?.message ?? e);
-    res.status(500).json({ error: e?.message ?? 'Failed to update user' });
+    res.status(500).json({ error: e?.message ?? 'Could not update user. Please try again.' });
   }
 }
 
@@ -108,7 +117,7 @@ async function deleteUser(req, res) {
     res.status(204).send();
   } catch (e) {
     console.error('delete user error:', e?.message ?? e);
-    res.status(500).json({ error: e?.message ?? 'Failed to delete user' });
+    res.status(500).json({ error: e?.message ?? 'Could not delete user. Please try again.' });
   }
 }
 
@@ -147,7 +156,7 @@ async function getUserActivity(req, res) {
     res.json({ events, nextCursor });
   } catch (e) {
     console.error('getUserActivity error:', e?.message ?? e);
-    res.status(500).json({ error: e?.message ?? 'Failed to get user activity' });
+    res.status(500).json({ error: e?.message ?? 'Could not get user activity. Please try again.' });
   }
 }
 

@@ -40,10 +40,15 @@ export function errorHandler(err, req, res, next) {
   }
 
   if (err?.code === '23505') {
-    return res.status(409).json({ error: 'Resource already exists' });
+    const constraint = err?.constraint ?? '';
+    const msg = constraint.includes('email') ? 'Email already registered' : 'A record with this value already exists';
+    return res.status(409).json({ error: msg });
   }
 
-  logger.error({ err }, 'Unhandled error');
-  const message = process.env.NODE_ENV === 'production' ? 'Something went wrong' : (err?.message ?? 'Internal server error');
+  const ref = `ERR-${Date.now().toString(36).toUpperCase()}`;
+  logger.error({ err, ref }, 'Unhandled error');
+  const message = process.env.NODE_ENV === 'production'
+    ? `Something went wrong. If this persists, contact support (ref: ${ref})`
+    : (err?.message ?? 'Internal server error');
   res.status(500).json({ error: message });
 }

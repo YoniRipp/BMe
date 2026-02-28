@@ -34,7 +34,7 @@ export function GoalsProvider({ children }: { children: React.ReactNode }) {
     },
   });
 
-  const goalsError = goalsQueryError ? (goalsQueryError instanceof Error ? goalsQueryError.message : 'Failed to load goals') : null;
+  const goalsError = goalsQueryError ? (goalsQueryError instanceof Error ? goalsQueryError.message : 'Could not load goals. Please try again.') : null;
 
   const refetchGoals = useCallback(async () => {
     await refetchGoalsQuery();

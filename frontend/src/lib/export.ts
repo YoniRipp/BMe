@@ -76,7 +76,7 @@ export function importAllData(jsonString: string): { success: boolean; error?: s
 
     return { success: true };
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorMessage = error instanceof Error ? error.message : 'An error occurred. Please try again.';
     return { success: false, error: `Failed to import data: ${errorMessage}` };
   }
 }

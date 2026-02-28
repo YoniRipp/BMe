@@ -23,7 +23,7 @@ export function ForgotPassword() {
       });
       setSent(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to send reset email');
+      setError(err instanceof Error ? err.message : 'Could not send reset email. Please check your email address and try again.');
     } finally {
       setLoading(false);
     }

@@ -37,8 +37,8 @@ export function DataManagementSection({ onResetClick, onClearClick }: DataManage
       });
       downloadFile(dataStr, `beme-backup-${new Date().toISOString().split('T')[0]}.json`, 'application/json');
       toast.success('Data exported successfully');
-    } catch {
-      toast.error('Failed to export data');
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Could not export data. Please try again.');
     }
   };
 

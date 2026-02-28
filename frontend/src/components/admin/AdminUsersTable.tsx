@@ -48,7 +48,7 @@ export function AdminUsersTable() {
       const list = await usersApi.list();
       setUsers(list);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Failed to load users');
+      toast.error(e instanceof Error ? e.message : 'Could not load users. Please try again.');
       setUsers([]);
     } finally {
       setLoading(false);
@@ -303,7 +303,7 @@ export function AdminUsersTable() {
               setDeleteUser(null);
               fetchUsers();
             } catch (e) {
-              toast.error(e instanceof Error ? e.message : 'Failed to delete user');
+              toast.error(e instanceof Error ? e.message : 'Could not delete user. Please try again.');
             }
           }}
         />
@@ -329,8 +329,12 @@ function CreateUserDialog({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (password.length < 6) {
-      toast.error('Password must be at least 6 characters');
+    if (password.length < 8) {
+      toast.error('Password must be at least 8 characters');
+      return;
+    }
+    if (!/[A-Z]/.test(password) || !/[a-z]/.test(password) || !/\d/.test(password)) {
+      toast.error('Password must contain at least one uppercase letter, one lowercase letter, and one digit');
       return;
     }
     setSubmitting(true);
@@ -340,7 +344,7 @@ function CreateUserDialog({
       setEmail(''); setPassword(''); setName(''); setRole('user');
       onSuccess();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to create user');
+      toast.error(err instanceof Error ? err.message : 'Could not create user. Please try again.');
     } finally {
       setSubmitting(false);
     }
@@ -364,7 +368,7 @@ function CreateUserDialog({
           </div>
           <div>
             <Label htmlFor="create-password">Password</Label>
-            <Input id="create-password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={6} />
+            <Input id="create-password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} />
           </div>
           <div>
             <Label>Role</Label>
@@ -406,9 +410,15 @@ function EditUserDialog({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (password.length > 0 && password.length < 6) {
-      toast.error('Password must be at least 6 characters');
-      return;
+    if (password.length > 0) {
+      if (password.length < 8) {
+        toast.error('Password must be at least 8 characters');
+        return;
+      }
+      if (!/[A-Z]/.test(password) || !/[a-z]/.test(password) || !/\d/.test(password)) {
+        toast.error('Password must contain at least one uppercase letter, one lowercase letter, and one digit');
+        return;
+      }
     }
     setSubmitting(true);
     try {
@@ -420,7 +430,7 @@ function EditUserDialog({
       toast.success('User updated');
       onSuccess();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to update user');
+      toast.error(err instanceof Error ? err.message : 'Could not update user. Please try again.');
     } finally {
       setSubmitting(false);
     }
@@ -452,7 +462,7 @@ function EditUserDialog({
           </div>
           <div>
             <Label htmlFor="edit-password">New password (leave blank to keep)</Label>
-            <Input id="edit-password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} minLength={6} placeholder="Optional" />
+            <Input id="edit-password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} minLength={8} placeholder="Optional" />
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>

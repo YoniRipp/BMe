@@ -45,10 +45,10 @@ export class LocalErrorBoundary extends Component<Props, State> {
             <AlertCircle className="h-5 w-5 shrink-0 text-destructive mt-0.5" />
             <div className="min-w-0 flex-1">
               <p className="text-sm font-medium text-foreground">
-                {this.props.label ? `${this.props.label}: ` : ''}Something went wrong
+                {this.props.label ? `${this.props.label} failed to load` : 'Something went wrong'}
               </p>
               <p className="text-sm text-muted-foreground mt-1">
-                {this.state.error?.message ?? 'An error occurred'}
+                {this.state.error?.message ?? 'An error occurred. Please try again.'}
               </p>
               <Button variant="outline" size="sm" className="mt-3" onClick={this.handleReset}>
                 <RefreshCw className="h-4 w-4 mr-2" />

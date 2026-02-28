@@ -40,7 +40,7 @@ export function useExchangeRates(
             next[from] = rate;
           }
         } catch (e) {
-          if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load rates');
+          if (!cancelled) setError(e instanceof Error ? e.message : 'Could not load exchange rates. Please try again.');
         }
       })
     ).then(() => {

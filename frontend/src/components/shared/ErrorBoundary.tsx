@@ -12,6 +12,7 @@ interface State {
   hasError: boolean;
   error: Error | null;
   errorInfo: ErrorInfo | null;
+  errorRef: string | null;
 }
 
 export class ErrorBoundary extends Component<Props, State> {
@@ -21,11 +22,16 @@ export class ErrorBoundary extends Component<Props, State> {
       hasError: false,
       error: null,
       errorInfo: null,
+      errorRef: null,
     };
   }
 
   static getDerivedStateFromError(error: Error): Partial<State> {
-    return { hasError: true, error };
+    return {
+      hasError: true,
+      error,
+      errorRef: `ERR-${Date.now().toString(36).toUpperCase().slice(-6)}`,
+    };
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
@@ -47,6 +53,7 @@ export class ErrorBoundary extends Component<Props, State> {
       hasError: false,
       error: null,
       errorInfo: null,
+      errorRef: null,
     });
   };
 
@@ -74,7 +81,7 @@ export class ErrorBoundary extends Component<Props, State> {
               <div>
                 <h1 className="text-2xl font-bold">Something went wrong</h1>
                 <p className="text-sm text-muted-foreground">
-                  We encountered an unexpected error
+                  We encountered an unexpected error. If this persists, contact support with reference: {this.state.errorRef ?? 'N/A'}
                 </p>
               </div>
             </div>

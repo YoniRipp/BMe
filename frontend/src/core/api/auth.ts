@@ -24,5 +24,8 @@ export const authApi = {
     request<AuthResponse>('/api/auth/facebook', { method: 'POST', body: { token } }),
   loginWithTwitter: (token: string) =>
     request<AuthResponse>('/api/auth/twitter', { method: 'POST', body: { token } }),
+  exchangeCode: (code: string) =>
+    request<AuthResponse>('/api/auth/exchange', { method: 'POST', body: { code } }),
   me: () => request<ApiUser>('/api/auth/me'),
+  logout: () => request<void>('/api/auth/logout', { method: 'POST' }),
 };

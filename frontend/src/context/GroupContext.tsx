@@ -35,7 +35,7 @@ export function GroupProvider({ children }: { children: React.ReactNode }) {
   });
 
   const groupsError = groupsQueryError
-    ? (groupsQueryError instanceof Error ? groupsQueryError.message : 'Failed to load groups')
+    ? (groupsQueryError instanceof Error ? groupsQueryError.message : 'Could not load groups. Please try again.')
     : null;
 
   const refetchGroups = useCallback(async () => {

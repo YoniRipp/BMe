@@ -82,7 +82,7 @@ export function Home() {
       setEditingSchedule(undefined);
       setScheduleModalOpen(false);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Failed to save schedule item');
+      toast.error(e instanceof Error ? e.message : 'Could not save schedule item. Please try again.');
     }
   };
 
