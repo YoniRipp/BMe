@@ -8,6 +8,7 @@ import * as insightsController from '../controllers/insights.js';
 const router = Router();
 
 router.get('/api/insights', requireAuth, insightsController.getInsights);
+router.post('/api/insights/refresh', requireAuth, insightsController.refreshInsightsController);
 router.get('/api/insights/stats', requireAuth, insightsController.getStats);
 router.get('/api/insights/today', requireAuth, insightsController.getTodayRecommendations);
 

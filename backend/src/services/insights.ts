@@ -57,10 +57,108 @@ async function fetchUserContext(userId, days = 30) {
   };
 }
 
+const CACHE_FRESH_HOURS = 24;
+
+/** Get the most recent cached insight for a user. */
+export async function getLastInsight(userId) {
+  const pool = getPool();
+  const result = await pool.query(
+    `SELECT summary, highlights, suggestions, score, today_workout, today_budget, today_nutrition, today_focus, created_at
+     FROM ai_insights
+     WHERE user_id = $1
+     ORDER BY created_at DESC
+     LIMIT 1`,
+    [userId]
+  );
+  return result.rows[0] ?? null;
+}
+
+/** Save generated insight to DB. */
+export async function saveInsight(userId, data) {
+  const pool = getPool();
+  await pool.query(
+    `INSERT INTO ai_insights (user_id, summary, highlights, suggestions, score, today_workout, today_budget, today_nutrition, today_focus)
+     VALUES ($1, $2, $3::jsonb, $4::jsonb, $5, $6, $7, $8, $9)`,
+    [
+      userId,
+      data.summary ?? '',
+      JSON.stringify(data.highlights ?? []),
+      JSON.stringify(data.suggestions ?? []),
+      data.score ?? 0,
+      data.today_workout ?? '',
+      data.today_budget ?? '',
+      data.today_nutrition ?? '',
+      data.today_focus ?? '',
+    ]
+  );
+}
+
+/** Check if a cached insight is still fresh (within CACHE_FRESH_HOURS). */
+export function isCacheFresh(row) {
+  if (!row?.created_at) return false;
+  const createdAt = new Date(row.created_at);
+  const cutoff = new Date();
+  cutoff.setHours(cutoff.getHours() - CACHE_FRESH_HOURS);
+  return createdAt >= cutoff;
+}
+
 /**
- * Generate AI-powered weekly insights for a user.
+ * Get insights from cache if fresh, else generate and save.
  * @param {string} userId
- * @returns {Promise<{ summary: string, highlights: string[], suggestions: string[], score: number }>}
+ * @returns {Promise<{ main: object, today: object, cached: boolean }>}
+ */
+export async function getOrGenerateInsights(userId) {
+  const cached = await getLastInsight(userId);
+  if (cached && isCacheFresh(cached)) {
+    return {
+      main: {
+        summary: cached.summary,
+        highlights: cached.highlights ?? [],
+        suggestions: cached.suggestions ?? [],
+        score: Number(cached.score) ?? 0,
+      },
+      today: {
+        workout: cached.today_workout ?? '',
+        budget: cached.today_budget ?? '',
+        nutrition: cached.today_nutrition ?? '',
+        focus: cached.today_focus ?? '',
+      },
+      cached: true,
+    };
+  }
+  const result = await generateInsights(userId);
+  const main = {
+    summary: result.summary,
+    highlights: result.highlights ?? [],
+    suggestions: result.suggestions ?? [],
+    score: result.score ?? 0,
+  };
+  const today = result.today ?? { workout: '', budget: '', nutrition: '', focus: '' };
+  return { main, today, cached: false };
+}
+
+/**
+ * Force regenerate insights, ignoring cache. Used by Refresh button.
+ * @param {string} userId
+ * @returns {Promise<{ main: object, today: object }>}
+ */
+export async function refreshInsights(userId) {
+  const result = await generateInsights(userId);
+  const main = {
+    summary: result.summary,
+    highlights: result.highlights ?? [],
+    suggestions: result.suggestions ?? [],
+    score: result.score ?? 0,
+  };
+  const today = result.today ?? { workout: '', budget: '', nutrition: '', focus: '' };
+  return { main, today };
+}
+
+/**
+ * Generate AI-powered weekly insights and today's recommendations for a user.
+ * Saves both to ai_insights. Returns main insights.
+ * @param {string} userId
+ * @returns {Promise<{ summary: string, highlights: string[], suggestions: string[], score: number, today?: object }>}
  */
 export async function generateInsights(userId) {
   const ctx = await fetchUserContext(userId, 30);
@@ -95,12 +193,20 @@ Return exactly this JSON structure (no markdown, raw JSON only):
     const result = await model.generateContent(prompt);
     const text = result.response.text().trim();
     const parsed = JSON.parse(text);
-    return {
+    const mainInsights = {
       summary: String(parsed.summary ?? ''),
       highlights: Array.isArray(parsed.highlights) ? parsed.highlights.map(String) : [],
       suggestions: Array.isArray(parsed.suggestions) ? parsed.suggestions.map(String) : [],
       score: Number.isFinite(Number(parsed.score)) ? Math.min(100, Math.max(0, Math.round(Number(parsed.score)))) : 50,
     };
+    let todayRecs = { workout: '', budget: '', nutrition: '', focus: '' };
+    try {
+      todayRecs = await generateTodayRecommendations(userId);
+    } catch (recErr) {
+      logger.warn({ err: recErr }, 'Today recommendations generation failed, saving main insights only');
+    }
+    await saveInsight(userId, { ...mainInsights, ...todayRecs });
+    return { ...mainInsights, today: todayRecs };
   } catch (err) {
     logger.error({ err }, 'AI insights generation failed');
     return {
@@ -108,6 +214,7 @@ Return exactly this JSON structure (no markdown, raw JSON only):
       highlights: [],
       suggestions: [],
       score: 0,
+      today: { workout: '', budget: '', nutrition: '', focus: '' },
     };
   }
 }

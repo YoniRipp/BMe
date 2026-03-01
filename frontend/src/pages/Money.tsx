@@ -2,7 +2,6 @@ import { useMemo, useState } from 'react';
 import { Transaction } from '@/types/transaction';
 import { useSettings } from '@/hooks/useSettings';
 import { useExchangeRates } from '@/features/money/useExchangeRates';
-import { PageTitle } from '@/components/layout/PageTitle';
 import { SearchBar } from '@/components/shared/SearchBar';
 import { ConfirmationDialog } from '@/components/shared/ConfirmationDialog';
 import { Button } from '@/components/ui/button';
@@ -127,7 +126,9 @@ export function Money() {
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
-      <PageTitle title="Money" subtitle="Where does the money go?" />
+      <div className="mb-6 border-b border-border pb-4">
+        <p className="text-sm text-muted-foreground">Where does the money go?</p>
+      </div>
 
       {/* Balance / summary at top (bank-style) */}
       <Card className="p-5 bg-muted/40">

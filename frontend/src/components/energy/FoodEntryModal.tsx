@@ -4,7 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { FoodEntry } from '@/types/energy';
 import { foodEntryFormSchema, type FoodEntryFormValues } from '@/schemas/foodEntry';
 import { useDebounce } from '@/hooks/useDebounce';
-import { searchFoods, type FoodSearchResult } from '@/features/energy/api';
+import { searchFoods, lookupOrCreateFood, type FoodSearchResult } from '@/features/energy/api';
 import {
   Dialog,
   DialogContent,
@@ -35,8 +35,10 @@ interface FoodEntryModalProps {
 const MIN_SEARCH_LENGTH = 2;
 const DEFAULT_REFERENCE_GRAMS = 100;
 const DEFAULT_SERVING_ML = { can: 330, bottle: 500, glass: 250 } as const;
-const SERVING_TYPES = ['bottle', 'can', 'glass', 'other'] as const;
-type ServingType = (typeof SERVING_TYPES)[number];
+const LIQUID_SERVING_TYPES = ['can', 'bottle', 'bottle_1L', 'bottle_1_5L', 'bottle_2L', 'glass', 'other'] as const;
+type LiquidServingType = (typeof LIQUID_SERVING_TYPES)[number];
+const SOLID_PRESETS_G = [50, 100, 150, 200] as const;
+const PORTION_GRAMS = 100;
 
 type Per100g = { calories: number; protein: number; carbs: number; fats: number };
 type ServingSizesMl = { can?: number; bottle?: number; glass?: number } | null;
@@ -64,12 +66,13 @@ export function FoodEntryModal({ open, onOpenChange, onSave, entry }: FoodEntryM
   const [per100g, setPer100g] = useState<Per100g | null>(null);
   const [isLiquid, setIsLiquid] = useState(false);
   const [servingSizesMl, setServingSizesMl] = useState<ServingSizesMl>(null);
-  const [servingType, setServingType] = useState<ServingType | ''>('');
+  const [servingType, setServingType] = useState<LiquidServingType | ''>('');
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<FoodSearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [isLookingUp, setIsLookingUp] = useState(false);
   const searchContainerRef = useRef<HTMLDivElement>(null);
 
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
@@ -79,6 +82,7 @@ export function FoodEntryModal({ open, onOpenChange, onSave, entry }: FoodEntryM
     handleSubmit,
     reset,
     setValue,
+    trigger,
     formState: { errors, isValid },
   } = useForm<FoodEntryFormValues>({
     resolver: zodResolver(foodEntryFormSchema),
@@ -108,6 +112,7 @@ export function FoodEntryModal({ open, onOpenChange, onSave, entry }: FoodEntryM
     setSearchResults([]);
     setSearchError(null);
     setDropdownOpen(false);
+    setIsLookingUp(false);
   }, [entry, open, reset]);
 
   useEffect(() => {
@@ -170,8 +175,9 @@ export function FoodEntryModal({ open, onOpenChange, onSave, entry }: FoodEntryM
       setSearchResults([]);
       setDropdownOpen(false);
       setSearchError(null);
+      void trigger();
     },
-    [setValue]
+    [setValue, trigger]
   );
 
   const handlePortionChange = useCallback(
@@ -194,17 +200,20 @@ export function FoodEntryModal({ open, onOpenChange, onSave, entry }: FoodEntryM
   );
 
   const getServingMl = useCallback(
-    (type: ServingType): number => {
+    (type: LiquidServingType): number => {
       if (type === 'other') return portionGrams;
-      const fromFood = servingSizesMl?.[type];
-      const fallback = DEFAULT_SERVING_ML[type];
-      return fromFood ?? fallback;
+      if (type === 'bottle_1L') return 1000;
+      if (type === 'bottle_1_5L') return 1500;
+      if (type === 'bottle_2L') return 2000;
+      const fromFood = servingSizesMl?.[type as keyof typeof servingSizesMl];
+      const fallback = DEFAULT_SERVING_ML[type as keyof typeof DEFAULT_SERVING_ML];
+      return fromFood ?? fallback ?? portionGrams;
     },
     [servingSizesMl, portionGrams]
   );
 
   const handleServingTypeChange = useCallback(
-    (type: ServingType) => {
+    (type: LiquidServingType) => {
       setServingType(type);
       if (type === 'other') return;
       const ml = getServingMl(type);
@@ -223,6 +232,21 @@ export function FoodEntryModal({ open, onOpenChange, onSave, entry }: FoodEntryM
   const handleSearchBlur = useCallback(() => {
     setTimeout(() => setDropdownOpen(false), 150);
   }, []);
+
+  const handleLookupWithAI = useCallback(async () => {
+    const name = searchQuery.trim();
+    if (name.length < 2) return;
+    setIsLookingUp(true);
+    setSearchError(null);
+    try {
+      const result = await lookupOrCreateFood(name);
+      handleSelectFood(result);
+    } catch (e) {
+      setSearchError(e instanceof Error ? e.message : 'Could not look up food. Please try again.');
+    } finally {
+      setIsLookingUp(false);
+    }
+  }, [searchQuery, handleSelectFood]);
 
   const onSubmit = (data: FoodEntryFormValues) => {
     onSave({
@@ -291,9 +315,31 @@ export function FoodEntryModal({ open, onOpenChange, onSave, entry }: FoodEntryM
                     <p className="px-3 py-3 text-sm text-destructive">{searchError}</p>
                   )}
                   {!isSearching && !searchError && searchResults.length === 0 && (
-                    <p className="px-3 py-3 text-sm text-muted-foreground">
-                      No results – enter manually below.
-                    </p>
+                    <div className="px-3 py-3 space-y-2">
+                      <p className="text-sm text-muted-foreground">
+                        No results – enter manually below.
+                      </p>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="w-full"
+                        disabled={isLookingUp || searchQuery.trim().length < 2}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          void handleLookupWithAI();
+                        }}
+                      >
+                        {isLookingUp ? (
+                          <>
+                            <Loader2 className="h-3.5 w-3.5 mr-2 animate-spin" />
+                            Looking up…
+                          </>
+                        ) : (
+                          'Look up with AI'
+                        )}
+                      </Button>
+                    </div>
                   )}
                   {!isSearching && !searchError && searchResults.length > 0 && (
                     <ul className="py-1">
@@ -358,18 +404,21 @@ export function FoodEntryModal({ open, onOpenChange, onSave, entry }: FoodEntryM
                   {isLiquid && (
                     <Select
                       value={servingType || undefined}
-                      onValueChange={(v) => handleServingTypeChange(v as ServingType)}
+                      onValueChange={(v) => handleServingTypeChange(v as LiquidServingType)}
                     >
-                      <SelectTrigger className="w-[120px]" aria-label="Serving type">
+                      <SelectTrigger className="w-[130px]" aria-label="Serving type">
                         <SelectValue placeholder="Serving" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="bottle">
-                          Bottle {servingSizesMl?.bottle ?? DEFAULT_SERVING_ML.bottle} ml
-                        </SelectItem>
                         <SelectItem value="can">
                           Can {servingSizesMl?.can ?? DEFAULT_SERVING_ML.can} ml
                         </SelectItem>
+                        <SelectItem value="bottle">
+                          Bottle {servingSizesMl?.bottle ?? DEFAULT_SERVING_ML.bottle} ml
+                        </SelectItem>
+                        <SelectItem value="bottle_1L">Bottle 1L</SelectItem>
+                        <SelectItem value="bottle_1_5L">Bottle 1.5L</SelectItem>
+                        <SelectItem value="bottle_2L">Bottle 2L</SelectItem>
                         <SelectItem value="glass">
                           Glass {servingSizesMl?.glass ?? DEFAULT_SERVING_ML.glass} ml
                         </SelectItem>
@@ -378,6 +427,31 @@ export function FoodEntryModal({ open, onOpenChange, onSave, entry }: FoodEntryM
                     </Select>
                   )}
                 </div>
+                {!isLiquid && (
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    {SOLID_PRESETS_G.filter((g) => g !== PORTION_GRAMS).map((g) => (
+                      <Button
+                        key={g}
+                        type="button"
+                        variant={portionGrams === g ? 'default' : 'outline'}
+                        size="sm"
+                        className="h-7 text-xs"
+                        onClick={() => handlePortionChange(String(g))}
+                      >
+                        {g}g
+                      </Button>
+                    ))}
+                    <Button
+                      type="button"
+                      variant={portionGrams === PORTION_GRAMS ? 'default' : 'outline'}
+                      size="sm"
+                      className="h-7 text-xs"
+                      onClick={() => handlePortionChange(String(PORTION_GRAMS))}
+                    >
+                      1 portion (100g)
+                    </Button>
+                  </div>
+                )}
                 <p className="text-xs text-muted-foreground mt-1">
                   Values below are scaled from {DEFAULT_REFERENCE_GRAMS} {isLiquid ? 'ml' : 'g'} (per 100 {isLiquid ? 'ml' : 'g'}).
                 </p>

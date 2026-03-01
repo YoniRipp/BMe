@@ -3,12 +3,13 @@
  * to show a wellness score, smart summary, highlights, and suggestions.
  */
 import { useState, type FormEvent } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { Sparkles, TrendingUp, Lightbulb, AlertCircle, Search, X } from 'lucide-react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Sparkles, TrendingUp, Lightbulb, AlertCircle, Search, X, RefreshCw } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { aiInsightsApi, type SearchResult } from '@/core/api/aiInsights';
+import { cn } from '@/lib/utils';
 
 // ─── Wellness Score Ring ───────────────────────────────────────────────────────
 
@@ -159,10 +160,23 @@ function TodayRecommendations() {
       </CardHeader>
       <CardContent>
         {isLoading ? (
-          <div className="space-y-2">
-            {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="h-4 rounded bg-muted animate-pulse" />
-            ))}
+          <div className="space-y-3">
+            <p className="text-xs text-muted-foreground flex items-center gap-1">
+              <Lightbulb className="w-3.5 h-3.5 text-amber-500 animate-pulse" />
+              <span>
+                Generating recommendations
+                <span className="animate-thinking-dots inline">
+                  <span>.</span>
+                  <span>.</span>
+                  <span>.</span>
+                </span>
+              </span>
+            </p>
+            <div className="space-y-2">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="h-4 rounded bg-muted/80 animate-pulse" />
+              ))}
+            </div>
           </div>
         ) : (
           <ul className="space-y-3">
@@ -185,27 +199,62 @@ function TodayRecommendations() {
 // ─── Main Section ──────────────────────────────────────────────────────────────
 
 export function AiInsightsSection() {
+  const queryClient = useQueryClient();
   const { data, isLoading, error } = useQuery({
     queryKey: ['ai-insights'],
     queryFn: aiInsightsApi.getInsights,
     staleTime: 15 * 60 * 1000, // 15 min cache
   });
 
+  const refreshMutation = useMutation({
+    mutationFn: aiInsightsApi.refreshInsights,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['ai-insights'] });
+      void queryClient.invalidateQueries({ queryKey: ['ai-today-recs'] });
+    },
+  });
+
   return (
     <div className="space-y-4">
-      <h2 className="text-xl font-semibold flex items-center gap-2">
-        <Sparkles className="w-5 h-5 text-violet-500" />
-        AI-Powered Insights
-      </h2>
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <h2 className="text-xl font-semibold flex items-center gap-2">
+          <Sparkles className="w-5 h-5 text-violet-500" />
+          AI-Powered Insights
+        </h2>
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={isLoading || refreshMutation.isPending}
+          onClick={() => refreshMutation.mutate()}
+        >
+          <RefreshCw
+            className={cn('w-4 h-4 mr-1.5', (isLoading || refreshMutation.isPending) && 'animate-spin')}
+          />
+          Refresh insights
+        </Button>
+      </div>
 
       {/* Score + Summary card */}
       <Card>
         <CardContent className="pt-6">
-          {isLoading ? (
-            <div className="space-y-3">
-              <div className="h-4 rounded bg-muted animate-pulse w-3/4" />
-              <div className="h-4 rounded bg-muted animate-pulse w-full" />
-              <div className="h-4 rounded bg-muted animate-pulse w-2/3" />
+          {isLoading || refreshMutation.isPending ? (
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground flex items-center gap-1">
+                <Sparkles className="w-4 h-4 text-violet-500 animate-pulse" />
+                <span>
+                  Analyzing your data
+                  <span className="animate-thinking-dots inline">
+                    <span>.</span>
+                    <span>.</span>
+                    <span>.</span>
+                  </span>
+                </span>
+              </p>
+              <div className="space-y-3">
+                <div className="h-4 rounded bg-muted/80 animate-pulse w-3/4" />
+                <div className="h-4 rounded bg-muted/80 animate-pulse w-full" />
+                <div className="h-4 rounded bg-muted/80 animate-pulse w-2/3" />
+              </div>
             </div>
           ) : error ? (
             <p className="text-sm text-muted-foreground flex items-center gap-2">
@@ -224,7 +273,7 @@ export function AiInsightsSection() {
       </Card>
 
       {/* Highlights + Suggestions side by side */}
-      {data && !isLoading && (
+      {data && !isLoading && !refreshMutation.isPending && (
         <div className="grid sm:grid-cols-2 gap-4">
           {data.highlights.length > 0 && (
             <Card>

@@ -1,11 +1,12 @@
 /**
  * AI Insights controller.
- * GET /api/insights          — monthly AI-generated insights + wellness score
- * GET /api/insights/today    — personalized recommendations for today
+ * GET /api/insights          — monthly AI-generated insights (cached or generated)
+ * GET /api/insights/today    — today's recommendations (from cache or generated)
+ * POST /api/insights/refresh — force regenerate and save
  */
 import { asyncHandler } from '../middleware/errorHandler.js';
 import { sendJson, sendError } from '../utils/response.js';
-import { generateInsights, generateTodayRecommendations } from '../services/insights.js';
+import { getOrGenerateInsights, refreshInsights } from '../services/insights.js';
 import { getPool } from '../db/pool.js';
 import { config } from '../config/index.js';
 
@@ -13,8 +14,16 @@ export const getInsights = asyncHandler(async (req, res) => {
   if (!config.geminiApiKey) {
     return sendError(res, 503, 'AI insights not configured (missing GEMINI_API_KEY)');
   }
-  const insights = await generateInsights(req.user.id);
-  return sendJson(res, insights);
+  const { main } = await getOrGenerateInsights(req.user.id);
+  return sendJson(res, main);
+});
+
+export const refreshInsightsController = asyncHandler(async (req, res) => {
+  if (!config.geminiApiKey) {
+    return sendError(res, 503, 'AI insights not configured (missing GEMINI_API_KEY)');
+  }
+  const { main } = await refreshInsights(req.user.id);
+  return sendJson(res, main);
 });
 
 /** GET /api/insights/stats?days=30 — aggregated daily stats from the read-model pipeline */
@@ -37,6 +46,6 @@ export const getTodayRecommendations = asyncHandler(async (req, res) => {
   if (!config.geminiApiKey) {
     return sendError(res, 503, 'AI insights not configured (missing GEMINI_API_KEY)');
   }
-  const recs = await generateTodayRecommendations(req.user.id);
-  return sendJson(res, recs);
+  const { today } = await getOrGenerateInsights(req.user.id);
+  return sendJson(res, today);
 });

@@ -40,6 +40,9 @@ export const aiInsightsApi = {
   getInsights: (): Promise<AiInsights> =>
     request('/api/insights'),
 
+  refreshInsights: (): Promise<AiInsights> =>
+    request('/api/insights/refresh', { method: 'POST' }),
+
   getTodayRecommendations: (): Promise<TodayRecommendations> =>
     request('/api/insights/today'),
 

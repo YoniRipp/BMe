@@ -62,3 +62,14 @@ export function searchFoods(query: string, limit = 10): Promise<FoodSearchResult
   if (!q) return Promise.resolve([]);
   return request<FoodSearchResult[]>(`/api/food/search?q=${q}&limit=${Math.min(limit, 25)}`);
 }
+
+export interface LookupOrCreateResult extends FoodSearchResult {
+  id: string;
+}
+
+export function lookupOrCreateFood(name: string, liquid?: boolean): Promise<LookupOrCreateResult> {
+  return request<LookupOrCreateResult>('/api/food/lookup-or-create', {
+    method: 'POST',
+    body: { name: name.trim(), ...(liquid != null && { liquid }) },
+  });
+}

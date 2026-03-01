@@ -47,7 +47,7 @@ const wrapper = ({ children }: { children: React.ReactNode }) => (
 describe('Money Page', () => {
   it('renders money page with transactions', () => {
     render(<Money />, { wrapper });
-    expect(screen.getByRole('heading', { name: /^money$/i })).toBeInTheDocument();
+    expect(screen.getByText(/where does the money go\?/i)).toBeInTheDocument();
   });
 
   it('filters transactions by type', async () => {

@@ -31,6 +31,7 @@ function rowToResult(row) {
     fat: Number(row.fat),
     referenceGrams: REFERENCE_GRAMS,
     isLiquid: Boolean(row.is_liquid),
+    servingSizesMl: row.serving_sizes_ml ?? null,
     preparation: row.preparation ?? 'cooked',
   };
 }
@@ -87,7 +88,7 @@ export async function getNutritionForFoodName(pool, foodName, amount, unit, pref
 export async function search(q, limit = 10) {
   const pool = getPool();
   const result = await pool.query(
-    `SELECT id, name, calories, protein, carbs, fat, is_liquid, preparation
+    `SELECT id, name, calories, protein, carbs, fat, is_liquid, serving_sizes_ml, preparation
      FROM foods
      WHERE lower(name) LIKE $1
      ORDER BY name
