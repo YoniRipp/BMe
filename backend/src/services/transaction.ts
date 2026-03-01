@@ -20,9 +20,9 @@ function normTransactionCategory(value, body) {
   return allowed?.includes(value) ? value : 'Other';
 }
 
-export async function list(userId, query = {}) {
-  const limit = Math.min(Math.max(1, parseInt(query.limit, 10) || 500), 1000);
-  const offset = Math.max(0, parseInt(query.offset, 10) || 0);
+export async function list(userId: string, query: { limit?: number; offset?: number; month?: string; type?: string } = {}) {
+  const limit = Math.min(Math.max(1, parseInt(String(query.limit ?? 500), 10) || 500), 1000);
+  const offset = Math.max(0, parseInt(String(query.offset ?? 0), 10) || 0);
   return transactionModel.findByUserId(userId, {
     month: query.month,
     type: query.type,

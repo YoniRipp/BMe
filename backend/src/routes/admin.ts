@@ -36,10 +36,10 @@ router.get('/api/admin/activity', requireAuth, requireAdmin, async (req, res, ne
       return res.status(400).json({ error: 'from and to (ISO UTC) are required' });
     }
     const result = await userActivityLog.listActivity({
-      limit: limit ? parseInt(limit, 10) : undefined,
+      limit: limit ? parseInt(String(limit), 10) : undefined,
       before: typeof before === 'string' ? before : undefined,
-      from,
-      to,
+      from: String(from),
+      to: String(to),
       userId: typeof userId === 'string' ? userId : undefined,
       eventType: typeof eventType === 'string' ? eventType : undefined,
     });
@@ -55,7 +55,7 @@ router.get('/api/admin/activity', requireAuth, requireAdmin, async (req, res, ne
 router.get('/api/admin/users/search', requireAuth, requireAdmin, async (req, res, next) => {
   try {
     const q = typeof req.query.q === 'string' ? req.query.q.trim() : '';
-    const limit = Math.min(Math.max(1, parseInt(req.query.limit, 10) || 20), 100);
+    const limit = Math.min(Math.max(1, parseInt(String(req.query.limit ?? 20), 10) || 20), 100);
     if (!q || q.length < 1) {
       return res.json([]);
     }

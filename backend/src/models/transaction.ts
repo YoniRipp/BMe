@@ -17,10 +17,14 @@ function rowToTransaction(row) {
   };
 }
 
-export async function findByUserId(userId, { month, type, limit = 500, offset = 0 } = {}) {
+export async function findByUserId(
+  userId: string,
+  opts: { month?: string; type?: string; limit?: number; offset?: number } = {}
+) {
+  const { month, type, limit = 500, offset = 0 } = opts;
   const pool = getPool('money');
   const conditions = ['user_id = $1'];
-  const params = [userId];
+  const params: (string | number)[] = [userId];
   let i = 2;
   if (month) {
     conditions.push(`date >= $${i}::date AND date < ($${i}::date + interval '1 month')`);

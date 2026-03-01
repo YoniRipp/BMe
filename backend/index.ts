@@ -52,7 +52,7 @@ async function start() {
     let exitCode = 0;
 
     // Wait for HTTP server to close properly
-    await new Promise((resolve) => {
+    await new Promise<void>((resolve) => {
       server.close(() => {
         logger.info('HTTP server closed');
         resolve();

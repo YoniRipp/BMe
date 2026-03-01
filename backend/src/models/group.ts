@@ -120,7 +120,7 @@ export async function findByUserId(userId) {
       invitations: invByGroup.get(row.id) || [],
       createdAt: toISO(row.created_at),
     }))
-    .sort((a, b) => (idToOrder.get(a.id) ?? 0) - (idToOrder.get(b.id) ?? 0));
+    .sort((a, b) => Number(idToOrder.get(a.id) ?? 0) - Number(idToOrder.get(b.id) ?? 0));
 }
 
 /**

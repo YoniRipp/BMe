@@ -39,8 +39,8 @@ export async function create(userId, body) {
   });
 }
 
-export async function update(id, userId, body) {
-  const updates = {};
+export async function update(id: string, userId: string, body: Record<string, unknown>) {
+  const updates: Record<string, unknown> = {};
   if (body?.name !== undefined) updates.name = requireNonEmptyString(body.name, 'name');
   if (body?.description !== undefined) updates.description = body.description == null ? '' : String(body.description).trim();
   if (body?.type !== undefined) updates.type = requireNonEmptyString(body.type, 'type');

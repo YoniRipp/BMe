@@ -77,7 +77,7 @@ function parseDate(d, todayStr) {
 }
 
 /** Build object from args using a spec: { [outputKey]: (value) => transformedValue }. Skips when value is undefined/null or transform returns undefined. */
-function mapArgs(args, spec) {
+function mapArgs(args: Record<string, unknown>, spec: Record<string, (v: unknown) => unknown>) {
   return Object.fromEntries(
     Object.entries(spec)
       .map(([key, transform]) => {
@@ -294,7 +294,7 @@ async function buildAddFood(args, ctx) {
   const amount = Number(args.amount);
   const numAmount = Number.isFinite(amount) && amount > 0 ? amount : 100;
   const unit = args.unit ? String(args.unit).trim().toLowerCase() : 'g';
-  const action = {
+  const action: Record<string, unknown> = {
     food,
     amount: numAmount,
     unit,
@@ -323,6 +323,7 @@ async function buildAddFood(args, ctx) {
             protein: Math.round(geminiRow.protein * scale * 10) / 10,
             carbs: Math.round(geminiRow.carbs * scale * 10) / 10,
             fat: Math.round(geminiRow.fat * scale * 10) / 10,
+            isLiquid: Boolean(geminiRow.is_liquid),
           };
           source = 'gemini';
         }
@@ -335,25 +336,16 @@ async function buildAddFood(args, ctx) {
         action.fats = nutrition.fat;
       } else {
         action.name = withRawOrCooked(food || 'Unknown');
-        action.calories = 0;
-        action.protein = 0;
-        action.carbs = 0;
-        action.fats = 0;
+        action.calories = action.protein = action.carbs = action.fats = 0;
       }
     } catch (e) {
       logger.error({ err: e }, 'add_food DB lookup');
       action.name = withRawOrCooked(food || 'Unknown');
-      action.calories = 0;
-      action.protein = 0;
-      action.carbs = 0;
-      action.fats = 0;
+      action.calories = action.protein = action.carbs = action.fats = 0;
     }
   } else if (food) {
     action.name = withRawOrCooked(food || 'Unknown');
-    action.calories = 0;
-    action.protein = 0;
-    action.carbs = 0;
-    action.fats = 0;
+    action.calories = action.protein = action.carbs = action.fats = 0;
   }
   return action;
 }
@@ -398,23 +390,23 @@ function buildDeleteGoal(args) {
 /** Handlers return { merge } or { items }. All invoked via Promise.resolve for uniform async/sync. Exported for Live API tool execution. */
 export const HANDLERS = {
   add_schedule: (args, ctx) => Promise.resolve(buildAddSchedule(args, ctx)),
-  edit_schedule: (args, ctx) => Promise.resolve({ merge: buildEditSchedule(args, ctx) }),
-  delete_schedule: (args, ctx) => Promise.resolve({ merge: buildDeleteSchedule(args, ctx) }),
+  edit_schedule: (args, _ctx) => Promise.resolve({ merge: buildEditSchedule(args) }),
+  delete_schedule: (args, _ctx) => Promise.resolve({ merge: buildDeleteSchedule(args) }),
   add_transaction: (args, ctx) => Promise.resolve({ merge: buildAddTransaction(args, ctx) }),
-  edit_transaction: (args, ctx) => Promise.resolve({ merge: buildEditTransaction(args, ctx) }),
-  delete_transaction: (args, ctx) => Promise.resolve({ merge: buildDeleteTransaction(args, ctx) }),
+  edit_transaction: (args, _ctx) => Promise.resolve({ merge: buildEditTransaction(args) }),
+  delete_transaction: (args, _ctx) => Promise.resolve({ merge: buildDeleteTransaction(args) }),
   add_workout: (args, ctx) => Promise.resolve({ merge: buildAddWorkout(args, ctx) }),
-  edit_workout: (args, ctx) => Promise.resolve({ merge: buildEditWorkout(args, ctx) }),
-  delete_workout: (args, ctx) => Promise.resolve({ merge: buildDeleteWorkout(args, ctx) }),
+  edit_workout: (args, _ctx) => Promise.resolve({ merge: buildEditWorkout(args) }),
+  delete_workout: (args, _ctx) => Promise.resolve({ merge: buildDeleteWorkout(args) }),
   add_food: (args, ctx) => buildAddFood(args, ctx).then((merge) => ({ merge })),
-  edit_food_entry: (args, ctx) => Promise.resolve({ merge: buildEditFoodEntry(args, ctx) }),
-  delete_food_entry: (args, ctx) => Promise.resolve({ merge: buildDeleteFoodEntry(args, ctx) }),
+  edit_food_entry: (args, _ctx) => Promise.resolve({ merge: buildEditFoodEntry(args) }),
+  delete_food_entry: (args, _ctx) => Promise.resolve({ merge: buildDeleteFoodEntry(args) }),
   log_sleep: (args, ctx) => Promise.resolve({ merge: buildLogSleep(args, ctx) }),
-  edit_check_in: (args, ctx) => Promise.resolve({ merge: buildEditCheckIn(args, ctx) }),
-  delete_check_in: (args, ctx) => Promise.resolve({ merge: buildDeleteCheckIn(args, ctx) }),
-  add_goal: (args, ctx) => Promise.resolve({ merge: buildAddGoal(args, ctx) }),
-  edit_goal: (args, ctx) => Promise.resolve({ merge: buildEditGoal(args, ctx) }),
-  delete_goal: (args, ctx) => Promise.resolve({ merge: buildDeleteGoal(args, ctx) }),
+  edit_check_in: (args, _ctx) => Promise.resolve({ merge: buildEditCheckIn(args) }),
+  delete_check_in: (args, _ctx) => Promise.resolve({ merge: buildDeleteCheckIn(args) }),
+  add_goal: (args, _ctx) => Promise.resolve({ merge: buildAddGoal(args) }),
+  edit_goal: (args, _ctx) => Promise.resolve({ merge: buildEditGoal(args) }),
+  delete_goal: (args, _ctx) => Promise.resolve({ merge: buildDeleteGoal(args) }),
 };
 
 /** True if transcript looks like a short food/drink phrase (no clear sleep/schedule/time patterns). */
@@ -495,11 +487,11 @@ async function processGeminiResponse(response, ctx) {
       validatedArgs = parsed.data;
     }
 
-    const action = { intent: name };
+    const action: Record<string, unknown> = { intent: name };
     const result_ = await handler(validatedArgs, ctx);
 
     if (result_.merge) Object.assign(action, result_.merge);
-    if (result_.items?.length) action.items = result_.items;
+    if (result_.items?.length) (action as { items?: unknown[] }).items = result_.items;
 
     const isEmptyItems = result_.items && result_.items.length === 0;
     if (!isEmptyItems) actions.push(action);
@@ -519,7 +511,7 @@ async function processGeminiResponse(response, ctx) {
  * @param {{ today?: string, timezone?: string }} [options] - User's local today (YYYY-MM-DD) and IANA timezone for UTC conversion
  * @returns {Promise<{ actions: object[] }>}
  */
-export async function parseTranscript(text, lang = 'auto', userId = null, options = {}) {
+export async function parseTranscript(text: string, lang = 'auto', userId: string | null = null, options: { today?: string; timezone?: string } = {}) {
   if (!config.geminiApiKey) {
     throw new Error('Voice service not configured (missing GEMINI_API_KEY)');
   }
@@ -561,7 +553,7 @@ export async function parseTranscript(text, lang = 'auto', userId = null, option
  * @param {{ today?: string, timezone?: string }} [options]
  * @returns {Promise<{ actions: object[] }>}
  */
-export async function parseAudio(audioBase64, mimeType, userId = null, options = {}) {
+export async function parseAudio(audioBase64: string, mimeType: string, userId: string | null = null, options: { today?: string; timezone?: string } = {}) {
   if (!config.geminiApiKey) {
     throw new Error('Voice service not configured (missing GEMINI_API_KEY)');
   }

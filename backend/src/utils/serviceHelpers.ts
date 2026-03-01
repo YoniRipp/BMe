@@ -22,10 +22,10 @@ export function requireFound(value, resourceName) {
  * @param {{ default?: *, errorMessage?: string }} [options]
  * @returns {*}
  */
-export function normOneOf(value, allowedList, options = {}) {
+export function normOneOf(value: unknown, allowedList: readonly string[], options: { default?: unknown; errorMessage?: string } = {}) {
   const hasDefault = 'default' in options;
   const hasError = options.errorMessage;
-  const valid = value != null && allowedList.includes(value);
+  const valid = value != null && allowedList.includes(value as string);
   if (valid) return value;
   if (hasError) throw new ValidationError(options.errorMessage);
   if (hasDefault) return options.default;

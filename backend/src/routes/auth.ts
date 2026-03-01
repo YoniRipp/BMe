@@ -226,10 +226,10 @@ async function loginGoogle(req, res) {
         logger.error({ status: userRes.status, text }, 'Google userinfo error');
         return res.status(401).json({ error: 'Google sign-in failed: token could not be verified. Please try again.' });
       }
-      const data = await userRes.json();
-      sub = data?.id;
-      email = data?.email || '';
-      name = [data?.given_name, data?.family_name].filter(Boolean).join(' ') || data?.name || email || 'User';
+      const data = (await userRes.json()) as Record<string, unknown>;
+      sub = data?.id as string;
+      email = (data?.email as string) || '';
+      name = [data?.given_name, data?.family_name].filter(Boolean).join(' ') || (data?.name as string) || email || 'User';
     }
     if (!sub) {
       return res.status(401).json({ error: 'Google sign-in failed: no user ID returned. Please try again.' });
@@ -267,10 +267,10 @@ async function loginFacebook(req, res) {
       logger.error({ status: response.status, text }, 'Facebook Graph error');
       return res.status(401).json({ error: 'Facebook sign-in failed: token could not be verified. Please try again.' });
     }
-    const data = await response.json();
-    const providerId = data?.id;
-    const email = data?.email || '';
-    const name = data?.name || email || 'User';
+    const data = (await response.json()) as Record<string, unknown>;
+    const providerId = data?.id as string;
+    const email = (data?.email as string) || '';
+    const name = (data?.name as string) || email || 'User';
     if (!providerId) {
       return res.status(401).json({ error: 'Facebook sign-in failed: no user ID returned. Please try again.' });
     }
@@ -306,8 +306,8 @@ async function loginTwitter(req, res) {
       logger.error({ status: response.status, text }, 'Twitter API error');
       return res.status(401).json({ error: 'Invalid Twitter token' });
     }
-    const data = await response.json();
-    const userData = data?.data;
+    const data = (await response.json()) as Record<string, unknown>;
+    const userData = data?.data as Record<string, unknown> | undefined;
     const providerId = userData?.id;
     const name = userData?.name || userData?.username || 'User';
     const email = '';
@@ -391,8 +391,8 @@ async function twitterCallback(req, res) {
       logger.error({ status: tokenRes.status, text }, 'Twitter token exchange error');
       return res.redirect(`${config.frontendOrigin}/login?error=twitter_token_failed`);
     }
-    const tokenData = await tokenRes.json();
-    const accessToken = tokenData.access_token;
+    const tokenData = (await tokenRes.json()) as Record<string, unknown>;
+    const accessToken = tokenData.access_token as string;
     if (!accessToken) {
       return res.redirect(`${config.frontendOrigin}/login?error=twitter_token_failed`);
     }
@@ -402,8 +402,8 @@ async function twitterCallback(req, res) {
     if (!userRes.ok) {
       return res.redirect(`${config.frontendOrigin}/login?error=twitter_user_failed`);
     }
-    const userData = (await userRes.json())?.data;
-    const providerId = userData?.id;
+    const userData = ((await userRes.json()) as Record<string, unknown>)?.data as Record<string, unknown> | undefined;
+    const providerId = userData?.id as string;
     const name = userData?.name || userData?.username || 'User';
     const email = '';
     if (!providerId) {

@@ -29,13 +29,13 @@ function parseDate(v: unknown): string {
 
 async function resolveTransaction(userId: string, action: VoiceAction) {
   if (action.transactionId) {
-    const list = await transactionService.list(userId, { limit: 1, offset: 0 });
-    return list.find((t: { id: string }) => t.id === action.transactionId) ?? null;
+    const { items } = await transactionService.list(userId, { limit: 1, offset: 0 });
+    return items.find((t: { id: string }) => t.id === action.transactionId) ?? null;
   }
   if (action.description) {
-    const list = await transactionService.list(userId, { limit: 100 });
+    const { items } = await transactionService.list(userId, { limit: 100 });
     const lower = String(action.description).toLowerCase();
-    return list.find((t: { description?: string }) => t.description?.toLowerCase().includes(lower)) ?? null;
+    return items.find((t: { description?: string }) => t.description?.toLowerCase().includes(lower)) ?? null;
   }
   return null;
 }

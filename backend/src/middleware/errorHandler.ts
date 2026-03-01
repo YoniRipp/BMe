@@ -34,7 +34,7 @@ export function errorHandler(err, req, res, next) {
   if (res.headersSent) return next(err);
 
   for (const [ErrorClass, status] of ERROR_STATUS_MAP) {
-    if (err instanceof ErrorClass) {
+    if (err instanceof (ErrorClass as new (...args: unknown[]) => Error)) {
       return res.status(status).json({ error: err.message });
     }
   }

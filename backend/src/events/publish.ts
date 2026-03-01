@@ -12,7 +12,8 @@ import { publish as busPublish } from './bus.js';
  * @param {string} userId - User who triggered the action
  * @param {{ correlationId?: string; causationId?: string }} [meta]
  */
-export async function publishEvent(type, payload, userId, meta = {}) {
+type PublishMeta = { correlationId?: string; causationId?: string };
+export async function publishEvent(type, payload, userId, meta: PublishMeta = {}) {
   const correlationId = meta.correlationId ?? getRequestId();
   await busPublish({
     eventId: crypto.randomUUID(),

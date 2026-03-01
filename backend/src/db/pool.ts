@@ -105,7 +105,7 @@ export async function ensureDefaultPool() {
  * Get a pool for the given context (or default). Context: 'money' | 'schedule' | 'body' | 'energy' | 'goals'.
  * @param {string} [context] - Bounded context; if omitted, uses default DATABASE_URL.
  */
-export function getPool(context) {
+export function getPool(context?: string) {
   const conn = getConnectionString(context);
   if (!conn) {
     throw new Error('DATABASE_URL is not set. Backend data API and MCP require a database.');

@@ -30,14 +30,15 @@ export const understand = asyncHandler(async (req, res) => {
   if (!config.geminiApiKey) {
     return sendError(res, 503, 'Voice service not configured (missing GEMINI_API_KEY)');
   }
-  const { audio, mimeType, transcript, lang, today, timezone } = req.body ?? {};
-  const options = {};
-  if (today != null && isValidDateStr(today)) options.today = today;
-  if (timezone != null && isValidTimezone(timezone)) options.timezone = timezone;
+  const body = (req.body ?? {}) as Record<string, unknown>;
+  const { audio, mimeType, transcript, lang, today, timezone } = body;
+  const options: { today?: string; timezone?: string } = {};
+  if (today != null && isValidDateStr(String(today))) options.today = String(today);
+  if (timezone != null && isValidTimezone(String(timezone))) options.timezone = String(timezone);
 
   const userId = req.user?.id ?? null;
 
-  if (audio && typeof audio === 'string' && mimeType && mimeType.startsWith('audio/')) {
+  if (audio && typeof audio === 'string' && mimeType && typeof mimeType === 'string' && mimeType.startsWith('audio/')) {
     if (!isRedisConfigured()) {
       return sendError(res, 503, 'Voice queue not configured (REDIS_URL required for audio)');
     }
@@ -67,7 +68,7 @@ export const understand = asyncHandler(async (req, res) => {
     const text = transcript.trim();
     if (!text) return sendError(res, 400, 'Transcript is empty');
     try {
-      const data = await voiceService.parseTranscript(text, lang ?? 'auto', userId, options);
+      const data = await voiceService.parseTranscript(text, (lang != null ? String(lang) : undefined) ?? 'auto', userId, options);
       return sendJson(res, data);
     } catch (e) {
       logger.error({ err: e }, 'Gemini / voice understand error');

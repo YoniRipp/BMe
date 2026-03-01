@@ -24,7 +24,7 @@ export async function listActivity(opts) {
   if (Number.isNaN(fromDate.getTime()) || Number.isNaN(toDate.getTime())) {
     throw new Error('from and to must be valid ISO 8601 dates');
   }
-  const daysDiff = (toDate - fromDate) / (1000 * 60 * 60 * 24);
+  const daysDiff = (toDate.getTime() - fromDate.getTime()) / (1000 * 60 * 60 * 24);
   if (daysDiff > MAX_DAYS) {
     throw new Error(`Time range cannot exceed ${MAX_DAYS} days`);
   }
