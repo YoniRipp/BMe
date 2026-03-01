@@ -24,8 +24,15 @@ function getUserTimezone(): string {
   }
 }
 
+export interface VoiceExecuteResult {
+  intent: string;
+  success: boolean;
+  message?: string;
+}
+
 export interface VoiceUnderstandResult {
   actions: VoiceAction[];
+  results?: VoiceExecuteResult[];
 }
 
 async function getErrorMessage(res: Response, context = 'Voice'): Promise<string> {
@@ -45,7 +52,7 @@ async function handleResponse<T>(res: Response): Promise<T> {
   return res.json() as Promise<T>;
 }
 
-export function parseVoiceResult(data: { actions?: unknown[] } | null): VoiceUnderstandResult {
+export function parseVoiceResult(data: { actions?: unknown[]; results?: unknown[] } | null): VoiceUnderstandResult {
   if (!data) return { actions: [{ intent: 'unknown' }] };
   const rawActions = Array.isArray(data.actions) ? data.actions : [];
   const actions: VoiceAction[] = [];
@@ -62,7 +69,8 @@ export function parseVoiceResult(data: { actions?: unknown[] } | null): VoiceUnd
   if (actions.length === 0) {
     actions.push({ intent: 'unknown' });
   }
-  return { actions };
+  const results = Array.isArray(data.results) ? (data.results as VoiceExecuteResult[]) : undefined;
+  return { actions, results };
 }
 
 function sleep(ms: number, signal?: AbortSignal): Promise<void> {
@@ -154,7 +162,7 @@ export async function pollForVoiceResult(
       throw new Error(await getErrorMessage(res));
     }
 
-    const data = (await res.json()) as { status: string; result?: { actions?: unknown[] }; error?: string };
+    const data = (await res.json()) as { status: string; result?: { actions?: unknown[]; results?: unknown[] }; error?: string };
 
     if (data.status === 'completed') {
       return parseVoiceResult(data.result ?? null);
@@ -220,7 +228,7 @@ export async function understandTranscript(
   }
   clearTimeout(timeoutId);
 
-  const data = await handleResponse<{ actions?: unknown[]; jobId?: string }>(res);
+  const data = await handleResponse<{ actions?: unknown[]; results?: unknown[]; jobId?: string }>(res);
   if (data.jobId) {
     return pollForVoiceResult(data.jobId, { signal: options?.signal });
   }

@@ -2,12 +2,12 @@
 export default {
   test: {
     environment: 'node',
-    include: ['src/**/*.test.js'],
+    include: ['src/**/*.test.ts'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json-summary'],
-      include: ['src/**/*.js'],
-      exclude: ['src/**/*.test.js', '**/node_modules/**'],
+      include: ['src/**/*.ts'],
+      exclude: ['src/**/*.test.ts', '**/node_modules/**'],
     },
   },
 };

@@ -39,6 +39,10 @@ For app-wide conventions and the full changelog (Updates 1–12, latest first), 
 | Logging | pino |
 | Migrations | node-pg-migrate |
 
+### Conventions
+
+- **TypeScript-only:** All new backend source files must be `.ts`; no new `.js` source files. Tests use `.test.ts`.
+
 ## Project Structure
 
 ```
@@ -209,7 +213,7 @@ CI runs backend tests in [.github/workflows/ci.yml](../.github/workflows/ci.yml)
 
 ## Database
 
-PostgreSQL schema is defined in [src/db/schema.js](src/db/schema.js). On startup, if `DATABASE_URL` is set, the app runs `initSchema()` which creates tables and indexes (if not exists).
+PostgreSQL schema is defined in [src/db/schema.ts](src/db/schema.ts). For development with a fresh DB, run `initSchema()` by not setting `SKIP_SCHEMA_INIT`. For production, set `SKIP_SCHEMA_INIT=true` and run `npm run migrate:up` at deploy.
 
 ### Migrations
 
@@ -257,7 +261,7 @@ When `MONEY_SERVICE_URL` (or `SCHEDULE_SERVICE_URL`, etc.) is set, the listed ro
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/health` | Returns `{ status: 'ok' }` (200) |
-| GET | `/ready` | Returns 200 if DB is reachable (`SELECT 1`), else 503 |
+| GET | `/ready` | Returns 200 if DB and Redis (when configured) are reachable, else 503 |
 
 All paths under `/api` are rate-limited (200 requests per 15 minutes per IP). JSON request/response; errors return `{ error: string }`.
 

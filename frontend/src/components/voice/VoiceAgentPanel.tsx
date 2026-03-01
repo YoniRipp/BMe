@@ -7,6 +7,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Mic, Square } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useSchedule } from '@/hooks/useSchedule';
 import { useTransactions } from '@/hooks/useTransactions';
 import { useEnergy } from '@/hooks/useEnergy';
@@ -14,6 +15,7 @@ import { useWorkouts } from '@/hooks/useWorkouts';
 import { useGoals } from '@/hooks/useGoals';
 import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
 import { executeVoiceAction, type VoiceExecutorContext } from '@/lib/voiceActionExecutor';
+import { queryKeys } from '@/lib/queryClient';
 import { toast } from '@/components/shared/ToastProvider';
 import { LocalErrorBoundary } from '@/components/shared/LocalErrorBoundary';
 
@@ -23,6 +25,7 @@ interface VoiceAgentPanelProps {
 }
 
 export function VoiceAgentPanel({ open, onOpenChange }: VoiceAgentPanelProps) {
+  const queryClient = useQueryClient();
   const { scheduleItems, addScheduleItems, updateScheduleItem, deleteScheduleItem, getScheduleItemById } = useSchedule();
   const { transactions, addTransaction, updateTransaction, deleteTransaction } = useTransactions();
   const { foodEntries, addFoodEntry, updateFoodEntry, deleteFoodEntry, updateCheckIn, addCheckIn, deleteCheckIn, getCheckInByDate } = useEnergy();
@@ -99,17 +102,30 @@ export function VoiceAgentPanel({ open, onOpenChange }: VoiceAgentPanelProps) {
       const succeeded: string[] = [];
       const failed: string[] = [];
 
-      for (const action of result.actions) {
-        if (action.intent === 'unknown') {
-          failed.push('Not understood');
-          continue;
-        }
-        try {
-          const r = await executeVoiceAction(action, voiceContext);
-          if (r.success) succeeded.push(r.message ?? action.intent);
+      if (result.results) {
+        for (const r of result.results) {
+          if (r.success) succeeded.push(r.message ?? r.intent);
           else failed.push(r.message ?? 'Could not complete action. Please try again.');
-        } catch (e) {
-          failed.push(e instanceof Error ? e.message : 'Could not complete action. Please try again.');
+        }
+        await queryClient.invalidateQueries({ queryKey: queryKeys.transactions });
+        await queryClient.invalidateQueries({ queryKey: queryKeys.schedule });
+        await queryClient.invalidateQueries({ queryKey: queryKeys.workouts });
+        await queryClient.invalidateQueries({ queryKey: queryKeys.foodEntries });
+        await queryClient.invalidateQueries({ queryKey: queryKeys.checkIns });
+        await queryClient.invalidateQueries({ queryKey: queryKeys.goals });
+      } else {
+        for (const action of result.actions) {
+          if (action.intent === 'unknown') {
+            failed.push('Not understood');
+            continue;
+          }
+          try {
+            const r = await executeVoiceAction(action, voiceContext);
+            if (r.success) succeeded.push(r.message ?? action.intent);
+            else failed.push(r.message ?? 'Could not complete action. Please try again.');
+          } catch (e) {
+            failed.push(e instanceof Error ? e.message : 'Could not complete action. Please try again.');
+          }
         }
       }
 
@@ -127,7 +143,7 @@ export function VoiceAgentPanel({ open, onOpenChange }: VoiceAgentPanelProps) {
       setError(msg);
       toast.error('Voice processing failed', { description: msg });
     }
-  }, [stopListening, getVoiceResult, voiceContext]);
+  }, [stopListening, getVoiceResult, voiceContext, queryClient]);
 
   // Stop recording when dialog closes
   useEffect(() => {

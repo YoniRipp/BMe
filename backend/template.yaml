@@ -1,0 +1,97 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: BMe backend - Event and Voice Lambda handlers
+
+Parameters:
+  EventQueueName:
+    Type: String
+    Default: beme-event-queue
+  VoiceQueueName:
+    Type: String
+    Default: beme-voice-queue
+  DatabaseUrl:
+    Type: String
+    NoEcho: true
+  RedisUrl:
+    Type: String
+    NoEcho: true
+  GeminiApiKey:
+    Type: String
+    NoEcho: true
+
+Resources:
+  EventQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Ref EventQueueName
+      VisibilityTimeout: 60
+      MessageRetentionPeriod: 1209600
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt EventDLQ.Arn
+        maxReceiveCount: 3
+
+  EventDLQ:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub '${EventQueueName}-dlq'
+
+  VoiceQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Ref VoiceQueueName
+      VisibilityTimeout: 120
+      MessageRetentionPeriod: 1209600
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt VoiceDLQ.Arn
+        maxReceiveCount: 3
+
+  VoiceDLQ:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub '${VoiceQueueName}-dlq'
+
+  EventHandlerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: dist/lambdas/event-handler.handler
+      Runtime: nodejs20.x
+      Timeout: 30
+      MemorySize: 256
+      Environment:
+        Variables:
+          EVENT_QUEUE_URL: !Ref EventQueue
+          DATABASE_URL: !Ref DatabaseUrl
+          REDIS_URL: !Ref RedisUrl
+      Events:
+        EventQueueEvent:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt EventQueue.Arn
+            BatchSize: 10
+
+  VoiceHandlerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: dist/lambdas/voice-handler.handler
+      Runtime: nodejs20.x
+      Timeout: 60
+      MemorySize: 512
+      Environment:
+        Variables:
+          VOICE_QUEUE_URL: !Ref VoiceQueue
+          REDIS_URL: !Ref RedisUrl
+          GEMINI_API_KEY: !Ref GeminiApiKey
+      Events:
+        VoiceQueueEvent:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt VoiceQueue.Arn
+            BatchSize: 1
+
+Outputs:
+  EventQueueUrl:
+    Description: URL of the event queue
+    Value: !Ref EventQueue
+  VoiceQueueUrl:
+    Description: URL of the voice queue
+    Value: !Ref VoiceQueue
