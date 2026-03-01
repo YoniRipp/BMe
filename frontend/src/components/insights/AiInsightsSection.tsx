@@ -100,7 +100,8 @@ function SearchBox() {
 
         {error && (
           <p className="text-sm text-destructive flex items-center gap-1">
-            <AlertCircle className="w-4 h-4" /> Search unavailable — enable GEMINI_API_KEY
+            <AlertCircle className="w-4 h-4" />
+            {(error as Error)?.message ?? 'Search unavailable.'}
           </p>
         )}
 
@@ -259,7 +260,7 @@ export function AiInsightsSection() {
           ) : error ? (
             <p className="text-sm text-muted-foreground flex items-center gap-2">
               <AlertCircle className="w-4 h-4 text-destructive" />
-              AI insights require a configured GEMINI_API_KEY.
+              {(error as Error)?.message ?? 'AI insights are temporarily unavailable.'}
             </p>
           ) : data ? (
             <div className="flex gap-6 items-start flex-wrap">
