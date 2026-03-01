@@ -27,43 +27,43 @@ export function DashboardHero({
     workoutsThisWeek === 1 ? '1 workout' : `${workoutsThisWeek} workouts`;
 
   return (
-    <Card className="bg-white shadow">
+    <Card>
       <CardHeader className="pb-2">
-        <p className="text-sm font-medium text-stone">{greeting}</p>
-        <CardTitle className="text-xl md:text-2xl text-charcoal">
+        <p className="text-sm font-medium text-muted-foreground">{greeting}</p>
+        <CardTitle className="text-xl md:text-2xl">
           How are you feeling today?
         </CardTitle>
-        <CardDescription className="text-stone">
+        <CardDescription>
           Track your wellness, finances, and goals — all in one place.
         </CardDescription>
       </CardHeader>
       <CardContent>
         <div className="flex flex-wrap gap-6">
           <div className="flex items-start gap-3">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-stone/10 ring-1 ring-stone/20">
-              <Heart className="h-4 w-4 text-stone" />
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-muted ring-1 ring-border">
+              <Heart className="h-4 w-4 text-muted-foreground" />
             </div>
             <div>
-              <p className="text-xs font-medium text-stone">Energy</p>
-              <p className="text-lg font-semibold text-charcoal">{energyValue}</p>
+              <p className="text-xs font-medium text-muted-foreground">Energy</p>
+              <p className="text-lg font-semibold text-foreground">{energyValue}</p>
             </div>
           </div>
           <div className="flex items-start gap-3">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-stone/10 ring-1 ring-stone/20">
-              <Dumbbell className="h-4 w-4 text-stone" />
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-muted ring-1 ring-border">
+              <Dumbbell className="h-4 w-4 text-muted-foreground" />
             </div>
             <div>
-              <p className="text-xs font-medium text-stone">This week</p>
-              <p className="text-lg font-semibold text-charcoal">{workoutsValue}</p>
+              <p className="text-xs font-medium text-muted-foreground">This week</p>
+              <p className="text-lg font-semibold text-foreground">{workoutsValue}</p>
             </div>
           </div>
           <div className="flex items-start gap-3">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-stone/10 ring-1 ring-stone/20">
-              <Moon className="h-4 w-4 text-stone" />
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-muted ring-1 ring-border">
+              <Moon className="h-4 w-4 text-muted-foreground" />
             </div>
             <div>
-              <p className="text-xs font-medium text-stone">Last sleep</p>
-              <p className="text-lg font-semibold text-charcoal">{sleepValue}</p>
+              <p className="text-xs font-medium text-muted-foreground">Last sleep</p>
+              <p className="text-lg font-semibold text-foreground">{sleepValue}</p>
             </div>
           </div>
         </div>
