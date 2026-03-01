@@ -16,7 +16,7 @@ The backend serves:
 
 When `DATABASE_URL` is not set, the server still starts but auth and data APIs are not mounted. When `GEMINI_API_KEY` is not set, the voice understand endpoint returns an error.
 
-For app-wide conventions and the full changelog (Updates 1–12, latest first), see the root [README.md](../README.md), [UPDATE_11.0.md](../UPDATE_11.0.md), and [UPDATE_12.0.md](../UPDATE_12.0.md).
+For app-wide conventions and the full changelog (Updates 1–17, latest first), see the root [README.md](../README.md) and [CHANGELOG.md](../CHANGELOG.md).
 
 ## Tech Stack
 
@@ -407,6 +407,7 @@ The [mcp-server](mcp-server/) directory contains an MCP server that exposes BeMe
 
 ## Changelog (latest first)
 
+- **Update 17.0** — AI insights persistence (`ai_insights` table, `getLastInsight`, `saveInsight`, `POST /api/insights/refresh`); food search returns `servingSizesMl`; migration `1730145600000_add-ai-insights.js`. See root [CHANGELOG.md](../CHANGELOG.md).
 - **Update 16.0** — Documentation overhaul, run guides (RUNNING-LOCAL/RAILWAY/AWS), .env.example restored, professional repo polish (LICENSE, CONTRIBUTING, CODE_OF_CONDUCT, SECURITY, .editorconfig, .gitattributes, PR template, root scripts lint:backend, test:backend, test:all). See root [CHANGELOG.md](../CHANGELOG.md).
 - **Update 15.0 — Event-driven migration (Plans 0–12)** — Event bus (Redis/BullMQ or SQS), all write paths emit events, idempotency, transaction analytics consumer, event-consumer as separate process, per-context DB configuration, extracted Money/Schedule/Body/Energy/Goals services, gateway proxy. See [docs/bounded-contexts.md](../docs/bounded-contexts.md), [docs/event-schema.md](../docs/event-schema.md), [docs/architecture-principles.md](../docs/architecture-principles.md).
 - **Update 14.0** — TypeScript monorepo refactor: API, Workers, Scheduler services with queue abstraction (BullMQ/SQS). See root README **Update 14.0** and [UPDATE_14.0.md](../UPDATE_14.0.md).

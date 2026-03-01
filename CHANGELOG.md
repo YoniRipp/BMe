@@ -2,6 +2,29 @@
 
 All notable changes to this project are documented in this file. Releases and notable changes, latest first.
 
+## Update 17.0 — AI Insights, Food UX, Money, Animations
+
+### AI Insights
+- **Persistence** — AI-generated insights saved to `ai_insights` table; last insight shown on visit (no Gemini call when cached within 24h)
+- **Refresh** — `POST /api/insights/refresh` to force regenerate; frontend "Refresh insights" button
+- **Thinking animations** — "Analyzing your data…" and "Generating recommendations…" with animated dots during loading
+
+### Food
+- **Add food bug fix** — Trigger validation after selecting from search so "Add Food" button works
+- **Liquid vs solid** — Backend returns `servingSizesMl`; liquid options: can, bottle (500ml), 1L, 1.5L, 2L, glass; solid presets: 50g, 150g, 200g, 1 portion (100g)
+- **Look up with AI** — When search has no results, "Look up with AI" calls `POST /api/food/lookup-or-create`; populates form with nutrition and type
+
+### Money
+- **Heading deduplication** — Layout shows "Money"; page content shows only "Where does the money go?" (no duplicate title)
+
+### Backend
+- Migration `1730145600000_add-ai-insights.js` — `ai_insights` table (summary, highlights, suggestions, score, today_*)
+- `GET /api/insights` — returns cached insight if fresh, else generates and saves
+- `POST /api/insights/refresh` — force regenerate
+- `foodSearch` model — returns `servingSizesMl` from foods table
+
+---
+
 ## Update 16.0 — Documentation, run guides, and professional repo polish
 
 Documentation overhaul and repo conventions to support contributors and deployment.

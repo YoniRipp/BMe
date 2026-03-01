@@ -362,7 +362,7 @@ From `backend/`: `npm run start:consumer`, `npm run start:money`, `npm run start
 
 ## Changelog
 
-See [CHANGELOG.md](CHANGELOG.md) for release history.
+**Update 17.0** — AI Insights DB persistence, food UX (liquid/solid, Look up with AI), Money heading deduplication, thinking animations. See [CHANGELOG.md](CHANGELOG.md) for full release history.
 
 ## License
 
