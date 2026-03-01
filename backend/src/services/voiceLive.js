@@ -7,6 +7,7 @@ import { GoogleGenAI, Modality } from '@google/genai';
 import waveResampler from 'wave-resampler';
 import { config } from '../config/index.js';
 import { isDbConfigured } from '../db/index.js';
+import { logger } from '../lib/logger.js';
 import { VOICE_PROMPT, HANDLERS } from './voice.js';
 import { VOICE_TOOLS } from '../../voice/tools.js';
 import * as foodEntryService from './foodEntry.js';
@@ -98,7 +99,7 @@ async function executeAndPersist(name, args, ctx) {
 
     return { message: 'Done.' };
   } catch (e) {
-    console.error('Voice Live: execute failed', name, e?.message ?? e);
+    logger.error({ err: e, name }, 'Voice Live: execute failed');
     return { message: `Failed: ${e?.message ?? 'Unknown error'}.` };
   }
 }
@@ -134,7 +135,7 @@ export async function attachLiveSession(clientWs, userId) {
     try {
       clientWs.send(typeof payload === 'string' ? payload : JSON.stringify(payload));
     } catch (e) {
-      console.error('Voice Live: send to client failed', e?.message);
+      logger.error({ err: e }, 'Voice Live: send to client failed');
     }
   }
 
@@ -161,7 +162,7 @@ export async function attachLiveSession(clientWs, userId) {
             try {
               liveSession.sendToolResponse({ functionResponses });
             } catch (e) {
-              console.error('Voice Live: sendToolResponse failed', e?.message);
+              logger.error({ err: e }, 'Voice Live: sendToolResponse failed');
             }
             return;
           }
@@ -178,7 +179,7 @@ export async function attachLiveSession(clientWs, userId) {
           }
         },
         onerror: (e) => {
-          console.error('Voice Live: Gemini error', e?.message ?? e);
+          logger.error({ err: e }, 'Voice Live: Gemini error');
           sendToClient({ type: 'error', error: e?.message ?? 'Live session error' });
         },
         onclose: (e) => {
@@ -187,7 +188,7 @@ export async function attachLiveSession(clientWs, userId) {
       },
     });
   } catch (e) {
-    console.error('Voice Live: connect failed', e?.message ?? e);
+    logger.error({ err: e }, 'Voice Live: connect failed');
     sendToClient({ type: 'error', error: e?.message ?? 'Failed to connect to Live API' });
     clientWs.close(1011, 'Live connect failed');
     return;
@@ -242,7 +243,7 @@ export async function attachLiveSession(clientWs, userId) {
         });
       }
     } catch (e) {
-      console.error('Voice Live: send to Gemini failed', e?.message);
+      logger.error({ err: e }, 'Voice Live: send to Gemini failed');
     }
   });
 

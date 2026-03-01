@@ -31,6 +31,7 @@ export function GroupProvider({ children }: { children: React.ReactNode }) {
     refetch: refetchGroupsQuery,
   } = useQuery({
     queryKey: queryKeys.groups,
+    staleTime: 2 * 60 * 1000,
     queryFn: () => groupsApi.list(),
   });
 

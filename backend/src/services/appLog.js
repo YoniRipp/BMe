@@ -2,12 +2,13 @@
  * App log service — persist action and error logs for admin visibility.
  */
 import { getPool, isDbConfigured } from '../db/index.js';
+import { logger } from '../lib/logger.js';
 
 const LOG_LIMIT = 200;
 
 async function insertLog(level, message, details, userId) {
   if (!isDbConfigured()) {
-    console.log(`[appLog ${level}]`, message, details ?? '');
+    logger.info({ level, message, details }, 'appLog');
     return;
   }
   try {
@@ -17,7 +18,7 @@ async function insertLog(level, message, details, userId) {
       [level, message, details ? JSON.stringify(details) : null, userId ?? null]
     );
   } catch (e) {
-    console.error('[appLog] insert failed:', e?.message ?? e);
+    logger.error({ err: e }, 'appLog insert failed');
   }
 }
 

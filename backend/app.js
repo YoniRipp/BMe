@@ -97,11 +97,13 @@ export async function createApp() {
   app.use('/api/auth/facebook', authLimiter);
   app.use('/api/auth/twitter', authLimiter);
 
-  // Request logging
+  // Request logging (skip health checks to reduce noise)
   app.use((req, res, next) => {
     const start = Date.now();
     res.on('finish', () => {
-      logger.info({ method: req.method, path: req.path, status: res.statusCode, ms: Date.now() - start });
+      if (req.path !== '/health' && req.path !== '/ready') {
+        logger.info({ method: req.method, path: req.path, status: res.statusCode, ms: Date.now() - start });
+      }
     });
     next();
   });

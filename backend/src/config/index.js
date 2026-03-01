@@ -4,6 +4,7 @@
  */
 
 import dotenv from 'dotenv';
+import { logger } from '../lib/logger.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { z } from 'zod';
@@ -72,7 +73,7 @@ if (isProduction && (CORS_ORIGIN === true || CORS_ORIGIN === 'true')) {
   throw new Error('CORS_ORIGIN must be an explicit origin in production, not true');
 }
 if (isProduction && !process.env.CORS_ORIGIN) {
-  console.warn('CORS_ORIGIN not set in production; using FRONTEND_ORIGIN. Set CORS_ORIGIN explicitly for security.');
+  logger.warn('CORS_ORIGIN not set in production; using FRONTEND_ORIGIN. Set CORS_ORIGIN explicitly for security.');
 }
 
 const rawConfig = {

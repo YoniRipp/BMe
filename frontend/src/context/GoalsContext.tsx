@@ -28,6 +28,7 @@ export function GoalsProvider({ children }: { children: React.ReactNode }) {
     refetch: refetchGoalsQuery,
   } = useQuery({
     queryKey: queryKeys.goals,
+    staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       const list = await goalsApi.list();
       return list.map(apiGoalToGoal);

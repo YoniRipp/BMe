@@ -6,6 +6,7 @@ import { Router } from 'express';
 import { getPool } from '../db/index.js';
 import { requireAuth, requireAdmin } from '../middleware/auth.js';
 import { logAction } from '../services/appLog.js';
+import { logger } from '../lib/logger.js';
 
 const SALT_ROUNDS = 10;
 
@@ -27,7 +28,7 @@ async function listUsers(req, res) {
     );
     res.json(result.rows.map(rowToUser));
   } catch (e) {
-    console.error('list users error:', e?.message ?? e);
+    logger.error({ err: e }, 'list users error');
     res.status(500).json({ error: e?.message ?? 'Could not list users. Please try again.' });
   }
 }
@@ -62,7 +63,7 @@ async function createUser(req, res) {
     if (e.code === '23505') {
       return res.status(409).json({ error: 'Email already registered' });
     }
-    console.error('create user error:', e?.message ?? e);
+    logger.error({ err: e }, 'create user error');
     res.status(500).json({ error: e?.message ?? 'Could not create user. Please try again.' });
   }
 }
@@ -98,7 +99,7 @@ async function updateUser(req, res) {
     await logAction('User updated', { targetId: id, email: result.rows[0].email, fields: { name: name !== undefined, role: role !== undefined, password: password !== undefined } }, req.user.id);
     res.json(rowToUser(result.rows[0]));
   } catch (e) {
-    console.error('update user error:', e?.message ?? e);
+    logger.error({ err: e }, 'update user error');
     res.status(500).json({ error: e?.message ?? 'Could not update user. Please try again.' });
   }
 }
@@ -116,7 +117,7 @@ async function deleteUser(req, res) {
     await logAction('User deleted', { targetId: id, targetEmail: result.rows[0].email }, req.user.id);
     res.status(204).send();
   } catch (e) {
-    console.error('delete user error:', e?.message ?? e);
+    logger.error({ err: e }, 'delete user error');
     res.status(500).json({ error: e?.message ?? 'Could not delete user. Please try again.' });
   }
 }
@@ -155,7 +156,7 @@ async function getUserActivity(req, res) {
     const nextCursor = events.length === limit ? events[events.length - 1].createdAt : null;
     res.json({ events, nextCursor });
   } catch (e) {
-    console.error('getUserActivity error:', e?.message ?? e);
+    logger.error({ err: e }, 'getUserActivity error');
     res.status(500).json({ error: e?.message ?? 'Could not get user activity. Please try again.' });
   }
 }

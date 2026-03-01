@@ -6,6 +6,7 @@ import { ValidationError } from '../errors.js';
 import * as groupModel from '../models/group.js';
 import { config } from '../config/index.js';
 import { sendAddedToGroupEmail, sendGroupInviteEmail } from '../lib/email.js';
+import { logger } from '../lib/logger.js';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -59,7 +60,7 @@ export async function addInvitation(groupId, userId, email) {
     const baseUrl = (config.appBaseUrl || '').replace(/\/$/, '');
     const inviteLink = `${baseUrl}/invite/join?token=${invitationId}`;
     sendGroupInviteEmail(trimmed, group.name, inviteLink).catch((err) =>
-      console.error('Failed to send group invite email:', err?.message ?? err)
+      logger.error({ err }, 'Failed to send group invite email')
     );
   }
   return group;
@@ -75,7 +76,7 @@ export async function acceptInvitation(groupId, userId, userEmail) {
   const group = await groupModel.acceptInvitation(groupId, userId, userEmail);
   const emailNorm = (userEmail || '').trim().toLowerCase();
   sendAddedToGroupEmail(emailNorm, group.name, group.id).catch((err) =>
-    console.error('Failed to send added-to-group email:', err?.message ?? err)
+    logger.error({ err }, 'Failed to send added-to-group email')
   );
   return group;
 }
@@ -92,7 +93,7 @@ export async function acceptInviteByToken(token, userId, userEmail) {
   const group = await groupModel.acceptInvitationByToken(token, userId, userEmail);
   const emailNorm = (userEmail || '').trim().toLowerCase();
   sendAddedToGroupEmail(emailNorm, group.name, group.id).catch((err) =>
-    console.error('Failed to send added-to-group email:', err?.message ?? err)
+    logger.error({ err }, 'Failed to send added-to-group email')
   );
   return group;
 }

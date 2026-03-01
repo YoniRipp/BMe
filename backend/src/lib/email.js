@@ -4,6 +4,7 @@
  */
 import { Resend } from 'resend';
 import { config } from '../config/index.js';
+import { logger } from './logger.js';
 
 let resend = null;
 if (config.resendApiKey) {
@@ -18,7 +19,7 @@ const FROM = process.env.RESEND_FROM || 'BeMe <onboarding@resend.dev>';
  */
 export async function sendMail({ to, subject, html }) {
   if (!resend) {
-    console.warn('Email not sent (RESEND_API_KEY not set):', { to, subject: subject?.slice(0, 50) });
+    logger.warn({ to, subject: subject?.slice(0, 50) }, 'Email not sent (RESEND_API_KEY not set)');
     return;
   }
   try {
@@ -29,11 +30,11 @@ export async function sendMail({ to, subject, html }) {
       html,
     });
     if (error) {
-      console.error('Resend send error:', error);
+      logger.error({ err: error }, 'Resend send error');
     }
     return data;
   } catch (err) {
-    console.error('Email send error:', err?.message ?? err);
+    logger.error({ err }, 'Email send error');
   }
 }
 

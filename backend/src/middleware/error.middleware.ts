@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { StatusCodes } from 'http-status-codes';
 import { AppError } from '../utils/errors';
 import { ZodError } from 'zod';
+import { logger } from '../lib/logger.js';
 
 export const errorHandler = (
   err: Error,
@@ -10,7 +11,7 @@ export const errorHandler = (
   next: NextFunction
 ) => {
   // Log error for debugging
-  console.error('Error:', err);
+  logger.error({ err }, 'Unhandled error');
 
   // Handle AppError
   if (err instanceof AppError) {

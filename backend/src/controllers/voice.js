@@ -4,6 +4,7 @@
 import { randomUUID } from 'crypto';
 import { asyncHandler } from '../middleware/errorHandler.js';
 import { config } from '../config/index.js';
+import { logger } from '../lib/logger.js';
 import * as voiceService from '../services/voice.js';
 import { getRedisClient, isRedisConfigured } from '../redis/client.js';
 import { enqueue } from '../queue/index.js';
@@ -69,7 +70,7 @@ export const understand = asyncHandler(async (req, res) => {
       const { actions } = await voiceService.parseTranscript(text, lang ?? 'auto', userId, options);
       return sendJson(res, { actions });
     } catch (e) {
-      console.error('Gemini / voice understand error:', e?.message ?? e);
+      logger.error({ err: e }, 'Gemini / voice understand error');
       return sendError(res, 502, 'Failed to understand voice', { details: e?.message ?? String(e) });
     }
   }
