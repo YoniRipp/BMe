@@ -6,7 +6,12 @@ vi.mock('../db/index.js', () => ({
   isDbConfigured: vi.fn(),
 }));
 
+vi.mock('../lib/logger.js', () => ({
+  logger: { info: vi.fn(), error: vi.fn() },
+}));
+
 import { getPool, isDbConfigured } from '../db/index.js';
+import { logger } from '../lib/logger.js';
 
 describe('appLog', () => {
   beforeEach(() => {
@@ -16,10 +21,8 @@ describe('appLog', () => {
   describe('logAction', () => {
     it('returns without throwing when db is not configured', async () => {
       isDbConfigured.mockReturnValue(false);
-      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
       await expect(logAction('test action')).resolves.toBeUndefined();
-      expect(consoleSpy).toHaveBeenCalledWith('[appLog action]', 'test action', '');
-      consoleSpy.mockRestore();
+      expect(logger.info).toHaveBeenCalledWith({ level: 'action', message: 'test action', details: undefined }, 'appLog');
     });
 
     it('inserts into DB when configured', async () => {
@@ -39,10 +42,8 @@ describe('appLog', () => {
   describe('logError', () => {
     it('returns without throwing when db is not configured', async () => {
       isDbConfigured.mockReturnValue(false);
-      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
       await expect(logError('parse failed')).resolves.toBeUndefined();
-      expect(consoleSpy).toHaveBeenCalledWith('[appLog error]', 'parse failed', '');
-      consoleSpy.mockRestore();
+      expect(logger.info).toHaveBeenCalledWith({ level: 'error', message: 'parse failed', details: undefined }, 'appLog');
     });
 
     it('inserts into DB when configured', async () => {
