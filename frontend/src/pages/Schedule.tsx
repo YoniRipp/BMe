@@ -114,11 +114,11 @@ export function Schedule() {
         >
           {itemsForDate.length === 0 ? (
             <Card
-              className="p-6 border-2 border-dashed cursor-pointer hover:border-primary transition-colors text-center"
+              className="p-8 border-2 border-dashed cursor-pointer hover:border-primary transition-colors text-center"
               onClick={editable ? () => { setEditingSchedule(undefined); setScheduleModalOpen(true); } : undefined}
             >
-              <Plus className="w-10 h-10 mx-auto mb-2 text-muted-foreground" />
-              <p className="font-medium mb-1">Add your first schedule item</p>
+              <Plus className="w-12 h-12 mx-auto mb-3 text-muted-foreground" />
+              <p className="text-lg font-medium mb-1">Add your first schedule item</p>
               <p className="text-sm text-muted-foreground">Tap to create a daily routine</p>
             </Card>
           ) : (
@@ -135,11 +135,11 @@ export function Schedule() {
               ))}
               {editable && (
                 <Card
-                  className="p-4 border-2 border-dashed cursor-pointer hover:border-primary transition-colors text-center bg-muted/50 mt-2"
+                  className="p-6 border-2 border-dashed cursor-pointer hover:border-primary transition-colors text-center bg-muted/50 mt-2"
                   onClick={() => { setEditingSchedule(undefined); setScheduleModalOpen(true); }}
                 >
-                  <Plus className="w-6 h-6 mx-auto text-primary" />
-                  <p className="text-sm font-medium mt-1 text-muted-foreground">Add another</p>
+                  <Plus className="w-8 h-8 mx-auto text-primary" />
+                  <p className="text-sm font-medium mt-2 text-muted-foreground">Add another</p>
                 </Card>
               )}
             </>
@@ -214,7 +214,7 @@ export function Schedule() {
                   const itemsForDate = getItemsForDate(scheduleItems, date);
                   return (
                     <div key={date.toISOString()}>
-                      <h3 className="text-sm font-medium text-muted-foreground mb-2 sticky top-0 bg-background py-1">
+                      <h3 className="text-sm font-medium text-muted-foreground mb-2 sticky top-0 bg-background/95 py-1">
                         {format(date, 'EEE, MMM d, yyyy')}
                       </h3>
                       <div className="space-y-2">

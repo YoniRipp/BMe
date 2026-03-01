@@ -144,14 +144,14 @@ export function Base44Layout() {
                 <Leaf className="w-5 h-5 text-primary-foreground" />
               </div>
               <div>
-                <h1 className="text-xl font-bold tracking-tight text-charcoal">BeMe</h1>
+                <h1 className="text-xl font-bold tracking-tight text-foreground">BeMe</h1>
                 <p className="text-[10px] uppercase tracking-[0.2em] text-primary font-medium">Life Balance</p>
               </div>
             </Link>
           </div>
 
           <nav className="flex-1 px-3 py-2">
-            <p className="px-3 mb-2 text-[10px] uppercase tracking-[0.15em] text-stone font-semibold">Navigate</p>
+            <p className="px-3 mb-2 text-[10px] uppercase tracking-[0.15em] text-muted-foreground font-semibold">Navigate</p>
             <div className="space-y-0.5">
               {sidebarNav.map((item) => {
                 const isActive = pathname === item.path;
@@ -163,7 +163,7 @@ export function Base44Layout() {
                     className={`group flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200
                       ${isActive
                         ? 'bg-primary/10 text-primary'
-                        : 'text-stone hover:bg-cream-warm/60 hover:text-charcoal'
+                        : 'text-muted-foreground hover:bg-accent hover:text-foreground'
                       }`}
                   >
                     <div
@@ -183,9 +183,9 @@ export function Base44Layout() {
             </div>
           </nav>
 
-          <div className="p-4 mx-3 mb-3 rounded-2xl bg-gradient-to-br from-cream-warm to-mist/50 border border-border">
-            <p className="text-xs font-medium text-stone">Your wellness journey</p>
-            <p className="text-[10px] text-stone/70 mt-0.5">Every step counts</p>
+          <div className="p-4 mx-3 mb-3 rounded-2xl bg-gradient-to-br from-secondary to-muted/50 border border-border">
+            <p className="text-xs font-medium text-muted-foreground">Your wellness journey</p>
+            <p className="text-[10px] text-muted-foreground/70 mt-0.5">Every step counts</p>
           </div>
         </div>
       </aside>
@@ -201,12 +201,12 @@ export function Base44Layout() {
               <button
                 type="button"
                 onClick={() => setSidebarOpen((o) => !o)}
-                className="lg:hidden p-2 rounded-xl hover:bg-cream-warm transition-colors"
+                className="lg:hidden p-2 rounded-xl hover:bg-accent transition-colors"
                 aria-label="Toggle menu"
               >
                 {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
               </button>
-              <h2 className="text-lg font-semibold text-charcoal">{pageTitle}</h2>
+              <h2 className="text-lg font-semibold text-foreground">{pageTitle}</h2>
             </div>
             <div className="hidden sm:flex flex-col items-end gap-2">
               <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/10 text-primary">
@@ -244,7 +244,7 @@ export function Base44Layout() {
                 key={item.path}
                 to={item.path}
                 className={`flex flex-col items-center gap-0.5 px-3 py-2 rounded-xl transition-all
-                  ${isActive ? 'text-primary' : 'text-stone'}`}
+                  ${isActive ? 'text-primary' : 'text-muted-foreground'}`}
               >
                 <div className={`p-1 rounded-lg ${isActive ? 'bg-primary/15' : ''}`}>
                   <Icon className="w-5 h-5" />

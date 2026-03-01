@@ -52,7 +52,7 @@ export function Groups() {
       <PageTitle title="My Groups" subtitle="Manage shared groups, expenses and tasks" />
 
       {myInvitations.length > 0 && (
-        <Card className="p-4">
+        <Card className="p-5">
           <h2 className="text-lg font-semibold mb-3">Invitations for you</h2>
           <GroupInvitations
             hideTitle

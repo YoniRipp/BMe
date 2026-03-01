@@ -218,8 +218,8 @@ export function Energy() {
 
       <ContentWithLoading loading={energyLoading} loadingText="Loading energy...">
       {/* Calories Balance Card */}
-      <Card className="p-6">
-        <h3 className="text-lg font-semibold mb-4">Calorie Balance</h3>
+      <Card className="p-5">
+        <h2 className="text-lg font-semibold mb-3">Calorie Balance</h2>
         
         {/* Period selector cards */}
         <div className="grid grid-cols-4 gap-2 mb-4">
@@ -336,8 +336,8 @@ export function Energy() {
       </Card>
 
       {/* Sleep Hours Card */}
-      <Card className="p-6">
-        <h3 className="text-lg font-semibold mb-4">Hours Slept</h3>
+      <Card className="p-5">
+        <h2 className="text-lg font-semibold mb-3">Hours Slept</h2>
         
         {/* Period selector cards */}
         <div className="grid grid-cols-4 gap-2 mb-4">

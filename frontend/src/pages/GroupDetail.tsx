@@ -149,14 +149,14 @@ export function GroupDetail() {
         <ContentWithLoading loading={scheduleLoading} loadingText="Loading..." error={scheduleError}>
           {groupEvents.length === 0 ? (
             <Card
-              className="p-6 border-2 border-dashed cursor-pointer hover:border-primary transition-colors text-center"
+              className="p-8 border-2 border-dashed cursor-pointer hover:border-primary transition-colors text-center"
               onClick={() => {
                 setEditingSchedule(undefined);
                 setScheduleModalOpen(true);
               }}
             >
-              <Plus className="w-10 h-10 mx-auto mb-2 text-muted-foreground" />
-              <p className="font-medium mb-1">Add event</p>
+              <Plus className="w-12 h-12 mx-auto mb-3 text-muted-foreground" />
+              <p className="text-lg font-medium mb-1">Add event</p>
               <p className="text-sm text-muted-foreground">Schedule something for this group</p>
             </Card>
           ) : (
@@ -175,14 +175,14 @@ export function GroupDetail() {
                 />
               ))}
               <Card
-                className="p-4 border-2 border-dashed cursor-pointer hover:border-primary transition-colors text-center bg-muted/50"
+                className="p-6 border-2 border-dashed cursor-pointer hover:border-primary transition-colors text-center bg-muted/50"
                 onClick={() => {
                   setEditingSchedule(undefined);
                   setScheduleModalOpen(true);
                 }}
               >
-                <Plus className="w-6 h-6 mx-auto text-primary" />
-                <p className="text-sm font-medium mt-1 text-muted-foreground">Add event</p>
+                <Plus className="w-8 h-8 mx-auto text-primary" />
+                <p className="text-sm font-medium mt-2 text-muted-foreground">Add event</p>
               </Card>
             </div>
           )}
@@ -193,14 +193,14 @@ export function GroupDetail() {
         <h2 className="text-lg font-semibold mb-3">Expenses</h2>
         {groupExpenses.length === 0 ? (
           <Card
-            className="p-6 border-2 border-dashed cursor-pointer hover:border-primary transition-colors text-center"
+            className="p-8 border-2 border-dashed cursor-pointer hover:border-primary transition-colors text-center"
             onClick={() => {
               setEditingTransaction(undefined);
               setTransactionModalOpen(true);
             }}
           >
-            <Plus className="w-10 h-10 mx-auto mb-2 text-muted-foreground" />
-            <p className="font-medium mb-1">Add expense</p>
+            <Plus className="w-12 h-12 mx-auto mb-3 text-muted-foreground" />
+            <p className="text-lg font-medium mb-1">Add expense</p>
             <p className="text-sm text-muted-foreground">Track shared costs for this group</p>
           </Card>
         ) : (
@@ -217,14 +217,14 @@ export function GroupDetail() {
               />
             ))}
             <Card
-              className="p-4 border-2 border-dashed cursor-pointer hover:border-primary transition-colors text-center bg-muted/50"
+              className="p-6 border-2 border-dashed cursor-pointer hover:border-primary transition-colors text-center bg-muted/50"
               onClick={() => {
                 setEditingTransaction(undefined);
                 setTransactionModalOpen(true);
               }}
             >
-              <Plus className="w-6 h-6 mx-auto text-primary" />
-              <p className="text-sm font-medium mt-1 text-muted-foreground">Add expense</p>
+              <Plus className="w-8 h-8 mx-auto text-primary" />
+              <p className="text-sm font-medium mt-2 text-muted-foreground">Add expense</p>
             </Card>
           </div>
         )}

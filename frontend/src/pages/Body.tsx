@@ -101,7 +101,7 @@ export function Body() {
 
       <div>
         <div className="flex items-center gap-3 mb-4">
-          <h2 className="text-xl font-semibold flex-1">Workouts</h2>
+          <h2 className="text-lg font-semibold flex-1">Workouts</h2>
           <div className="w-64">
             <SearchBar
               value={searchQuery}
@@ -147,12 +147,12 @@ export function Body() {
                 )}
                 {groupedOlder.length > 0 && (
                   <>
-                    <h3 className="text-sm font-medium text-muted-foreground sticky top-0 bg-background/95 py-1">
+                    <h3 className="text-sm font-medium text-muted-foreground mb-2 sticky top-0 bg-background/95 py-1">
                       Older
                     </h3>
                     {groupedOlder.map(({ date: dateStr, label, workouts: dayWorkouts }) => (
                       <section key={dateStr}>
-                        <h4 className="text-xs font-medium text-muted-foreground mb-1.5 pl-0.5">
+                        <h4 className="text-sm font-medium text-muted-foreground mb-2">
                           {label}
                         </h4>
                         <div className="space-y-2">

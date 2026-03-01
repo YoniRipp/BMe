@@ -13,6 +13,7 @@ import { ConfirmationDialog } from '@/components/shared/ConfirmationDialog';
 import { ContentWithLoading } from '@/components/shared/ContentWithLoading';
 import { SectionHeader } from '@/components/shared/SectionHeader';
 import { Card, CardContent } from '@/components/ui/card';
+import { PageTitle } from '@/components/layout/PageTitle';
 import { Plus } from 'lucide-react';
 import { isWithinInterval, format } from 'date-fns';
 import { isScheduleItemPastUtc, utcScheduleToLocalDateStr } from '@/lib/utils';
@@ -108,7 +109,9 @@ export function Home() {
   };
 
   return (
-    <div className="max-w-6xl mx-auto space-y-8">
+    <div className="max-w-6xl mx-auto space-y-6">
+      <PageTitle title="Dashboard" subtitle="Your daily overview" />
+
       <DashboardHero
         workoutsThisWeek={workoutsThisWeek}
         lastSleepHours={lastSleepHours}
@@ -159,7 +162,7 @@ export function Home() {
                       />
                     ))}
                     <Card
-                      className="p-6 border-2 border-dashed border-border cursor-pointer hover:border-primary transition-colors text-center bg-muted"
+                      className="p-6 border-2 border-dashed border-border cursor-pointer hover:border-primary transition-colors text-center bg-muted/50"
                       onClick={() => {
                         setEditingSchedule(undefined);
                         setScheduleModalOpen(true);
@@ -198,7 +201,7 @@ export function Home() {
                       <GoalCard key={goal.id} goal={goal} onEdit={handleGoalEdit} />
                     ))}
                     <Card
-                      className="p-6 border-2 border-dashed border-border cursor-pointer hover:border-primary transition-colors text-center bg-muted"
+                      className="p-6 border-2 border-dashed border-border cursor-pointer hover:border-primary transition-colors text-center bg-muted/50"
                       onClick={() => {
                         setEditingGoal(undefined);
                         setGoalModalOpen(true);
