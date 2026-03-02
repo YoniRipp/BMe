@@ -36,9 +36,7 @@ export function VoiceAgentButton({ panelOpen, onTogglePanel }: VoiceAgentButtonP
     startListening,
     stopListening,
     getVoiceResult,
-  } = useSpeechRecognition({
-    language: 'he-IL',
-  });
+  } = useSpeechRecognition();
 
   const voiceContext = {
     scheduleItems,

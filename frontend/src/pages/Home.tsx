@@ -5,6 +5,7 @@ import { useEnergy } from '@/hooks/useEnergy';
 import { useSchedule } from '@/hooks/useSchedule';
 import { useGoals } from '@/hooks/useGoals';
 import { DashboardHero } from '@/components/home/DashboardHero';
+import { VoiceMicHero } from '@/components/voice/VoiceMicHero';
 import { ScheduleItem } from '@/components/home/ScheduleItem';
 import { ScheduleModal } from '@/components/home/ScheduleModal';
 import { GoalCard } from '@/components/goals/GoalCard';
@@ -114,6 +115,8 @@ export function Home() {
         lastSleepHours={lastSleepHours}
         energyScore={undefined}
       />
+
+      <VoiceMicHero />
 
       {isNewUser && (
         <Card className="p-5 border-primary/30 bg-primary/5">
