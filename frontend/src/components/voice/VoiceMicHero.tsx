@@ -1,7 +1,6 @@
 import { useCallback, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Mic, Lock, Loader2 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { queryKeys } from '@/lib/queryClient';
 import { useSchedule } from '@/hooks/useSchedule';

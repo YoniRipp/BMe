@@ -11,7 +11,7 @@ import { logger } from '../lib/logger.js';
 const router = Router();
 
 // Checkout: create a Stripe Checkout Session and return the URL
-router.post('/api/subscription/checkout', requireAuth, async (req, res, next) => {
+router.post('/api/subscription/checkout', requireAuth, async (req: any, res: any, next: any) => {
   try {
     if (!config.stripeSecretKey || !config.stripePriceId) {
       return res.status(503).json({ error: 'Stripe is not configured' });
@@ -32,7 +32,7 @@ router.post('/api/subscription/checkout', requireAuth, async (req, res, next) =>
 });
 
 // Portal: create a Stripe Customer Portal session
-router.post('/api/subscription/portal', requireAuth, async (req, res, next) => {
+router.post('/api/subscription/portal', requireAuth, async (req: any, res: any, next: any) => {
   try {
     if (!config.stripeSecretKey) {
       return res.status(503).json({ error: 'Stripe is not configured' });
@@ -50,7 +50,7 @@ router.post('/api/subscription/portal', requireAuth, async (req, res, next) => {
 });
 
 // Status: return current subscription status
-router.get('/api/subscription/status', requireAuth, async (req, res, next) => {
+router.get('/api/subscription/status', requireAuth, async (req: any, res: any, next: any) => {
   try {
     const sub = await subscriptionService.getUserSubscription(req.user.id);
     res.json(sub || { status: 'free', currentPeriodEnd: null });
