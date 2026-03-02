@@ -13,9 +13,12 @@
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage",
     "cap:sync": "npx cap sync",
+    "cap:build": "npm run build && npx cap sync",
     "cap:ios": "npm run build && npx cap sync ios && npx cap open ios",
     "cap:ios:dev": "npx cap run ios --livereload --external",
-    "cap:add:ios": "npx cap add ios"
+    "cap:add:ios": "npx cap add ios",
+    "cap:android": "npm run build && npx cap sync android && npx cap open android",
+    "cap:add:android": "npx cap add android"
   },
   "dependencies": {
     "@capacitor-community/speech-recognition": "^7.0.1",
