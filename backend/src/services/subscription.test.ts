@@ -21,33 +21,37 @@ vi.mock('../lib/logger.js', () => ({
   },
 }));
 
-// Mock Stripe — provide minimum viable mock
-vi.mock('stripe', () => {
-  return {
-    default: vi.fn().mockImplementation(() => ({
-      customers: {
-        create: vi.fn().mockResolvedValue({ id: 'cus_mock123' }),
-      },
-      checkout: {
-        sessions: {
-          create: vi.fn().mockResolvedValue({ url: 'https://checkout.stripe.com/mock' }),
-        },
-      },
-      billingPortal: {
-        sessions: {
-          create: vi.fn().mockResolvedValue({ url: 'https://billing.stripe.com/mock' }),
-        },
-      },
-      subscriptions: {
-        retrieve: vi.fn().mockResolvedValue({
-          id: 'sub_mock123',
-          status: 'active',
-          current_period_end: Math.floor(Date.now() / 1000) + 86400 * 30,
-        }),
-      },
-    })),
-  };
-});
+// Mock Stripe — provide class-like constructor mock
+const mockStripeInstance = {
+  customers: {
+    create: vi.fn().mockResolvedValue({ id: 'cus_mock123' }),
+  },
+  checkout: {
+    sessions: {
+      create: vi.fn().mockResolvedValue({ url: 'https://checkout.stripe.com/mock' }),
+    },
+  },
+  billingPortal: {
+    sessions: {
+      create: vi.fn().mockResolvedValue({ url: 'https://billing.stripe.com/mock' }),
+    },
+  },
+  subscriptions: {
+    retrieve: vi.fn().mockResolvedValue({
+      id: 'sub_mock123',
+      status: 'active',
+      current_period_end: Math.floor(Date.now() / 1000) + 86400 * 30,
+    }),
+  },
+};
+
+function MockStripe() {
+  return mockStripeInstance;
+}
+
+vi.mock('stripe', () => ({
+  default: MockStripe,
+}));
 
 const { getUserSubscription, updateSubscriptionStatus, handleWebhookEvent } =
   await import('./subscription.js');
