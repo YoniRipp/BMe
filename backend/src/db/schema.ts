@@ -208,6 +208,13 @@ export async function initSchema() {
     await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token_hash text;`).catch(() => {});
     await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token_expires timestamptz;`).catch(() => {});
 
+    // Subscription columns
+    await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_customer_id text;`).catch(() => {});
+    await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS subscription_status text DEFAULT 'free';`).catch(() => {});
+    await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS subscription_id text;`).catch(() => {});
+    await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS subscription_current_period_end timestamptz;`).catch(() => {});
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_users_stripe_customer_id ON users(stripe_customer_id) WHERE stripe_customer_id IS NOT NULL;`).catch(() => {});
+
     // updated_at columns for key tables
     await client.query(`ALTER TABLE transactions ADD COLUMN IF NOT EXISTS updated_at timestamptz DEFAULT now();`).catch(() => {});
     await client.query(`ALTER TABLE schedule_items ADD COLUMN IF NOT EXISTS updated_at timestamptz DEFAULT now();`).catch(() => {});

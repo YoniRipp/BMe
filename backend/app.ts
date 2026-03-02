@@ -11,6 +11,7 @@ import { createProxyMiddleware } from 'http-proxy-middleware';
 import { config } from './src/config/index.js';
 import { getRedisClient, isRedisConfigured } from './src/redis/client.js';
 import apiRouter from './src/routes/index.js';
+import { createWebhookRouter } from './src/routes/subscription.js';
 import { errorHandler } from './src/middleware/errorHandler.js';
 import { requestIdMiddleware } from './src/middleware/requestId.js';
 import { logger } from './src/lib/logger.js';
@@ -63,6 +64,13 @@ export async function createApp() {
   app.use(cors(corsOptions));
   logger.info({ corsOrigin: config.corsOrigin, nodeEnv: process.env.NODE_ENV }, 'CORS configured');
   app.use(helmet({ crossOriginOpenerPolicy: false }));
+
+  // Stripe webhook needs raw body for signature verification — mount BEFORE express.json()
+  if (config.stripeSecretKey) {
+    app.use('/api/webhooks/stripe', express.raw({ type: 'application/json' }));
+    app.use(createWebhookRouter());
+  }
+
   app.use(express.json({ limit: '10mb' }));
   app.use(requestIdMiddleware);
 
