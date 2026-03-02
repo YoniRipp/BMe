@@ -5,6 +5,8 @@ import { useExchangeRates } from '@/features/money/useExchangeRates';
 import { useWorkouts } from '@/hooks/useWorkouts';
 import { useEnergy } from '@/hooks/useEnergy';
 import { PageTitle } from '@/components/layout/PageTitle';
+import { useSubscription } from '@/hooks/useSubscription';
+import { UpgradePrompt } from '@/components/subscription/UpgradePrompt';
 import {
   getSpendingInsights,
   getFitnessInsights,
@@ -21,6 +23,7 @@ import { HealthInsightsSection } from '@/components/insights/HealthInsightsSecti
 import { AiInsightsSection } from '@/components/insights/AiInsightsSection';
 
 export function Insights() {
+  const { isPro } = useSubscription();
   const { transactions } = useTransactions();
   const { settings } = useSettings();
   const displayCurrency = settings.currency;
@@ -94,7 +97,11 @@ export function Insights() {
   return (
     <div className="max-w-6xl mx-auto space-y-6">
       <PageTitle title="Insights" subtitle="Analytics and trends" />
-      <AiInsightsSection />
+      {isPro ? (
+        <AiInsightsSection />
+      ) : (
+        <UpgradePrompt feature="AI Insights" description="Get personalized AI-powered analytics and daily recommendations about your health, finances, and habits." />
+      )}
       <FinancialInsightsSection
         spendingTrend={spendingTrend}
         spendingTrendData={spendingTrendData}

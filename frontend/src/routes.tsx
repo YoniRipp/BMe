@@ -30,6 +30,9 @@ const InviteJoin = lazy(() =>
 const ForgotPassword = lazy(() =>
   import('./pages/ForgotPassword').then((m) => ({ default: m.ForgotPassword }))
 );
+const Pricing = lazy(() =>
+  import('./pages/Pricing').then((m) => ({ default: m.Pricing }))
+);
 const NotFound = lazy(() =>
   import('./pages/NotFound').then((m) => ({ default: m.NotFound }))
 );
@@ -218,6 +221,14 @@ export function AppRoutes() {
           element={
             <Suspense fallback={<LoadingSpinner text="Loading..." />}>
               <ForgotPassword />
+            </Suspense>
+          }
+        />
+        <Route
+          path="/pricing"
+          element={
+            <Suspense fallback={<LoadingSpinner text="Loading..." />}>
+              <Pricing />
             </Suspense>
           }
         />

@@ -11,6 +11,7 @@ import { UnitsSection } from '@/components/settings/UnitsSection';
 import { AppearanceSection } from '@/components/settings/AppearanceSection';
 import { NotificationsSection } from '@/components/settings/NotificationsSection';
 import { DataManagementSection } from '@/components/settings/DataManagementSection';
+import { SubscriptionSection } from '@/components/settings/SubscriptionSection';
 import { storage } from '@/lib/storage';
 
 export function Settings() {
@@ -41,6 +42,7 @@ export function Settings() {
     <div className="max-w-6xl mx-auto space-y-6">
       <PageTitle title="Settings" subtitle="Manage your preferences" />
 
+      <SubscriptionSection />
       <AccountSection />
       <CurrencySection />
       <DateFormatSection />
