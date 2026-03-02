@@ -1,12 +1,12 @@
 # BeMe Frontend
 
-React single-page application for the BeMe life-management app: dashboard, money, body, energy, schedule, goals, groups, settings, and insights. When `VITE_API_URL` is set and the user is authenticated, all domain data is loaded and saved via the backend API.
+React single-page application for the BeMe life-management app: dashboard, money, body, energy, schedule, goals, groups, settings, insights, subscription management, and a public landing/pricing page. When `VITE_API_URL` is set and the user is authenticated, all domain data is loaded and saved via the backend API.
 
 When the backend is deployed as a gateway with extracted services, set `VITE_API_URL` to the gateway URL; the client still talks to a single origin. No frontend code changes are required for gateway vs monolith.
 
 ## Overview
 
-The frontend is a TypeScript React app built with Vite. It uses React Router for navigation; server data (goals, transactions, schedule, workouts, energy) is fetched and cached with TanStack Query; auth and UI state use React Context. Forms use React Hook Form with Zod validation. The central API client sends a JWT on every request. Public routes are login, signup, and OAuth callback; all other routes are protected and require a logged-in user when the backend is in use.
+The frontend is a TypeScript React app built with Vite. It uses React Router for navigation; server data (goals, transactions, schedule, workouts, energy) is fetched and cached with TanStack Query; auth and UI state use React Context. Forms use React Hook Form with Zod validation. The central API client sends a JWT on every request. Public routes include login, signup, OAuth callback, landing (`/welcome`), and pricing (`/pricing`); all other routes are protected and require a logged-in user. Pro features (voice, AI insights) are gated via the `useSubscription()` hook.
 
 ## Tech Stack
 
@@ -26,11 +26,12 @@ The frontend is a TypeScript React app built with Vite. It uses React Router for
 | Validation | Zod (schemas, API/voice parsing) |
 | Forms | React Hook Form, @hookform/resolvers (zod) |
 | Auth (Google) | @react-oauth/google |
+| Mobile | Capacitor (iOS/Android), @capacitor-community/speech-recognition |
 | Testing | Vitest, Testing Library, jsdom |
 
 The API client ([src/core/api/client.ts](src/core/api/client.ts)) stores the JWT in localStorage (via [src/lib/storage.ts](src/lib/storage.ts)) and attaches it as `Authorization: Bearer <token>` to every request. On 401, it clears the token and dispatches an `auth:logout` event so the UI can redirect to login.
 
-For app-wide conventions and the full changelog (Updates 1–17, latest first), see the root [README.md](../README.md) and [CHANGELOG.md](../CHANGELOG.md).
+For frontend architecture deep-dive, see [TECH.md](TECH.md). For app-wide conventions and the full changelog, see the root [README.md](../README.md) and [CHANGELOG.md](../CHANGELOG.md).
 
 ## Project Structure
 
@@ -54,9 +55,10 @@ frontend/
 │   │   ├── energy/         # WellnessCard, DailyCheckInModal, FoodEntryModal, CalorieTrendChart, etc.
 │   │   ├── goals/          # GoalCard, GoalModal
 │   │   ├── groups/         # GroupCard, CreateGroupModal, MemberList, GroupSettingsModal
-│   │   ├── voice/          # VoiceAgentButton, VoiceAgentPanel
+│   │   ├── voice/          # VoiceAgentButton, VoiceAgentPanel, VoiceMicHero
+│   │   ├── subscription/   # UpgradePrompt
 │   │   ├── auth/           # SocialLoginButtons
-│   │   ├── settings/       # AdminUsersSection
+│   │   ├── settings/       # AdminUsersSection, SubscriptionSection
 │   │   └── onboarding/     # OnboardingTour
 │   ├── context/
 │   │   ├── AuthContext.tsx # user, login, logout, register, loginWithProvider, loadUser
@@ -73,6 +75,7 @@ frontend/
 │   │       ├── schedule.ts
 │   │       ├── transactions.ts
 │   │       ├── users.ts
+│   │       ├── subscription.ts  # getStatus, createCheckout, createPortal
 │   │       └── workouts.ts
 │   ├── features/
 │   │   ├── auth/           # auth API and types
@@ -85,6 +88,7 @@ frontend/
 │   │   └── groups/         # groups logic
 │   ├── hooks/
 │   │   ├── useTransactions.ts, useWorkouts.ts, useEnergy.ts, useSchedule.ts, useGoals.ts
+│   │   ├── useSubscription.ts  # isPro, subscribe, manage
 │   │   ├── useDebounce.ts, useLocalStorage.ts, useSettings.ts, useFormat.ts, useGroups.ts
 │   │   └── *.test.ts
 │   ├── lib/
@@ -99,6 +103,7 @@ frontend/
 │   │   └── api.ts         # Re-exports for API/token
 │   ├── pages/
 │   │   ├── Home.tsx, Money.tsx, Body.tsx, Energy.tsx, Groups.tsx, Insights.tsx, Settings.tsx
+│   │   ├── Landing.tsx, Pricing.tsx
 │   │   ├── Login.tsx, Signup.tsx, AuthCallback.tsx
 │   │   └── *.test.tsx
 │   └── types/
@@ -139,8 +144,9 @@ See the [root README](../README.md) for backend/frontend env pairing (e.g. Googl
 
 ## Auth and Routing
 
-- **Public routes**: `/login`, `/signup`, `/auth/callback`.
-- **Protected routes**: Everything else (`/`, `/money`, `/body`, `/energy`, `/groups`, `/insights`, `/settings`) is wrapped in `ProtectedRoutes` in [src/routes.tsx](src/routes.tsx). If there is no user (and auth has finished loading), the app redirects to `/login`.
+- **Public routes**: `/welcome` (landing page), `/login`, `/signup`, `/pricing`, `/auth/callback`.
+- **Protected routes**: Everything else (`/`, `/money`, `/body`, `/energy`, `/groups`, `/insights`, `/settings`) is wrapped in `ProtectedRoutes` in [src/routes.tsx](src/routes.tsx). If there is no user (and auth has finished loading), the app redirects to `/welcome`.
+- **Pro-gated pages**: `/insights` shows `UpgradePrompt` for free users. Voice input on the dashboard (`VoiceMicHero`) requires Pro.
 
 [AuthContext](src/context/AuthContext.tsx) loads the current user by calling `GET /api/auth/me` when a token exists in storage. On 401 (e.g. expired token), the API client clears the token and dispatches `auth:logout`; the context listens and clears the user so the next render redirects to login.
 
@@ -167,6 +173,32 @@ The API base URL (`VITE_API_URL`) may point to the main backend or a gateway tha
 
 [src/lib/voiceApi.ts](src/lib/voiceApi.ts) exposes `understand(text)`, which sends `POST /api/voice/understand` with the user’s utterance. The backend (Gemini) returns a list of actions (e.g. `add_schedule`, `add_transaction`). The frontend parses these into [VoiceAction](src/lib/voiceApi.ts) and the voice UI ([src/components/voice/VoiceAgentPanel.tsx](src/components/voice/VoiceAgentPanel.tsx)) applies them by calling the relevant context APIs (schedule, transactions, workouts, food, energy/check-in, goals).
 
+## Subscription & Pro Features
+
+The app uses a Free/Pro tier model. Pro features (voice, AI insights, AI food lookup) are gated in both the frontend and backend.
+
+### Hook
+
+`useSubscription()` from [src/hooks/useSubscription.ts](src/hooks/useSubscription.ts):
+
+- `isPro` — `true` when `user.subscriptionStatus === 'pro'`
+- `subscribe()` — calls `POST /api/subscription/checkout`, redirects to Stripe Checkout
+- `manage()` — calls `POST /api/subscription/portal`, redirects to Stripe Customer Portal
+
+### Components
+
+| Component | Location | Purpose |
+|-----------|----------|---------|
+| `UpgradePrompt` | `src/components/subscription/UpgradePrompt.tsx` | Reusable upgrade CTA (full card or compact). Shows when a free user accesses a Pro feature. |
+| `SubscriptionSection` | `src/components/settings/SubscriptionSection.tsx` | Settings page section: current plan, upgrade/manage buttons. |
+| `VoiceMicHero` | `src/components/voice/VoiceMicHero.tsx` | Dashboard voice mic button. Shows lock icon for free users. |
+| `Pricing` | `src/pages/Pricing.tsx` | Public pricing page: Free vs Pro tier comparison. |
+| `Landing` | `src/pages/Landing.tsx` | Public landing page at `/welcome`: hero, features, pricing, CTAs. |
+
+### API
+
+`src/core/api/subscription.ts`: `getStatus()`, `createCheckout()`, `createPortal()`.
+
 ## Theming
 
 Settings store the theme (light / dark / system). Inside protected routes, [routes.tsx](src/routes.tsx) applies it in a `useEffect`: for “system” it uses `prefers-color-scheme`; otherwise it toggles the `dark` class on `document.documentElement` so Tailwind dark mode applies.
@@ -185,6 +217,7 @@ The project uses the `@` alias for `src/` (see [vite.config.ts](vite.config.ts))
 
 ## Changelog (latest first)
 
+- **Update 18.0** — SaaS transformation: Landing page (`/welcome`), Pricing page (`/pricing`), `useSubscription()` hook, `UpgradePrompt` component, `SubscriptionSection` in Settings, `VoiceMicHero` dashboard component, Pro-gating on voice/insights, subscription API module, Capacitor mobile scripts.
 - **Update 17.0** — AiInsightsSection: refresh button, thinking animations ("Analyzing your data…"); FoodEntryModal: trigger validation fix, liquid presets (can, bottle, 1L, 1.5L, 2L), solid presets (50g, 150g, 200g, 1 portion), "Look up with AI"; Money page: subtitle-only content ("Where does the money go?"); CSS: `animate-thinking-dots` keyframes. See root [CHANGELOG.md](../CHANGELOG.md).
 - **Update 14.0** — Voice API now uses async polling: `voiceApi.ts` updated with `pollForResult()` helper. See root README **Update 14.0** and [UPDATE_14.0.md](../UPDATE_14.0.md).
 - **Update 12.0** — Export documentation: [export.ts](src/lib/export.ts) and DataManagementSection/DataExportModal pass API-backed data (TanStack Query cache) to export functions. Backend received testing, security, observability, and migrations (see root README Update 12.0). See [UPDATE_12.0.md](../UPDATE_12.0.md).

@@ -8,15 +8,16 @@ The backend is **event-ready**: after every write (create/update/delete) in Mone
 
 The backend serves:
 
-- **Auth**: Register, login (email/password and social: Google, Facebook, Twitter), and `GET /api/auth/me` with JWT.
+- **Auth**: Register, login (email/password and social: Google, Facebook, Twitter), and `GET /api/auth/me` with JWT. Returns `subscriptionStatus` in auth responses.
 - **Domain APIs**: CRUD for schedule, transactions, workouts, food entries, daily check-ins, and goals. All are scoped by the authenticated user (or by admin override when supported).
+- **Subscription**: Stripe Checkout, Customer Portal, and webhook processing. `requirePro` middleware gates AI features behind Pro subscription.
 - **Food search**: Public `GET /api/food/search` against the `foundation_foods` table (USDA data).
-- **Voice**: `POST /api/voice/understand` – accepts user text, calls Gemini with function declarations, and performs add/edit/delete for schedule, transactions, workouts, food, sleep (daily check-in), and goals.
+- **Voice**: `POST /api/voice/understand` – accepts user text, calls Gemini with function declarations, and performs add/edit/delete for schedule, transactions, workouts, food, sleep (daily check-in), and goals. **Requires Pro subscription.**
 - **Event bus** — publish/subscribe interface; Redis (BullMQ) or SQS; optional standalone consumer process.
 
 When `DATABASE_URL` is not set, the server still starts but auth and data APIs are not mounted. When `GEMINI_API_KEY` is not set, the voice understand endpoint returns an error.
 
-For app-wide conventions and the full changelog (Updates 1–17, latest first), see the root [README.md](../README.md) and [CHANGELOG.md](../CHANGELOG.md).
+For backend architecture deep-dive, see [TECH.md](TECH.md). For app-wide conventions and the full changelog, see the root [README.md](../README.md) and [CHANGELOG.md](../CHANGELOG.md).
 
 ## Tech Stack
 
@@ -26,6 +27,7 @@ For app-wide conventions and the full changelog (Updates 1–17, latest first), 
 | Framework | Express |
 | Database | PostgreSQL (pg) |
 | Auth | jsonwebtoken, bcrypt, google-auth-library |
+| Payments | stripe (Checkout, Portal, Webhooks) |
 | Voice | @google/generative-ai (Gemini) |
 | Validation | Zod (config and request body schemas) |
 | Env | dotenv |
@@ -73,6 +75,7 @@ backend/
 │   │   └── client.js      # getRedisClient, closeRedis, isRedisConfigured (optional)
 │   ├── middleware/
 │   │   ├── auth.js        # requireAuth, requireAdmin, getEffectiveUserId, resolveEffectiveUserId
+│   │   ├── requirePro.ts  # Pro subscription gating middleware
 │   │   ├── errorHandler.js
 │   │   └── validateBody.js  # Zod request-body validation middleware
 │   ├── schemas/
@@ -86,10 +89,11 @@ backend/
 │   │   ├── foodEntry.js
 │   │   ├── dailyCheckIn.js
 │   │   ├── goal.js
+│   │   ├── subscription.ts # Stripe checkout, portal, webhook, status
 │   │   ├── foodSearch.js
 │   │   └── voice.js
 │   ├── controllers/       # One per domain (list, add, update, remove; balance for transactions)
-│   ├── services/          # Business logic per domain
+│   ├── services/          # Business logic per domain (incl. subscription.ts for Stripe)
 │   ├── models/            # Data access per domain
 │   ├── lib/
 │   │   └── logger.js      # Pino structured logger
@@ -163,6 +167,11 @@ Configuration is loaded from [src/config/index.js](src/config/index.js): first `
 | `BODY_SERVICE_URL` | No | When set, main app proxies workout routes to this URL |
 | `ENERGY_SERVICE_URL` | No | When set, main app proxies food entries and daily check-ins to this URL |
 | `GOALS_SERVICE_URL` | No | When set, main app proxies goals routes to this URL |
+| `STRIPE_SECRET_KEY` | For subscriptions | Stripe API secret key |
+| `STRIPE_WEBHOOK_SECRET` | For subscriptions | Stripe webhook signing secret |
+| `STRIPE_PRICE_ID` | For subscriptions | Stripe price ID for Pro tier |
+
+See [.env.development](.env.development) and [.env.production](.env.production) for all variables with example values.
 
 - **Missing `DATABASE_URL`**: Server starts; auth routes and data API are not mounted; warnings logged.
 - **Missing `GEMINI_API_KEY`**: Warning logged; `POST /api/voice/understand` will return an error.
@@ -232,7 +241,7 @@ Versioned migrations live in `migrations/`. For production, run migrations on de
 
 | Table | Description |
 |-------|-------------|
-| `users` | id, email, password_hash, name, role (admin/user), auth_provider, provider_id |
+| `users` | id, email, password_hash, name, role (admin/user), auth_provider, provider_id, stripe_customer_id, subscription_status, subscription_id, subscription_current_period_end |
 | `schedule_items` | id, title, start_time, end_time, category, emoji, order, is_active, group_id, user_id, recurrence |
 | `transactions` | id, date, type (income/expense), amount, category, description, is_recurring, group_id, user_id |
 | `goals` | id, type, target, period, user_id |
@@ -353,7 +362,33 @@ All paths under `/api` are rate-limited (200 requests per 15 minutes per IP). JS
 
 | Method | Path | Description |
 |--------|------|-------------|
-| POST | `/api/voice/understand` | Body: `{ text }`. Requires auth. Returns parsed actions (Gemini function calling). |
+| POST | `/api/voice/understand` | Body: `{ text }`. Requires auth + Pro subscription. Returns parsed actions (Gemini function calling). |
+
+### Subscription
+
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/api/subscription/checkout` | Create Stripe Checkout session → returns `{ url }`. Requires auth. |
+| POST | `/api/subscription/portal` | Create Stripe Customer Portal session → returns `{ url }`. Requires auth. |
+| GET | `/api/subscription/status` | Returns `{ status, currentPeriodEnd }`. Requires auth. |
+| POST | `/api/webhooks/stripe` | Stripe webhook (raw body, signature verification, no auth middleware). |
+
+## Subscription Middleware (requirePro)
+
+[src/middleware/requirePro.ts](src/middleware/requirePro.ts) gates endpoints behind a Pro subscription:
+
+- Queries `subscription_status` from the `users` table
+- Returns 403 with `{ error: 'Pro subscription required', upgradeUrl: '/pricing' }` if status is not `'pro'`
+- **Dev convenience:** When `STRIPE_SECRET_KEY` is not configured, allows all access
+
+**Pro-gated endpoints:**
+
+| Endpoint | Middleware chain |
+|----------|-----------------|
+| `POST /api/voice/understand` | requireAuth → requirePro |
+| `GET /api/insights` | requireAuth → requirePro |
+| `POST /api/insights/refresh` | requireAuth → requirePro |
+| `POST /api/food/lookup-or-create` | requireAuth → requirePro |
 
 ## Auth Middleware
 
@@ -407,6 +442,7 @@ The [mcp-server](mcp-server/) directory contains an MCP server that exposes BeMe
 
 ## Changelog (latest first)
 
+- **Update 18.0** — SaaS transformation: Stripe subscription service (checkout, portal, webhooks), `requirePro` middleware for Pro-gated endpoints (voice, insights, food AI lookup), subscription columns in users table (`stripe_customer_id`, `subscription_status`, `subscription_id`, `subscription_current_period_end`), subscription routes, production migration `1772447300000_add-subscription-columns.js`.
 - **Update 17.0** — AI insights persistence (`ai_insights` table, `getLastInsight`, `saveInsight`, `POST /api/insights/refresh`); food search returns `servingSizesMl`; migration `1730145600000_add-ai-insights.js`. See root [CHANGELOG.md](../CHANGELOG.md).
 - **Update 16.0** — Documentation overhaul, run guides (RUNNING-LOCAL/RAILWAY/AWS), .env.example restored, professional repo polish (LICENSE, CONTRIBUTING, CODE_OF_CONDUCT, SECURITY, .editorconfig, .gitattributes, PR template, root scripts lint:backend, test:backend, test:all). See root [CHANGELOG.md](../CHANGELOG.md).
 - **Update 15.0 — Event-driven migration (Plans 0–12)** — Event bus (Redis/BullMQ or SQS), all write paths emit events, idempotency, transaction analytics consumer, event-consumer as separate process, per-context DB configuration, extracted Money/Schedule/Body/Energy/Goals services, gateway proxy. See [docs/bounded-contexts.md](../docs/bounded-contexts.md), [docs/event-schema.md](../docs/event-schema.md), [docs/architecture-principles.md](../docs/architecture-principles.md).

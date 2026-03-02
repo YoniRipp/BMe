@@ -40,6 +40,12 @@
 - **Intents**: add/edit/delete for schedule, transaction, workout, food, sleep, goals. Food-only phrases (e.g. "Diet Coke") → add_food only; explicit amounts (e.g. "bought coffee for 5") → add_transaction
 - **Fallback**: If Gemini blocks, backend returns add_food with transcript as name and zero nutrition so the user is never blocked
 
+### Subscription (SaaS)
+- **Free tier** ($0): Manual data entry across all domains (money, body, energy, schedule, goals)
+- **Pro tier** ($4.99/mo): Voice input, AI insights, AI food lookup, unlimited history
+- Stripe Checkout for payment; Stripe Customer Portal for self-service management
+- Landing page (`/welcome`) for unauthenticated users; Pricing page (`/pricing`) with tier comparison
+
 ### Authentication
 - Email/password signup and login
 - Social login: Google, Facebook, Twitter (when configured)
@@ -63,12 +69,14 @@ flowchart TB
   Gemini[Gemini API]
   EventBus[Event Bus Redis or SQS]
   EventConsumer[Event Consumer Process]
+  Stripe[Stripe API]
   MoneySvc[Money Service optional]
   OtherSvcs[Schedule Body Energy Goals optional]
 
   User --> Frontend
   Frontend <-->|"REST JWT"| Gateway
   Gateway <--> DB
+  Gateway <-->|"Checkout Portal Webhooks"| Stripe
   Gateway --> EventBus
   EventBus --> EventConsumer
   EventConsumer --> Redis
@@ -117,7 +125,9 @@ Voice Live WebSocket is legacy and disabled; voice uses Browser Web Speech API f
 | Per-context DB | Optional `MONEY_DATABASE_URL`, `SCHEDULE_DATABASE_URL`, etc. ([backend/src/db/pool.js](backend/src/db/pool.js)) |
 | Redis | redis, rate-limit-redis, BullMQ (optional) |
 | Voice | Google Gemini, function calling, relaxed safety, fallback on block |
+| Payments | Stripe (Checkout, Customer Portal, Webhooks) |
 | Auth | jsonwebtoken, google-auth-library; optional social (Google, Facebook, Twitter) |
+| Mobile | Capacitor (iOS/Android), @capacitor-community/speech-recognition, PWA (Workbox) |
 | Migrations | node-pg-migrate |
 
 ### Redis Roles (when `REDIS_URL` set)
@@ -155,10 +165,10 @@ BMe/
 │   │   ├── redis/          # Redis client (optional)
 │   │   ├── queue/          # BullMQ voice queue
 │   │   ├── workers/        # Voice job worker
-│   │   ├── middleware/     # Auth, error handler, validateBody
-│   │   ├── routes/         # API route mount; conditionally excludes context routes when *_SERVICE_URL set
+│   │   ├── middleware/     # Auth, requirePro, error handler, validateBody
+│   │   ├── routes/         # API routes; subscription, voice, domain CRUD; gateway proxy when *_SERVICE_URL set
 │   │   ├── controllers/    # Request handlers
-│   │   ├── services/       # Business logic
+│   │   ├── services/       # Business logic (incl. subscription/Stripe)
 │   │   ├── models/         # Data access
 │   │   └── lib/            # Logger
 │   ├── voice/              # Gemini tool declarations
@@ -169,11 +179,11 @@ BMe/
 │   ├── src/
 │   │   ├── components/     # Layout, shared, ui, feature-specific
 │   │   ├── context/        # Auth, app, notifications, features
-│   │   ├── core/api/       # API client, auth, feature APIs
+│   │   ├── core/api/       # API client, auth, subscription, feature APIs
 │   │   ├── features/       # money, body, energy, goals, schedule, groups
-│   │   ├── hooks/          # useTransactions, useWorkouts, etc.
+│   │   ├── hooks/          # useTransactions, useWorkouts, useSubscription, etc.
 │   │   ├── lib/            # voiceApi, dateRanges, queryClient, storage
-│   │   ├── pages/          # Home, Money, Body, Energy, etc.
+│   │   ├── pages/          # Home, Money, Body, Energy, Landing, Pricing, etc.
 │   │   ├── schemas/        # Zod (transaction, workout, foodEntry, voice)
 │   │   └── routes.tsx      # React Router, protected routes
 │   └── vite.config.ts
@@ -230,11 +240,11 @@ Open **http://localhost:5173**. Without a backend, the app redirects to login.
 ```bash
 cd backend
 npm install
-cp .env.example .env   # then edit .env
+cp .env.development .env   # then edit .env with your actual credentials
 npm start
 ```
 
-If `.env.example` is missing, see [backend/README.md](backend/README.md) Configuration for required variables.
+See [backend/.env.development](backend/.env.development) and [backend/.env.production](backend/.env.production) for all available variables. At minimum set `DATABASE_URL` and `JWT_SECRET`.
 
 From root: `npm run start:backend` or `npm run dev:backend` (watch mode).
 
@@ -261,6 +271,9 @@ Set `VITE_API_URL=http://localhost:3000` in `frontend/.env.development` so the f
 | `AWS_REGION` | When using SQS | AWS region |
 | `MONEY_DATABASE_URL`, `SCHEDULE_DATABASE_URL`, `BODY_DATABASE_URL`, `ENERGY_DATABASE_URL`, `GOALS_DATABASE_URL` | No | Per-context DB; fallback `DATABASE_URL` |
 | `MONEY_SERVICE_URL`, `SCHEDULE_SERVICE_URL`, `BODY_SERVICE_URL`, `ENERGY_SERVICE_URL`, `GOALS_SERVICE_URL` | No | When set, main app proxies those paths to the given URL |
+| `STRIPE_SECRET_KEY` | For subscriptions | Stripe API secret key |
+| `STRIPE_WEBHOOK_SECRET` | For subscriptions | Stripe webhook signing secret |
+| `STRIPE_PRICE_ID` | For subscriptions | Stripe price ID for Pro tier |
 | `GOOGLE_CLIENT_ID` | For Google login | OAuth client ID |
 | `FACEBOOK_APP_ID` | For Facebook login | Facebook app ID |
 | `TWITTER_CLIENT_ID`, `TWITTER_CLIENT_SECRET`, `TWITTER_REDIRECT_URI` | For Twitter login | Twitter OAuth |
@@ -310,7 +323,7 @@ Compose sets `REDIS_URL=redis://redis:6379`, `CORS_ORIGIN=http://localhost:5173`
 - User logs in → backend returns JWT → frontend stores in localStorage, sends `Authorization: Bearer <token>` on every request
 - Backend validates JWT, attaches `req.user`; domain APIs scoped by user ID
 - **Server state**: TanStack Query (useQuery/useMutation); React Hook Form + Zod for forms; voice responses parsed with Zod
-- **Food search** (`GET /api/food/search`) is public. **Voice** requires auth
+- **Food search** (`GET /api/food/search`) is public. **Voice**, **AI insights**, and **AI food lookup** require Pro subscription
 
 ## Food Data Import
 
@@ -350,6 +363,9 @@ From `backend/`: `npm run start:consumer`, `npm run start:money`, `npm run start
 
 ## Documentation
 
+- [TECH.md](TECH.md) — Full-stack technology architecture
+- [backend/TECH.md](backend/TECH.md) — Backend architecture deep-dive
+- [frontend/TECH.md](frontend/TECH.md) — Frontend architecture deep-dive
 - [docs/README.md](docs/README.md) — Documentation index
 - [docs/RUNNING.md](docs/RUNNING.md) — Running locally, on Railway, or on AWS
 - [docs/WORKFLOW.md](docs/WORKFLOW.md) — Branches, tags, and dev workflow
@@ -361,6 +377,8 @@ From `backend/`: `npm run start:consumer`, `npm run start:money`, `npm run start
 - [docs/scale-harden-aws.md](docs/scale-harden-aws.md) — Short-term and AWS scale/harden plans
 
 ## Changelog
+
+**Update 18.0** — SaaS transformation: Stripe subscription infrastructure (checkout, portal, webhooks), Free/Pro tiers, requirePro middleware, landing page, pricing page, VoiceMicHero dashboard component, voice language auto-detect, Capacitor mobile setup, subscription settings UI.
 
 **Update 17.0** — AI Insights DB persistence, food UX (liquid/solid, Look up with AI), Money heading deduplication, thinking animations. See [CHANGELOG.md](CHANGELOG.md) for full release history.
 
