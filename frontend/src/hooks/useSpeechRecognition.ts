@@ -32,7 +32,7 @@ interface UseSpeechRecognitionReturn {
 export function useSpeechRecognition(
   options: UseSpeechRecognitionOptions = {}
 ): UseSpeechRecognitionReturn {
-  const { language = 'he-IL', onPartialResult } = options;
+  const { language = '', onPartialResult } = options;
   const [isProcessing, setIsProcessing] = useState(false);
   const [lastResult, setLastResult] = useState<VoiceUnderstandResult | null>(null);
 

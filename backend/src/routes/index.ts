@@ -20,11 +20,13 @@ import adminRouter from './admin.js';
 import searchRouter from './search.js';
 import insightsRouter from './insights.js';
 import uploadsRouter from './uploads.js';
+import subscriptionRouter from './subscription.js';
 
 const router = Router();
 
 router.use(authRouter);
 router.use(adminRouter);
+router.use(subscriptionRouter);
 router.use(usersRouter);
 if (!config.scheduleServiceUrl) router.use(scheduleRouter);
 if (!config.moneyServiceUrl) router.use(transactionRouter);

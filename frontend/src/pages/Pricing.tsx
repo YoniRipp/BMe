@@ -1,0 +1,95 @@
+import { Check, Sparkles } from 'lucide-react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { useSubscription } from '@/hooks/useSubscription';
+
+const FREE_FEATURES = [
+  'Manual data entry for all domains',
+  'Money tracking (income & expenses)',
+  'Workout logging',
+  'Food & nutrition tracking',
+  'Daily schedule management',
+  'Goal setting & tracking',
+];
+
+const PRO_FEATURES = [
+  'Everything in Free',
+  'Voice input — speak to track anything',
+  'AI Insights — personalized analytics',
+  'AI Food Lookup — instant nutrition data',
+  'Daily AI summary & recommendations',
+  'Priority support',
+];
+
+export function Pricing() {
+  const { isPro, subscribe } = useSubscription();
+
+  return (
+    <div className="mx-auto max-w-4xl space-y-8 p-6">
+      <div className="text-center">
+        <h1 className="text-3xl font-bold tracking-tight">Simple pricing</h1>
+        <p className="mt-2 text-muted-foreground">
+          Start free. Upgrade when you want the AI-powered experience.
+        </p>
+      </div>
+
+      <div className="grid gap-6 md:grid-cols-2">
+        {/* Free tier */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-xl">Free</CardTitle>
+            <CardDescription>Track everything manually</CardDescription>
+            <p className="text-3xl font-bold">
+              $0<span className="text-sm font-normal text-muted-foreground">/month</span>
+            </p>
+          </CardHeader>
+          <CardContent>
+            <ul className="space-y-2">
+              {FREE_FEATURES.map((f) => (
+                <li key={f} className="flex items-start gap-2 text-sm">
+                  <Check className="mt-0.5 h-4 w-4 shrink-0 text-green-600" />
+                  {f}
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+
+        {/* Pro tier */}
+        <Card className="border-primary ring-1 ring-primary">
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <CardTitle className="text-xl">Pro</CardTitle>
+              <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+                Popular
+              </span>
+            </div>
+            <CardDescription>AI-powered life tracking</CardDescription>
+            <p className="text-3xl font-bold">
+              $4.99<span className="text-sm font-normal text-muted-foreground">/month</span>
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <ul className="space-y-2">
+              {PRO_FEATURES.map((f) => (
+                <li key={f} className="flex items-start gap-2 text-sm">
+                  <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
+                  {f}
+                </li>
+              ))}
+            </ul>
+            {isPro ? (
+              <Button className="w-full" disabled>
+                Current Plan
+              </Button>
+            ) : (
+              <Button className="w-full" onClick={subscribe}>
+                Upgrade to Pro
+              </Button>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}

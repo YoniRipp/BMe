@@ -45,6 +45,8 @@ function rowToUser(row) {
     name: row.name,
     role: row.role,
     createdAt: row.created_at,
+    subscriptionStatus: row.subscription_status || 'free',
+    subscriptionCurrentPeriodEnd: row.subscription_current_period_end || null,
   };
 }
 
@@ -68,7 +70,7 @@ async function register(req, res) {
     const result = await pool.query(
       `INSERT INTO users (email, password_hash, name, role)
        VALUES ($1, $2, $3, 'user')
-       RETURNING id, email, name, role, created_at`,
+       RETURNING id, email, name, role, created_at, subscription_status, subscription_current_period_end`,
       [email.trim().toLowerCase(), password_hash, name.trim()]
     );
     const user = rowToUser(result.rows[0]);
@@ -96,7 +98,7 @@ async function login(req, res) {
     }
     const pool = getPool();
     const result = await pool.query(
-      'SELECT id, email, name, role, password_hash, auth_provider, provider_id FROM users WHERE email = $1',
+      'SELECT id, email, name, role, password_hash, auth_provider, provider_id, subscription_status, subscription_current_period_end FROM users WHERE email = $1',
       [email.trim().toLowerCase()]
     );
     if (result.rows.length === 0) {
@@ -128,7 +130,7 @@ async function me(req, res) {
   try {
     const pool = getPool();
     const result = await pool.query(
-      'SELECT id, email, name, role, created_at FROM users WHERE id = $1',
+      'SELECT id, email, name, role, created_at, subscription_status, subscription_current_period_end FROM users WHERE id = $1',
       [req.user.id]
     );
     if (result.rows.length === 0) {
@@ -148,7 +150,7 @@ async function findOrCreateProviderUser(pool, { authProvider, providerId, email,
     throw new Error('email or provider_id required');
   }
   let result = await pool.query(
-    'SELECT id, email, name, role, created_at FROM users WHERE auth_provider = $1 AND provider_id = $2',
+    'SELECT id, email, name, role, created_at, subscription_status, subscription_current_period_end FROM users WHERE auth_provider = $1 AND provider_id = $2',
     [authProvider, providerId]
   );
   if (result.rows.length > 0) {
@@ -163,7 +165,7 @@ async function findOrCreateProviderUser(pool, { authProvider, providerId, email,
   }
   if (emailNorm) {
     result = await pool.query(
-      'SELECT id, email, name, role, created_at FROM users WHERE email = $1',
+      'SELECT id, email, name, role, created_at, subscription_status, subscription_current_period_end FROM users WHERE email = $1',
       [emailNorm]
     );
     if (result.rows.length > 0) {
@@ -185,7 +187,7 @@ async function findOrCreateProviderUser(pool, { authProvider, providerId, email,
   result = await pool.query(
     `INSERT INTO users (email, password_hash, name, role, auth_provider, provider_id)
      VALUES ($1, NULL, $2, 'user', $3, $4)
-     RETURNING id, email, name, role, created_at`,
+     RETURNING id, email, name, role, created_at, subscription_status, subscription_current_period_end`,
     [insertEmail, nameTrim, authProvider, providerId]
   );
   const user = rowToUser(result.rows[0]);

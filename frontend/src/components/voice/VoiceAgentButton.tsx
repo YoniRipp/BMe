@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Mic, Loader2 } from 'lucide-react';
+import { Mic, Loader2, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { queryKeys } from '@/lib/queryClient';
 import { useSchedule } from '@/hooks/useSchedule';
@@ -12,6 +12,7 @@ import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
 import { executeVoiceAction, type VoiceExecutorContext } from '@/lib/voiceActionExecutor';
 import { toast } from '@/components/shared/ToastProvider';
 import { cn } from '@/lib/utils';
+import { useSubscription } from '@/hooks/useSubscription';
 
 interface VoiceAgentButtonProps {
   /** When provided, the button only toggles the voice panel (one tap open, one tap close). */
@@ -20,6 +21,7 @@ interface VoiceAgentButtonProps {
 }
 
 export function VoiceAgentButton({ panelOpen, onTogglePanel }: VoiceAgentButtonProps = {}) {
+  const { isPro } = useSubscription();
   const queryClient = useQueryClient();
   const { scheduleItems, addScheduleItems, updateScheduleItem, deleteScheduleItem, getScheduleItemById } = useSchedule();
   const { transactions, addTransaction, updateTransaction, deleteTransaction } = useTransactions();
@@ -34,9 +36,7 @@ export function VoiceAgentButton({ panelOpen, onTogglePanel }: VoiceAgentButtonP
     startListening,
     stopListening,
     getVoiceResult,
-  } = useSpeechRecognition({
-    language: 'he-IL',
-  });
+  } = useSpeechRecognition();
 
   const voiceContext = {
     scheduleItems,
@@ -69,6 +69,11 @@ export function VoiceAgentButton({ panelOpen, onTogglePanel }: VoiceAgentButtonP
   const handleClick = useCallback(async () => {
     if (onTogglePanel != null) {
       onTogglePanel();
+      return;
+    }
+
+    if (!isPro) {
+      toast.error('Pro subscription required', { description: 'Upgrade to Pro to use voice input.' });
       return;
     }
 
@@ -137,7 +142,7 @@ export function VoiceAgentButton({ panelOpen, onTogglePanel }: VoiceAgentButtonP
       const msg = e instanceof Error ? e.message : 'Could not start listening. Please check microphone permissions.';
       toast.error('Could not start recording', { description: msg });
     }
-  }, [onTogglePanel, isListening, isAvailable, startListening, stopListening, getVoiceResult, voiceContext, queryClient]);
+  }, [onTogglePanel, isPro, isListening, isAvailable, startListening, stopListening, getVoiceResult, voiceContext, queryClient]);
 
   const state = isListening ? 'listening' : isProcessing ? 'processing' : 'idle';
   const isActive = onTogglePanel != null ? panelOpen : state === 'listening' || state === 'processing';
@@ -165,6 +170,11 @@ export function VoiceAgentButton({ panelOpen, onTogglePanel }: VoiceAgentButtonP
     >
       {onTogglePanel == null && state === 'processing' ? (
         <Loader2 className="h-6 w-6 animate-spin" />
+      ) : !isPro ? (
+        <div className="relative">
+          <Mic className="h-6 w-6" />
+          <Lock className="absolute -bottom-1 -right-1 h-3 w-3 text-amber-400" />
+        </div>
       ) : (
         <Mic className="h-6 w-6" />
       )}
