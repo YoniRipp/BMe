@@ -7,6 +7,7 @@
  *   3. Client PUTs the file directly to S3 (no server bandwidth)
  *   4. Client stores fileUrl on its profile/record
  */
+import { Request, Response } from 'express';
 import { asyncHandler } from '../middleware/errorHandler.js';
 import { sendJson, sendError } from '../utils/response.js';
 import { createPresignedUploadUrl } from '../services/storage.js';
@@ -14,7 +15,7 @@ import { config } from '../config/index.js';
 
 const VALID_CONTEXTS = ['avatar', 'workout', 'food'];
 
-export const presignedUrl = asyncHandler(async (req, res) => {
+export const presignedUrl = asyncHandler(async (req: Request, res: Response) => {
   if (!config.awsRegion || !config.awsS3Bucket) {
     return sendError(res, 503, 'File uploads not configured (AWS_REGION and AWS_S3_BUCKET required)');
   }
@@ -29,7 +30,7 @@ export const presignedUrl = asyncHandler(async (req, res) => {
     return sendError(res, 400, `context must be one of: ${VALID_CONTEXTS.join(', ')}`);
   }
 
-  const { uploadUrl, fileUrl, key } = await createPresignedUploadUrl(req.user.id, mimeType, context);
+  const { uploadUrl, fileUrl, key } = await createPresignedUploadUrl(req.user!.id, mimeType, context);
 
   return sendJson(res, {
     uploadUrl,

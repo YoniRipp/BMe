@@ -4,13 +4,14 @@
  */
 import { getPool, isDbConfigured } from '../../db/index.js';
 import { logger } from '../../lib/logger.js';
+import { EventEnvelope } from '../dispatcher.js';
 
 /**
  * @param {string} eventType
  * @param {Record<string, unknown>} payload
  * @returns {string}
  */
-function eventToSummary(eventType, payload) {
+function eventToSummary(eventType: string, payload: Record<string, unknown>): string {
   const p = payload ?? {};
   switch (eventType) {
     case 'auth.UserLoggedIn':
@@ -64,8 +65,10 @@ function eventToSummary(eventType, payload) {
   }
 }
 
-export function registerUserActivityLogConsumer(subscribe) {
-  subscribe('*', async (event) => {
+type SubscribeFn = (eventType: string, handler: (event: EventEnvelope) => Promise<void> | void) => void;
+
+export function registerUserActivityLogConsumer(subscribe: SubscribeFn) {
+  subscribe('*', async (event: EventEnvelope) => {
     if (!event.eventId || !event.type) return;
     if (!isDbConfigured()) return;
 

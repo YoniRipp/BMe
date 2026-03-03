@@ -5,7 +5,9 @@ import { createClient } from 'redis';
 import { config } from '../config/index.js';
 import { logger } from '../lib/logger.js';
 
-let client = null;
+type RedisClient = ReturnType<typeof createClient>;
+
+let client: RedisClient | null = null;
 
 export function isRedisConfigured() {
   return config.isRedisConfigured;
@@ -15,7 +17,7 @@ export async function getRedisClient() {
   if (!config.isRedisConfigured) return null;
   if (!client) {
     client = createClient({ url: config.redisUrl });
-    client.on('error', (err) => logger.error({ err }, 'Redis error'));
+    client.on('error', (err: unknown) => logger.error({ err }, 'Redis error'));
     await client.connect();
   }
   return client;

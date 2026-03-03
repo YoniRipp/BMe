@@ -7,7 +7,7 @@
  * @param {string} s
  * @returns {string|undefined}
  */
-export function normTime(s) {
+export function normTime(s: string | undefined | null): string | undefined {
   return s && /^\d{1,2}:\d{2}$/.test(s) ? s : undefined;
 }
 
@@ -17,7 +17,7 @@ export function normTime(s) {
  * @param {string} [fieldName='Time']
  * @returns {string}
  */
-export function normTimeRequired(s, fieldName = 'Time') {
+export function normTimeRequired(s: string | undefined | null, fieldName = 'Time'): string {
   const t = normTime(s);
   if (t === undefined) {
     throw new ValidationError(`Invalid ${fieldName}; use HH:MM format`);
@@ -31,7 +31,7 @@ export function normTimeRequired(s, fieldName = 'Time') {
  * @param {readonly string[]} list
  * @returns {string}
  */
-export function normCat(cat, list) {
+export function normCat(cat: string | undefined | null, list: readonly string[]): string {
   return cat && list.includes(cat) ? cat : 'Other';
 }
 
@@ -40,7 +40,7 @@ export function normCat(cat, list) {
  * @param {string|Date|undefined} d
  * @returns {string}
  */
-export function parseDate(d) {
+export function parseDate(d: string | Date | undefined | null): string {
   const str = d == null ? '' : String(d).trim();
   if (/^\d{4}-\d{2}-\d{2}$/.test(str)) {
     const [y, m, d_] = str.split('-').map(Number);
@@ -51,7 +51,7 @@ export function parseDate(d) {
     }
     return str;
   }
-  const date = str ? new Date(d) : new Date();
+  const date = str ? new Date(d as string) : new Date();
   if (!Number.isFinite(date.getTime())) {
     return new Date().toISOString().slice(0, 10);
   }
@@ -66,7 +66,7 @@ import { ValidationError } from '../errors.js';
  * @param {string} field
  * @returns {number}
  */
-export function validateNonNegative(n, field) {
+export function validateNonNegative(n: number | string, field: string): number {
   const num = Number(n);
   if (!Number.isFinite(num) || num < 0) {
     throw new ValidationError(`${field} must be a non-negative number`);
@@ -80,7 +80,7 @@ export function validateNonNegative(n, field) {
  * @param {string} fieldName
  * @returns {string}
  */
-export function requireNonEmptyString(value, fieldName) {
+export function requireNonEmptyString(value: unknown, fieldName: string): string {
   const s = value != null && typeof value === 'string' ? value.trim() : '';
   if (!s) {
     throw new ValidationError(`${fieldName} is required`);
@@ -94,7 +94,7 @@ export function requireNonEmptyString(value, fieldName) {
  * @param {string} fieldName
  * @returns {number}
  */
-export function requirePositiveNumber(value, fieldName) {
+export function requirePositiveNumber(value: unknown, fieldName: string): number {
   const num = Number(value);
   if (!Number.isFinite(num) || num < 1) {
     throw new ValidationError(`${fieldName} must be a positive number`);

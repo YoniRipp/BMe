@@ -7,12 +7,19 @@ import { getPool } from '../db/index.js';
 const MAX_LIMIT = 100;
 const MAX_DAYS = 90;
 
+interface ListActivityOpts {
+  limit?: number;
+  before?: string;
+  from: string;
+  to: string;
+  userId?: string;
+  eventType?: string;
+}
+
 /**
  * List activity with cursor pagination, time range, and filters.
- * @param {{ limit?: number; before?: string; from: string; to: string; userId?: string; eventType?: string }} opts
- * @returns {{ events: Array<{id:string,eventType:string,eventId:string,summary:string,payload:object,createdAt:string,userId:string,userEmail:string,userName:string}>; nextCursor?: string }}
  */
-export async function listActivity(opts) {
+export async function listActivity(opts: ListActivityOpts) {
   const { limit = 50, before, from, to, userId, eventType } = opts ?? {};
 
   if (!from || !to) {
@@ -34,8 +41,8 @@ export async function listActivity(opts) {
 
   const cappedLimit = Math.min(Math.max(1, Number(limit) || 50), MAX_LIMIT);
 
-  let cursorCreatedAt = null;
-  let cursorId = null;
+  let cursorCreatedAt: string | null = null;
+  let cursorId: string | null = null;
   if (before) {
     try {
       const decoded = JSON.parse(Buffer.from(before, 'base64url').toString('utf8'));
@@ -48,7 +55,7 @@ export async function listActivity(opts) {
 
   const pool = getPool();
   const conditions = ['a.created_at >= $1', 'a.created_at <= $2'];
-  const values = [from, to];
+  const values: (string | number)[] = [from, to];
   let paramIndex = 3;
 
   if (userId) {
@@ -85,7 +92,7 @@ export async function listActivity(opts) {
   const hasMore = rows.length > cappedLimit;
   const slice = hasMore ? rows.slice(0, cappedLimit) : rows;
 
-  const events = slice.map((r) => ({
+  const events = slice.map((r: Record<string, unknown>) => ({
     id: r.id,
     eventType: r.event_type,
     eventId: r.event_id,
@@ -97,7 +104,7 @@ export async function listActivity(opts) {
     userName: r.user_name ?? null,
   }));
 
-  let nextCursor;
+  let nextCursor: string | undefined;
   if (hasMore && slice.length > 0) {
     const last = slice[slice.length - 1];
     const createdAt = last.created_at instanceof Date ? last.created_at.toISOString() : last.created_at;

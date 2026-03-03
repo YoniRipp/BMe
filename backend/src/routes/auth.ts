@@ -5,7 +5,7 @@ import crypto from 'crypto';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { OAuth2Client } from 'google-auth-library';
-import { Router } from 'express';
+import { Router, Request, Response } from 'express';
 import { config } from '../config/index.js';
 import { getPool } from '../db/index.js';
 import { requireAuth } from '../middleware/auth.js';
@@ -38,7 +38,7 @@ async function exchangeAuthCode(code: string): Promise<string | null> {
   }
 }
 
-function rowToUser(row) {
+function rowToUser(row: Record<string, any>) {
   return {
     id: row.id,
     email: row.email,
@@ -76,17 +76,18 @@ async function register(req, res) {
     const user = rowToUser(result.rows[0]);
     const token = jwt.sign(
       { sub: user.id, email: user.email, role: user.role },
-      config.jwtSecret,
+      config.jwtSecret!,
       { expiresIn: TOKEN_EXPIRY }
     );
     publishEvent('auth.UserRegistered', { userId: user.id, email: user.email, name: user.name }, user.id).catch(() => {});
     res.status(201).json({ user, token });
-  } catch (e) {
-    if (e.code === '23505') {
+  } catch (e: unknown) {
+    const err = e as Record<string, unknown>;
+    if (err.code === '23505') {
       return res.status(409).json({ error: 'Email already registered' });
     }
     logger.error({ err: e }, 'register error');
-    res.status(500).json({ error: e?.message ?? 'Could not complete registration. Please try again.' });
+    res.status(500).json({ error: (e instanceof Error ? e.message : undefined) ?? 'Could not complete registration. Please try again.' });
   }
 }
 
@@ -115,14 +116,14 @@ async function login(req, res) {
     const user = rowToUser(row);
     const token = jwt.sign(
       { sub: user.id, email: user.email, role: user.role },
-      config.jwtSecret,
+      config.jwtSecret!,
       { expiresIn: TOKEN_EXPIRY }
     );
     publishEvent('auth.UserLoggedIn', { userId: user.id, method: 'email' }, user.id).catch(() => {});
     res.json({ user, token });
-  } catch (e) {
+  } catch (e: unknown) {
     logger.error({ err: e }, 'login error');
-    res.status(500).json({ error: e?.message ?? 'Could not sign in. Please try again.' });
+    res.status(500).json({ error: (e instanceof Error ? e.message : undefined) ?? 'Could not sign in. Please try again.' });
   }
 }
 
@@ -137,13 +138,13 @@ async function me(req, res) {
       return res.status(404).json({ error: 'User not found' });
     }
     res.json(rowToUser(result.rows[0]));
-  } catch (e) {
+  } catch (e: unknown) {
     logger.error({ err: e }, 'me error');
-    res.status(500).json({ error: e?.message ?? 'Could not get user. Please try again.' });
+    res.status(500).json({ error: (e instanceof Error ? e.message : undefined) ?? 'Could not get user. Please try again.' });
   }
 }
 
-async function findOrCreateProviderUser(pool, { authProvider, providerId, email, name }) {
+async function findOrCreateProviderUser(pool: ReturnType<typeof getPool>, { authProvider, providerId, email, name }: { authProvider: string; providerId: string; email: string; name: string }) {
   const emailNorm = email ? email.trim().toLowerCase() : '';
   const nameTrim = name ? name.trim() : 'Unknown';
   if (!emailNorm && !providerId) {
@@ -158,7 +159,7 @@ async function findOrCreateProviderUser(pool, { authProvider, providerId, email,
     const user = rowToUser(row);
     const token = jwt.sign(
       { sub: user.id, email: user.email, role: user.role },
-      config.jwtSecret,
+      config.jwtSecret!,
       { expiresIn: TOKEN_EXPIRY }
     );
     return { user, token };
@@ -177,7 +178,7 @@ async function findOrCreateProviderUser(pool, { authProvider, providerId, email,
       const user = rowToUser(row);
       const token = jwt.sign(
         { sub: user.id, email: user.email, role: user.role },
-        config.jwtSecret,
+        config.jwtSecret!,
         { expiresIn: TOKEN_EXPIRY }
       );
       return { user, token };
@@ -193,7 +194,7 @@ async function findOrCreateProviderUser(pool, { authProvider, providerId, email,
   const user = rowToUser(result.rows[0]);
   const token = jwt.sign(
     { sub: user.id, email: user.email, role: user.role },
-    config.jwtSecret,
+    config.jwtSecret!,
     { expiresIn: TOKEN_EXPIRY }
   );
   return { user, token };
@@ -245,9 +246,9 @@ async function loginGoogle(req, res) {
     });
     publishEvent('auth.UserLoggedIn', { userId: user.id, method: 'google' }, user.id).catch(() => {});
     res.json({ user, token: jwtToken });
-  } catch (e) {
+  } catch (e: unknown) {
     logger.error({ err: e }, 'loginGoogle error');
-    res.status(401).json({ error: e?.message ?? 'Could not complete Google sign-in. Please try again.' });
+    res.status(401).json({ error: (e instanceof Error ? e.message : undefined) ?? 'Could not complete Google sign-in. Please try again.' });
   }
 }
 
@@ -285,9 +286,9 @@ async function loginFacebook(req, res) {
     });
     publishEvent('auth.UserLoggedIn', { userId: user.id, method: 'facebook' }, user.id).catch(() => {});
     res.json({ user, token: jwtToken });
-  } catch (e) {
+  } catch (e: unknown) {
     logger.error({ err: e }, 'loginFacebook error');
-    res.status(401).json({ error: e?.message ?? 'Could not complete Facebook sign-in. Please try again.' });
+    res.status(401).json({ error: (e instanceof Error ? e.message : undefined) ?? 'Could not complete Facebook sign-in. Please try again.' });
   }
 }
 
@@ -310,8 +311,8 @@ async function loginTwitter(req, res) {
     }
     const data = (await response.json()) as Record<string, unknown>;
     const userData = data?.data as Record<string, unknown> | undefined;
-    const providerId = userData?.id;
-    const name = userData?.name || userData?.username || 'User';
+    const providerId = userData?.id as string | undefined;
+    const name = (userData?.name as string) || (userData?.username as string) || 'User';
     const email = '';
     if (!providerId) {
       return res.status(401).json({ error: 'Twitter sign-in failed: no user ID returned. Please try again.' });
@@ -325,13 +326,13 @@ async function loginTwitter(req, res) {
     });
     publishEvent('auth.UserLoggedIn', { userId: user.id, method: 'twitter' }, user.id).catch(() => {});
     res.json({ user, token: jwtToken });
-  } catch (e) {
+  } catch (e: unknown) {
     logger.error({ err: e }, 'loginTwitter error');
-    res.status(401).json({ error: e?.message ?? 'Could not complete Twitter sign-in. Please try again.' });
+    res.status(401).json({ error: (e instanceof Error ? e.message : undefined) ?? 'Could not complete Twitter sign-in. Please try again.' });
   }
 }
 
-function base64UrlEncode(buf) {
+function base64UrlEncode(buf: Buffer) {
   return buf.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
@@ -348,7 +349,7 @@ async function twitterRedirect(req, res) {
   const params = new URLSearchParams({
     response_type: 'code',
     client_id: config.twitterClientId,
-    redirect_uri: config.twitterRedirectUri,
+    redirect_uri: config.twitterRedirectUri || '',
     scope: 'tweet.read users.read offline.access',
     state,
     code_challenge: codeChallenge,
@@ -378,13 +379,13 @@ async function twitterCallback(req, res) {
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
         Authorization: `Basic ${Buffer.from(
-          `${encodeURIComponent(config.twitterClientId)}:${encodeURIComponent(config.twitterClientSecret || '')}`
+          `${encodeURIComponent(config.twitterClientId || '')}:${encodeURIComponent(config.twitterClientSecret || '')}`
         ).toString('base64')}`,
       },
       body: new URLSearchParams({
         code,
         grant_type: 'authorization_code',
-        redirect_uri: config.twitterRedirectUri,
+        redirect_uri: config.twitterRedirectUri || '',
         code_verifier: stored.codeVerifier,
       }).toString(),
     });
@@ -406,7 +407,7 @@ async function twitterCallback(req, res) {
     }
     const userData = ((await userRes.json()) as Record<string, unknown>)?.data as Record<string, unknown> | undefined;
     const providerId = userData?.id as string;
-    const name = userData?.name || userData?.username || 'User';
+    const name = (userData?.name as string) || (userData?.username as string) || 'User';
     const email = '';
     if (!providerId) {
       return res.redirect(`${config.frontendOrigin}/login?error=twitter_user_failed`);
@@ -422,7 +423,7 @@ async function twitterCallback(req, res) {
     const authCode = await generateAuthCode(jwtToken);
     const redirectUrl = `${config.frontendOrigin}/auth/callback?code=${encodeURIComponent(authCode)}`;
     res.redirect(redirectUrl);
-  } catch (e) {
+  } catch (e: unknown) {
     logger.error({ err: e }, 'twitterCallback error');
     res.redirect(`${config.frontendOrigin}/login?error=twitter_callback_failed`);
   }
@@ -463,7 +464,7 @@ async function forgotPassword(req, res) {
       logger.error({ err: emailErr }, 'Failed to send reset email');
     }
     res.json({ message: 'If an account exists, a reset link has been sent.' });
-  } catch (e) {
+  } catch (e: unknown) {
     logger.error({ err: e }, 'forgotPassword error');
     res.status(500).json({ error: 'Could not send password reset email. Please try again.' });
   }
@@ -497,7 +498,7 @@ async function resetPassword(req, res) {
       [passwordHash, userId]
     );
     res.json({ message: 'Password has been reset successfully' });
-  } catch (e) {
+  } catch (e: unknown) {
     logger.error({ err: e }, 'resetPassword error');
     res.status(500).json({ error: 'Could not reset password. Please try again.' });
   }
@@ -513,14 +514,14 @@ async function exchangeCode(req, res) {
     if (!token) {
       return res.status(400).json({ error: 'Invalid or expired auth code' });
     }
-    const payload = jwt.verify(token, config.jwtSecret);
+    const payload = jwt.verify(token, config.jwtSecret!);
     const pool = getPool();
     const { rows } = await pool.query('SELECT * FROM users WHERE id = $1', [payload.sub]);
     if (!rows[0]) {
       return res.status(404).json({ error: 'User not found' });
     }
     res.json({ user: rowToUser(rows[0]), token });
-  } catch (e) {
+  } catch (e: unknown) {
     logger.error({ err: e }, 'exchangeCode error');
     res.status(400).json({ error: 'Invalid auth code' });
   }

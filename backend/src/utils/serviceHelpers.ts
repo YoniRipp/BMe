@@ -3,13 +3,13 @@
  */
 import { ValidationError, NotFoundError } from '../errors.js';
 
-export function requireId(id) {
+export function requireId(id: unknown) {
   if (!id) {
     throw new ValidationError('id is required');
   }
 }
 
-export function requireFound(value, resourceName) {
+export function requireFound<T>(value: T, resourceName: string): asserts value is NonNullable<T> {
   if (!value) {
     throw new NotFoundError(`${resourceName} not found`);
   }
@@ -39,8 +39,8 @@ export function normOneOf(value: unknown, allowedList: readonly string[], option
  * @param {Record<string, (value: any) => any>} rules
  * @returns {object}
  */
-export function buildUpdates(body, rules) {
-  const updates = {};
+export function buildUpdates(body: Record<string, unknown>, rules: Record<string, (value: unknown) => unknown>) {
+  const updates: Record<string, unknown> = {};
   const input = body ?? {};
   for (const key of Object.keys(rules)) {
     if (input[key] === undefined) continue;
@@ -53,11 +53,11 @@ export function buildUpdates(body, rules) {
 }
 
 /** Trim string or pass through. For use in buildUpdates. */
-export function trim(v) {
+export function trim(v: unknown) {
   return typeof v === 'string' ? v.trim() : v;
 }
 
 /** Identity for buildUpdates when no normalization needed. */
-export function identity(v) {
+export function identity(v: unknown) {
   return v;
 }

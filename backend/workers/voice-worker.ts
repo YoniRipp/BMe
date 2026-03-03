@@ -16,6 +16,10 @@ const worker = new Worker(
   async (job) => {
     const { jobId, audio, mimeType, userId, today, timezone } = job.data;
     const redis = await getRedisClient();
+    if (!redis) {
+      logger.error({ jobId }, 'Voice job failed: Redis not available');
+      return;
+    }
 
     try {
       const data = await voiceService.parseAudio(audio, mimeType, userId, {

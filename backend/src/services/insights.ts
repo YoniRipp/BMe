@@ -16,7 +16,7 @@ function getGemini() {
 }
 
 /** Fetch a summary of the user's recent data from the DB for the past N days. */
-async function fetchUserContext(userId, days = 30) {
+async function fetchUserContext(userId: string, days = 30) {
   const pool = getPool();
   const since = new Date();
   since.setDate(since.getDate() - days);
@@ -60,7 +60,7 @@ async function fetchUserContext(userId, days = 30) {
 const CACHE_FRESH_HOURS = 24;
 
 /** Get the most recent cached insight for a user. */
-export async function getLastInsight(userId) {
+export async function getLastInsight(userId: string) {
   const pool = getPool();
   const result = await pool.query(
     `SELECT summary, highlights, suggestions, score, today_workout, today_budget, today_nutrition, today_focus, created_at
@@ -74,7 +74,7 @@ export async function getLastInsight(userId) {
 }
 
 /** Save generated insight to DB. */
-export async function saveInsight(userId, data) {
+export async function saveInsight(userId: string, data: Record<string, unknown>) {
   const pool = getPool();
   await pool.query(
     `INSERT INTO ai_insights (user_id, summary, highlights, suggestions, score, today_workout, today_budget, today_nutrition, today_focus)
@@ -94,7 +94,7 @@ export async function saveInsight(userId, data) {
 }
 
 /** Check if a cached insight is still fresh (within CACHE_FRESH_HOURS). */
-export function isCacheFresh(row) {
+export function isCacheFresh(row: Record<string, unknown> | null) {
   if (!row?.created_at) return false;
   const createdAt = new Date(row.created_at);
   const cutoff = new Date();
@@ -107,7 +107,7 @@ export function isCacheFresh(row) {
  * @param {string} userId
  * @returns {Promise<{ main: object, today: object, cached: boolean }>}
  */
-export async function getOrGenerateInsights(userId) {
+export async function getOrGenerateInsights(userId: string) {
   const cached = await getLastInsight(userId);
   if (cached && isCacheFresh(cached)) {
     return {
@@ -142,7 +142,7 @@ export async function getOrGenerateInsights(userId) {
  * @param {string} userId
  * @returns {Promise<{ main: object, today: object }>}
  */
-export async function refreshInsights(userId) {
+export async function refreshInsights(userId: string) {
   const result = await generateInsights(userId);
   const main = {
     summary: result.summary,
@@ -160,24 +160,24 @@ export async function refreshInsights(userId) {
  * @param {string} userId
  * @returns {Promise<{ summary: string, highlights: string[], suggestions: string[], score: number, today?: object }>}
  */
-export async function generateInsights(userId) {
+export async function generateInsights(userId: string) {
   const ctx = await fetchUserContext(userId, 30);
   const model = getGemini();
 
   const totalExpenses = ctx.transactions
-    .filter((t) => t.type === 'expense')
-    .reduce((s, t) => s + Number(t.total), 0);
+    .filter((t: Record<string, unknown>) => t.type === 'expense')
+    .reduce((s: number, t: Record<string, unknown>) => s + Number(t.total), 0);
   const totalIncome = ctx.transactions
-    .filter((t) => t.type === 'income')
-    .reduce((s, t) => s + Number(t.total), 0);
-  const totalWorkouts = ctx.workouts.reduce((s, w) => s + w.count, 0);
+    .filter((t: Record<string, unknown>) => t.type === 'income')
+    .reduce((s: number, t: Record<string, unknown>) => s + Number(t.total), 0);
+  const totalWorkouts = ctx.workouts.reduce((s: number, w: Record<string, unknown>) => s + Number(w.count), 0);
 
   const prompt = `You are a personal life coach assistant. Analyze this user's last 30 days of data and return a JSON object.
 
 Data summary:
 - Finances: Total income $${totalIncome.toFixed(2)}, Total expenses $${totalExpenses.toFixed(2)}, Net $${(totalIncome - totalExpenses).toFixed(2)}
-- Spending by category: ${ctx.transactions.filter((t) => t.type === 'expense').map((t) => `${t.category}: $${Number(t.total).toFixed(2)}`).join(', ') || 'no data'}
-- Workouts: ${totalWorkouts} workouts across ${ctx.workouts.map((w) => `${w.count} ${w.type}`).join(', ') || 'no data'}
+- Spending by category: ${ctx.transactions.filter((t: Record<string, unknown>) => t.type === 'expense').map((t: Record<string, unknown>) => `${t.category}: $${Number(t.total as number).toFixed(2)}`).join(', ') || 'no data'}
+- Workouts: ${totalWorkouts} workouts across ${ctx.workouts.map((w: Record<string, unknown>) => `${w.count} ${w.type}`).join(', ') || 'no data'}
 - Nutrition: avg ${Math.round(Number(ctx.food.avg_daily_cal) || 0)} kcal/day over ${ctx.food.days_tracked || 0} tracked days, total protein ${Math.round(Number(ctx.food.total_protein) || 0)}g
 - Sleep: avg ${Number(ctx.sleep.avg_sleep || 0).toFixed(1)} hours/night over ${ctx.sleep.days_logged || 0} logged nights
 
@@ -224,24 +224,24 @@ Return exactly this JSON structure (no markdown, raw JSON only):
  * @param {string} userId
  * @returns {Promise<{ workout: string, budget: string, nutrition: string, focus: string }>}
  */
-export async function generateTodayRecommendations(userId) {
+export async function generateTodayRecommendations(userId: string) {
   const ctx = await fetchUserContext(userId, 14);
   const model = getGemini();
 
-  const recentWorkouts = ctx.workouts.reduce((s, w) => s + w.count, 0);
+  const recentWorkouts = ctx.workouts.reduce((s: number, w: Record<string, unknown>) => s + Number(w.count), 0);
   const avgSleep = Number(ctx.sleep.avg_sleep || 0).toFixed(1);
   const avgCal = Math.round(Number(ctx.food.avg_daily_cal) || 0);
   const totalExpenses = ctx.transactions
-    .filter((t) => t.type === 'expense')
-    .reduce((s, t) => s + Number(t.total), 0);
+    .filter((t: Record<string, unknown>) => t.type === 'expense')
+    .reduce((s: number, t: Record<string, unknown>) => s + Number(t.total), 0);
   const totalIncome = ctx.transactions
-    .filter((t) => t.type === 'income')
-    .reduce((s, t) => s + Number(t.total), 0);
+    .filter((t: Record<string, unknown>) => t.type === 'income')
+    .reduce((s: number, t: Record<string, unknown>) => s + Number(t.total), 0);
 
   const prompt = `You are a friendly personal assistant. Based on this user's last 14 days, give them personalized recommendations for today.
 
 Recent data:
-- ${recentWorkouts} workouts in last 14 days (${ctx.workouts.map((w) => `${w.count} ${w.type}`).join(', ') || 'none'})
+- ${recentWorkouts} workouts in last 14 days (${ctx.workouts.map((w: Record<string, unknown>) => `${w.count} ${w.type}`).join(', ') || 'none'})
 - Average sleep: ${avgSleep} hours/night
 - Average daily calories: ${avgCal} kcal
 - Income: $${totalIncome.toFixed(2)}, Expenses: $${totalExpenses.toFixed(2)} this period

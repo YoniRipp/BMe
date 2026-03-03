@@ -18,6 +18,7 @@ import {
   Users,
   ShieldCheck,
   LogOut,
+  User,
 } from 'lucide-react';
 import { useSettings } from '@/hooks/useSettings';
 import { useApp } from '@/context/AppContext';
@@ -25,7 +26,13 @@ import { useAuth } from '@/context/AuthContext';
 import { useTransactions } from '@/hooks/useTransactions';
 import { useExchangeRates } from '@/features/money/useExchangeRates';
 import { HeaderBalance } from './HeaderBalance';
-import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { VoiceAgentButton } from '../voice/VoiceAgentButton';
 
 const ROUTE_TO_TITLE: Record<string, string> = {
@@ -219,16 +226,34 @@ export function Base44Layout() {
               <h2 className="text-lg font-semibold text-charcoal">{pageTitle}</h2>
             </div>
             <div className="flex items-center gap-2 sm:gap-3">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleSignOut}
-                className="flex items-center gap-1.5 text-stone hover:text-charcoal shrink-0"
-                aria-label="Sign out"
-              >
-                <LogOut className="h-4 w-4" />
-                <span className="hidden sm:inline">Sign out</span>
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl hover:bg-cream-warm transition-colors focus:outline-none focus:ring-2 focus:ring-primary/30 shrink-0"
+                  aria-label="Open user menu"
+                >
+                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                    <User className="w-4 h-4 text-primary" />
+                  </div>
+                  <span className="hidden sm:inline text-sm font-medium text-charcoal">{user?.name ?? 'Account'}</span>
+                  <ChevronRight className="w-3.5 h-3.5 text-stone rotate-90" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="min-w-[10rem]">
+                  <DropdownMenuItem asChild>
+                    <Link to="/settings" className="flex items-center gap-2 cursor-pointer">
+                      <Settings className="h-4 w-4" />
+                      Settings
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={handleSignOut}
+                    className="flex items-center gap-2 cursor-pointer text-stone focus:text-charcoal"
+                  >
+                    <LogOut className="h-4 w-4" />
+                    Sign out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
               <div className="hidden sm:flex flex-col items-end gap-2">
                 <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/10 text-primary">
                   <Sun className="w-3.5 h-3.5" />

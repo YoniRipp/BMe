@@ -4,7 +4,6 @@ import { BrowserRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { format, subWeeks } from 'date-fns';
 import { Body } from './Body';
-import { WorkoutProvider } from '@/context/WorkoutContext';
 import { AppProvider } from '@/context/AppContext';
 
 vi.mock('@/context/AuthContext', () => ({
@@ -35,9 +34,7 @@ const wrapper = ({ children }: { children: React.ReactNode }) => (
   <BrowserRouter>
     <QueryClientProvider client={queryClient}>
       <AppProvider>
-        <WorkoutProvider>
-          {children}
-        </WorkoutProvider>
+        {children}
       </AppProvider>
     </QueryClientProvider>
   </BrowserRouter>

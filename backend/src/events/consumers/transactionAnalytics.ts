@@ -4,12 +4,15 @@
  */
 import { getRedisClient } from '../../redis/client.js';
 import { logger } from '../../lib/logger.js';
+import { EventEnvelope } from '../dispatcher.js';
 
 const KEY_PREFIX = 'beme:lastTx:';
 const TTL_SECONDS = 86400; // 24h
 
-export function registerTransactionAnalyticsConsumer(subscribe) {
-  subscribe('money.TransactionCreated', async (event) => {
+type SubscribeFn = (eventType: string, handler: (event: EventEnvelope) => Promise<void> | void) => void;
+
+export function registerTransactionAnalyticsConsumer(subscribe: SubscribeFn) {
+  subscribe('money.TransactionCreated', async (event: EventEnvelope) => {
     const userId = event.metadata?.userId;
     if (!userId) return;
     try {

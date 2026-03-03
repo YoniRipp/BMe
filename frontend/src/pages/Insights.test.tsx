@@ -3,9 +3,6 @@ import { render, screen } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Insights } from './Insights';
-import { TransactionProvider } from '@/context/TransactionContext';
-import { WorkoutProvider } from '@/context/WorkoutContext';
-import { EnergyProvider } from '@/context/EnergyContext';
 import { AppProvider } from '@/context/AppContext';
 
 vi.mock('@/context/AuthContext', () => ({
@@ -54,13 +51,7 @@ const wrapper = ({ children }: { children: React.ReactNode }) => (
   <BrowserRouter>
     <QueryClientProvider client={queryClient}>
       <AppProvider>
-        <TransactionProvider>
-          <WorkoutProvider>
-            <EnergyProvider>
-              {children}
-            </EnergyProvider>
-          </WorkoutProvider>
-        </TransactionProvider>
+        {children}
       </AppProvider>
     </QueryClientProvider>
   </BrowserRouter>

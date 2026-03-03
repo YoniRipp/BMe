@@ -6,16 +6,16 @@ import { requireId, requireFound, buildUpdates } from '../utils/serviceHelpers.j
 import * as dailyCheckInModel from '../models/dailyCheckIn.js';
 import { publishEvent } from '../events/publish.js';
 
-function normSleepHours(v) {
+function normSleepHours(v: unknown) {
   if (v == null) return null;
   return validateNonNegative(v, 'sleepHours');
 }
 
-export async function list(userId) {
+export async function list(userId: string) {
   return dailyCheckInModel.findByUserId(userId);
 }
 
-export async function create(userId, body) {
+export async function create(userId: string, body: Record<string, unknown>) {
   const { date, sleepHours } = body ?? {};
   const checkIn = await dailyCheckInModel.create({
     userId,
@@ -26,10 +26,10 @@ export async function create(userId, body) {
   return checkIn;
 }
 
-export async function update(userId, id, body) {
+export async function update(userId: string, id: string, body: Record<string, unknown>) {
   requireId(id);
   const updates = buildUpdates(body ?? {}, {
-    date: (v) => v,
+    date: (v: unknown) => v,
     sleepHours: normSleepHours,
   });
   const updated = await dailyCheckInModel.update(id, userId, updates);
@@ -38,7 +38,7 @@ export async function update(userId, id, body) {
   return updated;
 }
 
-export async function remove(userId, id) {
+export async function remove(userId: string, id: string) {
   requireId(id);
   const deleted = await dailyCheckInModel.deleteById(id, userId);
   requireFound(deleted, 'Daily check-in');

@@ -19,7 +19,7 @@ import { executeActions } from './voiceExecutor.js';
  * Convert a local date + time in a given IANA timezone to UTC date and time strings (YYYY-MM-DD, HH:mm).
  * Used so we store only UTC in the DB.
  */
-function localToUtcDateAndTime(dateStr, timeStr, timezone) {
+function localToUtcDateAndTime(dateStr: string, timeStr: string, timezone: string) {
   if (!dateStr || !timeStr || !timezone) return null;
   const [y, m, d] = dateStr.split('-').map(Number);
   const [hh, mm] = (timeStr + ':00').split(':').map(Number);
@@ -38,7 +38,7 @@ function localToUtcDateAndTime(dateStr, timeStr, timezone) {
 /** Lenient Zod schemas for Gemini function args; invalid args are rejected and that call is skipped. */
 const voiceAddTransactionArgsSchema = z.object({
   type: z.enum(['income', 'expense']),
-  amount: z.union([z.number(), z.string()]).transform((v) => (v != null ? Number(v) : NaN)).pipe(z.number().min(0).finite()),
+  amount: z.union([z.number(), z.string()]).transform((v: string | number) => (v != null ? Number(v) : NaN)).pipe(z.number().min(0).finite()),
   category: z.string().optional(),
   description: z.string().optional(),
   date: z.string().optional(),
@@ -54,7 +54,7 @@ const voiceAddScheduleArgsSchema = z.object({
     recurrence: z.string().optional(),
   })).min(1),
 });
-const VOICE_ARG_SCHEMAS = {
+const VOICE_ARG_SCHEMAS: Record<string, z.ZodType> = {
   add_transaction: voiceAddTransactionArgsSchema,
   add_schedule: voiceAddScheduleArgsSchema,
 };
@@ -72,33 +72,32 @@ Workouts: When the user says they worked out and gives exercises with sets/reps/
 Call all relevant functions; the user may combine multiple actions in one message.`;
 
 const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-function parseDate(d, todayStr) {
+function parseDate(d: unknown, todayStr: string) {
   return d && dateRegex.test(d) ? d : todayStr;
 }
 
 /** Build object from args using a spec: { [outputKey]: (value) => transformedValue }. Skips when value is undefined/null or transform returns undefined. */
 function mapArgs(args: Record<string, unknown>, spec: Record<string, (v: unknown) => unknown>) {
-  return Object.fromEntries(
-    Object.entries(spec)
-      .map(([key, transform]) => {
-        const v = args[key];
-        if (v === undefined || v === null) return null;
-        const val = transform(v);
-        return val === undefined ? null : [key, val];
-      })
-      .filter(Boolean)
-  );
+  const entries: [string, unknown][] = [];
+  for (const [key, transform] of Object.entries(spec)) {
+    const v = args[key];
+    if (v === undefined || v === null) continue;
+    const val = transform(v);
+    if (val === undefined) continue;
+    entries.push([key, val]);
+  }
+  return Object.fromEntries(entries);
 }
 
-const trim = (v) => (v != null ? String(v).trim() : undefined);
-const trimOrUndefined = (v) => (v != null && String(v).trim() !== '' ? String(v).trim() : undefined);
-const num = (v) => (v != null && Number.isFinite(Number(v)) ? Number(v) : undefined);
-const passThrough = (v) => v;
-function normExercises(v) {
+const trim = (v: unknown) => (v != null ? String(v).trim() : undefined);
+const trimOrUndefined = (v: unknown) => (v != null && String(v).trim() !== '' ? String(v).trim() : undefined);
+const num = (v: unknown) => (v != null && Number.isFinite(Number(v)) ? Number(v) : undefined);
+const passThrough = (v: unknown) => v;
+function normExercises(v: unknown) {
   if (!Array.isArray(v)) return undefined;
   return v
-    .filter((e) => e && typeof e.name === 'string' && e.name.trim())
-    .map((e) => ({
+    .filter((e: Record<string, unknown>) => e && typeof e.name === 'string' && (e.name as string).trim())
+    .map((e: Record<string, unknown>) => ({
       name: String(e.name).trim(),
       sets: Math.max(0, Number(e.sets) || 0),
       reps: Math.max(0, Number(e.reps) || 0),
@@ -108,7 +107,7 @@ function normExercises(v) {
 }
 
 /** If name has no "uncooked"/"raw" or "cooked", append ", cooked" (default). Use "uncooked" consistently (not "raw"). Used only for fallback names (not from DB). */
-function withRawOrCooked(name) {
+function withRawOrCooked(name: unknown) {
   let s = String(name).trim();
   if (!s) return 'Unknown';
   if (/\b(raw)\b/i.test(s)) s = s.replace(/\braw\b/gi, 'uncooked');
@@ -122,7 +121,7 @@ const EDIT_SCHEDULE_SPEC = {
   startTime: normTime,
   endTime: normTime,
   title: trimOrUndefined,
-  category: (v) => normCat(v, SCHEDULE_CATEGORIES),
+  category: (v: unknown) => normCat(v, SCHEDULE_CATEGORIES),
 };
 const DELETE_SCHEDULE_SPEC = {
   itemTitle: trimOrUndefined,
@@ -187,14 +186,14 @@ const DELETE_GOAL_SPEC = {
   goalId: passThrough,
 };
 
-function buildEditSchedule(args) {
+function buildEditSchedule(args: Record<string, unknown>) {
   return mapArgs(args, EDIT_SCHEDULE_SPEC);
 }
-function buildDeleteSchedule(args) {
+function buildDeleteSchedule(args: Record<string, unknown>) {
   return mapArgs(args, DELETE_SCHEDULE_SPEC);
 }
 
-function buildAddTransaction(args, ctx) {
+function buildAddTransaction(args: Record<string, unknown>, ctx: { todayStr: string; timezone?: string }) {
   const type = args.type === 'income' || args.type === 'expense' ? args.type : 'expense';
   const amount = Number(args.amount);
   const numAmount = Number.isFinite(amount) && amount >= 0 ? amount : 0;
@@ -216,18 +215,18 @@ function buildAddTransaction(args, ctx) {
   };
 }
 
-function buildEditTransaction(args) {
+function buildEditTransaction(args: Record<string, unknown>) {
   return mapArgs(args, EDIT_TRANSACTION_SPEC);
 }
-function buildDeleteTransaction(args) {
+function buildDeleteTransaction(args: Record<string, unknown>) {
   return mapArgs(args, DELETE_TRANSACTION_SPEC);
 }
 
-function buildAddWorkout(args, ctx) {
+function buildAddWorkout(args: Record<string, unknown>, ctx: { todayStr: string; timezone?: string }) {
   const exercises = Array.isArray(args.exercises)
     ? args.exercises
-        .filter((e) => e && typeof e.name === 'string' && e.name.trim())
-        .map((e) => ({
+        .filter((e: Record<string, unknown>) => e && typeof e.name === 'string' && (e.name as string).trim())
+        .map((e: Record<string, unknown>) => ({
           name: String(e.name).trim(),
           sets: Math.max(0, Number(e.sets) || 0),
           reps: Math.max(0, Number(e.reps) || 0),
@@ -245,21 +244,21 @@ function buildAddWorkout(args, ctx) {
   };
 }
 
-function buildEditWorkout(args) {
+function buildEditWorkout(args: Record<string, unknown>) {
   return mapArgs(args, EDIT_WORKOUT_SPEC);
 }
-function buildDeleteWorkout(args) {
+function buildDeleteWorkout(args: Record<string, unknown>) {
   return mapArgs(args, DELETE_WORKOUT_SPEC);
 }
 
-function buildAddSchedule(args, ctx) {
+function buildAddSchedule(args: Record<string, unknown>, ctx: { todayStr: string; timezone?: string }) {
   const todayStr = ctx?.todayStr ?? new Date().toISOString().slice(0, 10);
   const dateStr = parseDate(args.date, todayStr);
   const tz = ctx?.timezone;
   let items = Array.isArray(args.items) ? args.items : [];
   items = items
-    .filter((it) => it && typeof it.title === 'string' && it.title.trim())
-    .map((it) => {
+    .filter((it: Record<string, unknown>) => it && typeof it.title === 'string' && (it.title as string).trim())
+    .map((it: Record<string, unknown>) => {
       const startTime = normTime(it.startTime) ?? '09:00';
       const endTime = normTime(it.endTime) ?? '10:00';
       const itemDate = dateStr;
@@ -289,7 +288,7 @@ function buildAddSchedule(args, ctx) {
   return { items };
 }
 
-async function buildAddFood(args, ctx) {
+async function buildAddFood(args: Record<string, unknown>, ctx: { todayStr: string; timezone?: string }) {
   const food = args.food ? trim(args.food) : '';
   const amount = Number(args.amount);
   const numAmount = Number.isFinite(amount) && amount > 0 ? amount : 100;
@@ -350,14 +349,14 @@ async function buildAddFood(args, ctx) {
   return action;
 }
 
-function buildEditFoodEntry(args) {
+function buildEditFoodEntry(args: Record<string, unknown>) {
   return mapArgs(args, EDIT_FOOD_ENTRY_SPEC);
 }
-function buildDeleteFoodEntry(args) {
+function buildDeleteFoodEntry(args: Record<string, unknown>) {
   return mapArgs(args, DELETE_FOOD_ENTRY_SPEC);
 }
 
-function buildLogSleep(args, ctx) {
+function buildLogSleep(args: Record<string, unknown>, ctx: { todayStr: string; timezone?: string }) {
   const sh = Number(args.sleepHours);
   return {
     sleepHours: Number.isFinite(sh) && sh >= 0 ? sh : 0,
@@ -365,14 +364,14 @@ function buildLogSleep(args, ctx) {
   };
 }
 
-function buildEditCheckIn(args) {
+function buildEditCheckIn(args: Record<string, unknown>) {
   return mapArgs(args, EDIT_CHECK_IN_SPEC);
 }
-function buildDeleteCheckIn(args) {
+function buildDeleteCheckIn(args: Record<string, unknown>) {
   return mapArgs(args, DELETE_CHECK_IN_SPEC);
 }
 
-function buildAddGoal(args) {
+function buildAddGoal(args: Record<string, unknown>) {
   return {
     type: GOAL_TYPES.includes(args.type) ? args.type : 'workouts',
     target: Number.isFinite(Number(args.target)) ? Number(args.target) : 0,
@@ -380,15 +379,15 @@ function buildAddGoal(args) {
   };
 }
 
-function buildEditGoal(args) {
+function buildEditGoal(args: Record<string, unknown>) {
   return mapArgs(args, EDIT_GOAL_SPEC);
 }
-function buildDeleteGoal(args) {
+function buildDeleteGoal(args: Record<string, unknown>) {
   return mapArgs(args, DELETE_GOAL_SPEC);
 }
 
 /** Handlers return { merge } or { items }. All invoked via Promise.resolve for uniform async/sync. Exported for Live API tool execution. */
-export const HANDLERS = {
+export const HANDLERS: Record<string, (args: Record<string, unknown>, ctx: { todayStr: string; timezone?: string }) => Promise<{ merge?: Record<string, unknown>; items?: unknown[] }>> = {
   add_schedule: (args, ctx) => Promise.resolve(buildAddSchedule(args, ctx)),
   edit_schedule: (args, _ctx) => Promise.resolve({ merge: buildEditSchedule(args) }),
   delete_schedule: (args, _ctx) => Promise.resolve({ merge: buildDeleteSchedule(args) }),
@@ -410,7 +409,7 @@ export const HANDLERS = {
 };
 
 /** True if transcript looks like a short food/drink phrase (no clear sleep/schedule/time patterns). */
-function transcriptLooksLikeFood(text) {
+function transcriptLooksLikeFood(text: string) {
   const t = (text || '').trim();
   if (t.length > 80) return false;
   const lower = t.toLowerCase();
@@ -420,7 +419,7 @@ function transcriptLooksLikeFood(text) {
 }
 
 /** When Gemini blocks (safety/empty), treat transcript as add_food only if it looks like food; else return unknown and log error. */
-function fallbackAddFoodFromTranscript(transcript, todayStr) {
+function fallbackAddFoodFromTranscript(transcript: string, todayStr: string) {
   const name = (transcript || '').trim() || 'Unknown';
   return {
     actions: [
@@ -440,7 +439,7 @@ function fallbackAddFoodFromTranscript(transcript, todayStr) {
   };
 }
 
-async function fallbackOrUnknown(transcript, todayStr, reason, userId) {
+async function fallbackOrUnknown(transcript: string, todayStr: string, reason: string, userId: string | null) {
   if (transcriptLooksLikeFood(transcript)) {
     return fallbackAddFoodFromTranscript(transcript, todayStr);
   }
@@ -450,7 +449,7 @@ async function fallbackOrUnknown(transcript, todayStr, reason, userId) {
 
 /** Shared Gemini model initialization with safety settings. */
 function getGeminiModel() {
-  const genAI = new GoogleGenerativeAI(config.geminiApiKey);
+  const genAI = new GoogleGenerativeAI(config.geminiApiKey!);
   const safetySettings = [
     { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
     { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
@@ -461,9 +460,9 @@ function getGeminiModel() {
 }
 
 /** Shared logic for processing Gemini response into actions. */
-async function processGeminiResponse(response, ctx) {
+async function processGeminiResponse(response: { functionCalls?: () => Array<{ name: string; args?: Record<string, unknown> }> }, ctx: { todayStr: string; timezone?: string }) {
   const functionCalls = response.functionCalls?.() ?? [];
-  const actions = [];
+  const actions: Record<string, unknown>[] = [];
 
   for (const fc of functionCalls) {
     const name = fc.name;
@@ -527,7 +526,7 @@ export async function parseTranscript(text: string, lang = 'auto', userId: strin
     });
   } catch (e) {
     logger.error({ err: e }, 'Gemini voice parse blocked or error');
-    return fallbackOrUnknown(text, todayStr, e?.message ?? String(e), userId);
+    return fallbackOrUnknown(text, todayStr, (e as Error)?.message ?? String(e), userId);
   }
 
   const response = result.response;
@@ -539,7 +538,7 @@ export async function parseTranscript(text: string, lang = 'auto', userId: strin
   const { actions } = await processGeminiResponse(response, ctx);
 
   if (config.voiceExecuteOnServer && userId) {
-    const results = await executeActions(actions, userId);
+    const results = await executeActions(actions as { intent: string; [key: string]: unknown }[], userId);
     return { results, actions };
   }
   return { actions };
@@ -575,7 +574,7 @@ export async function parseAudio(audioBase64: string, mimeType: string, userId: 
     });
   } catch (e) {
     logger.error({ err: e }, 'Gemini voice parse audio blocked or error');
-    await logError('Voice: audio parse failed', { reason: e?.message ?? String(e) }, userId);
+    await logError('Voice: audio parse failed', { reason: (e as Error)?.message ?? String(e) }, userId);
     return { actions: [{ intent: 'unknown' }] };
   }
 
@@ -588,7 +587,7 @@ export async function parseAudio(audioBase64: string, mimeType: string, userId: 
   const { actions } = await processGeminiResponse(response, ctx);
 
   if (config.voiceExecuteOnServer && userId) {
-    const results = await executeActions(actions, userId);
+    const results = await executeActions(actions as { intent: string; [key: string]: unknown }[], userId);
     return { results, actions };
   }
   return { actions };

@@ -12,11 +12,11 @@ import { upsertEmbedding, buildEmbeddingText, deleteEmbedding } from './embeddin
 
 const TYPE_ERROR = 'type must be one of: ' + WORKOUT_TYPES.join(', ');
 
-export async function list(userId) {
+export async function list(userId: string) {
   return workoutModel.findByUserId(userId);
 }
 
-export async function create(userId, body) {
+export async function create(userId: string, body: Record<string, unknown>) {
   const { date, title, type, durationMinutes, exercises, notes } = body ?? {};
   const validType = normOneOf(type, WORKOUT_TYPES, { errorMessage: TYPE_ERROR });
   const workout = await workoutModel.create({
@@ -33,13 +33,13 @@ export async function create(userId, body) {
   return workout;
 }
 
-export async function update(userId, id, body) {
+export async function update(userId: string, id: string, body: Record<string, unknown>) {
   requireId(id);
   const updates = buildUpdates(body ?? {}, {
-    date: (v) => parseDate(v),
+    date: (v: unknown) => parseDate(v),
     title: trim,
-    type: (v) => normOneOf(v, WORKOUT_TYPES, { errorMessage: TYPE_ERROR }),
-    durationMinutes: (v) => requirePositiveNumber(v, 'durationMinutes'),
+    type: (v: unknown) => normOneOf(v, WORKOUT_TYPES, { errorMessage: TYPE_ERROR }),
+    durationMinutes: (v: unknown) => requirePositiveNumber(v, 'durationMinutes'),
     exercises: identity,
     notes: identity,
   });
@@ -50,7 +50,7 @@ export async function update(userId, id, body) {
   return updated;
 }
 
-export async function remove(userId, id) {
+export async function remove(userId: string, id: string) {
   requireId(id);
   const deleted = await workoutModel.deleteById(id, userId);
   requireFound(deleted, 'Workout');

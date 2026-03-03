@@ -2,10 +2,11 @@
  * Authentication middleware.
  */
 import jwt from 'jsonwebtoken';
+import { Request, Response, NextFunction } from 'express';
 import { config } from '../config/index.js';
 import { getPool } from '../db/pool.js';
 
-export function requireAuth(req, res, next) {
+export function requireAuth(req: Request, res: Response, next: NextFunction) {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return res.status(401).json({ error: 'Missing or invalid Authorization header' });
@@ -19,11 +20,11 @@ export function requireAuth(req, res, next) {
   }
 
   try {
-    const payload = jwt.verify(token, config.jwtSecret) as { sub?: string; email?: string; role?: string };
+    const payload = jwt.verify(token, config.jwtSecret!) as { sub?: string; email?: string; role?: string };
     req.user = {
-      id: payload.sub,
-      email: payload.email,
-      role: payload.role,
+      id: payload.sub!,
+      email: payload.email!,
+      role: payload.role!,
     };
     next();
   } catch (e) {
@@ -31,7 +32,7 @@ export function requireAuth(req, res, next) {
   }
 }
 
-export function requireAdmin(req, res, next) {
+export function requireAdmin(req: Request, res: Response, next: NextFunction) {
   if (!req.user) {
     return res.status(401).json({ error: 'Authentication required' });
   }
@@ -45,18 +46,18 @@ export function requireAdmin(req, res, next) {
  * Synchronous version for backwards compatibility. Prefer getEffectiveUserIdAsync in controllers
  * when admin userId override may be used, so the target user can be validated.
  */
-export function getEffectiveUserId(req) {
-  return req.effectiveUserId != null ? req.effectiveUserId : req.user.id;
+export function getEffectiveUserId(req: Request): string {
+  return req.effectiveUserId != null ? req.effectiveUserId : req.user!.id;
 }
 
 /**
  * Resolve effective user id (self or admin override). When admin passes userId, validates that
  * the user exists. Call this after requireAuth and set req.effectiveUserId before controllers run.
  */
-export async function resolveEffectiveUserId(req, res, next) {
+export async function resolveEffectiveUserId(req: Request, res: Response, next: NextFunction) {
   const adminUserId = req.query.userId || req.body?.userId;
-  if (req.user.role !== 'admin' || !adminUserId) {
-    req.effectiveUserId = req.user.id;
+  if (req.user!.role !== 'admin' || !adminUserId) {
+    req.effectiveUserId = req.user!.id;
     return next();
   }
   try {

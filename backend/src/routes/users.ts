@@ -2,7 +2,7 @@
  * User admin routes. Require auth + admin.
  */
 import bcrypt from 'bcrypt';
-import { Router } from 'express';
+import { Router, Request, Response } from 'express';
 import { getPool } from '../db/index.js';
 import { requireAuth, requireAdmin } from '../middleware/auth.js';
 import { logAction } from '../services/appLog.js';
@@ -10,7 +10,7 @@ import { logger } from '../lib/logger.js';
 
 const SALT_ROUNDS = 10;
 
-function rowToUser(row) {
+function rowToUser(row: Record<string, any>) {
   return {
     id: row.id,
     email: row.email,
@@ -27,9 +27,9 @@ async function listUsers(req, res) {
       'SELECT id, email, name, role, created_at FROM users ORDER BY created_at ASC'
     );
     res.json(result.rows.map(rowToUser));
-  } catch (e) {
+  } catch (e: unknown) {
     logger.error({ err: e }, 'list users error');
-    res.status(500).json({ error: e?.message ?? 'Could not list users. Please try again.' });
+    res.status(500).json({ error: (e instanceof Error ? e.message : undefined) ?? 'Could not list users. Please try again.' });
   }
 }
 
@@ -57,14 +57,15 @@ async function createUser(req, res) {
        RETURNING id, email, name, role, created_at`,
       [email.trim().toLowerCase(), password_hash, name.trim(), r]
     );
-    await logAction('User created', { email: result.rows[0].email, role: r }, req.user.id);
+    await logAction('User created', { email: result.rows[0].email, role: r }, req.user!.id);
     res.status(201).json(rowToUser(result.rows[0]));
-  } catch (e) {
-    if (e.code === '23505') {
+  } catch (e: unknown) {
+    const err = e as Record<string, unknown>;
+    if (err.code === '23505') {
       return res.status(409).json({ error: 'Email already registered' });
     }
     logger.error({ err: e }, 'create user error');
-    res.status(500).json({ error: e?.message ?? 'Could not create user. Please try again.' });
+    res.status(500).json({ error: (e instanceof Error ? e.message : undefined) ?? 'Could not create user. Please try again.' });
   }
 }
 
@@ -74,8 +75,8 @@ async function updateUser(req, res) {
     const { name, role, password } = req.body ?? {};
     if (!id) return res.status(400).json({ error: 'id is required' });
     const pool = getPool();
-    const updates = [];
-    const values = [];
+    const updates: string[] = [];
+    const values: (string | number)[] = [];
     let i = 1;
     if (name !== undefined) { updates.push(`name = $${i}`); values.push(typeof name === 'string' ? name.trim() : name); i++; }
     if (role !== undefined) { updates.push(`role = $${i}`); values.push(role === 'admin' ? 'admin' : 'user'); i++; }
@@ -96,11 +97,11 @@ async function updateUser(req, res) {
       values
     );
     if (result.rowCount === 0) return res.status(404).json({ error: 'User not found' });
-    await logAction('User updated', { targetId: id, email: result.rows[0].email, fields: { name: name !== undefined, role: role !== undefined, password: password !== undefined } }, req.user.id);
+    await logAction('User updated', { targetId: id, email: result.rows[0].email, fields: { name: name !== undefined, role: role !== undefined, password: password !== undefined } }, req.user!.id);
     res.json(rowToUser(result.rows[0]));
-  } catch (e) {
+  } catch (e: unknown) {
     logger.error({ err: e }, 'update user error');
-    res.status(500).json({ error: e?.message ?? 'Could not update user. Please try again.' });
+    res.status(500).json({ error: (e instanceof Error ? e.message : undefined) ?? 'Could not update user. Please try again.' });
   }
 }
 
@@ -108,17 +109,17 @@ async function deleteUser(req, res) {
   try {
     const { id } = req.params;
     if (!id) return res.status(400).json({ error: 'id is required' });
-    if (id === req.user.id) {
+    if (id === req.user!.id) {
       return res.status(400).json({ error: 'Cannot delete your own account' });
     }
     const pool = getPool();
     const result = await pool.query('DELETE FROM users WHERE id = $1 RETURNING id, email', [id]);
     if (result.rowCount === 0) return res.status(404).json({ error: 'User not found' });
-    await logAction('User deleted', { targetId: id, targetEmail: result.rows[0].email }, req.user.id);
+    await logAction('User deleted', { targetId: id, targetEmail: result.rows[0].email }, req.user!.id);
     res.status(204).send();
-  } catch (e) {
+  } catch (e: unknown) {
     logger.error({ err: e }, 'delete user error');
-    res.status(500).json({ error: e?.message ?? 'Could not delete user. Please try again.' });
+    res.status(500).json({ error: (e instanceof Error ? e.message : undefined) ?? 'Could not delete user. Please try again.' });
   }
 }
 
@@ -132,11 +133,11 @@ async function deleteUser(req, res) {
 async function getUserActivity(req, res) {
   try {
     const { userId } = req.params;
-    const limit = Math.min(parseInt(req.query.limit ?? '50', 10) || 50, 200);
-    const before = req.query.before;
+    const limit = Math.min(parseInt(String(req.query.limit ?? '50'), 10) || 50, 200);
+    const before = req.query.before as string | undefined;
 
     const pool = getPool();
-    const params = [userId, limit];
+    const params: (string | number)[] = [userId, limit];
     let whereClause = 'WHERE user_id = $1';
     if (before) {
       whereClause += ' AND created_at < $3';
@@ -155,9 +156,9 @@ async function getUserActivity(req, res) {
     const events = result.rows;
     const nextCursor = events.length === limit ? events[events.length - 1].createdAt : null;
     res.json({ events, nextCursor });
-  } catch (e) {
+  } catch (e: unknown) {
     logger.error({ err: e }, 'getUserActivity error');
-    res.status(500).json({ error: e?.message ?? 'Could not get user activity. Please try again.' });
+    res.status(500).json({ error: (e instanceof Error ? e.message : undefined) ?? 'Could not get user activity. Please try again.' });
   }
 }
 

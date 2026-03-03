@@ -7,16 +7,16 @@ import * as foodEntryModel from '../models/foodEntry.js';
 import { publishEvent } from '../events/publish.js';
 import { upsertEmbedding, buildEmbeddingText, deleteEmbedding } from './embeddings.js';
 
-export async function list(userId) {
+export async function list(userId: string) {
   return foodEntryModel.findByUserId(userId);
 }
 
-function optionalTime(v) {
+function optionalTime(v: unknown) {
   if (v == null || typeof v !== 'string') return undefined;
   return normTime(v.trim()) || undefined;
 }
 
-export async function create(userId, body) {
+export async function create(userId: string, body: Record<string, unknown>) {
   const { date, name, calories, protein, carbs, fats, portionAmount, portionUnit, servingType, startTime, endTime } = body ?? {};
   const entry = await foodEntryModel.create({
     userId,
@@ -37,20 +37,20 @@ export async function create(userId, body) {
   return entry;
 }
 
-export async function update(userId, id, body) {
+export async function update(userId: string, id: string, body: Record<string, unknown>) {
   requireId(id);
   const updates = buildUpdates(body ?? {}, {
-    date: (v) => v,
-    name: (v) => v,
-    calories: (v) => validateNonNegative(v, 'calories'),
-    protein: (v) => validateNonNegative(v, 'protein'),
-    carbs: (v) => validateNonNegative(v, 'carbs'),
-    fats: (v) => validateNonNegative(v, 'fats'),
-    portionAmount: (v) => (v != null ? validateNonNegative(v, 'portionAmount') : undefined),
-    portionUnit: (v) => (v != null && typeof v === 'string' ? v.trim() || undefined : undefined),
-    servingType: (v) => (v != null && typeof v === 'string' ? v.trim() || undefined : undefined),
-    startTime: (v) => optionalTime(v),
-    endTime: (v) => optionalTime(v),
+    date: (v: unknown) => v,
+    name: (v: unknown) => v,
+    calories: (v: unknown) => validateNonNegative(v, 'calories'),
+    protein: (v: unknown) => validateNonNegative(v, 'protein'),
+    carbs: (v: unknown) => validateNonNegative(v, 'carbs'),
+    fats: (v: unknown) => validateNonNegative(v, 'fats'),
+    portionAmount: (v: unknown) => (v != null ? validateNonNegative(v, 'portionAmount') : undefined),
+    portionUnit: (v: unknown) => (v != null && typeof v === 'string' ? v.trim() || undefined : undefined),
+    servingType: (v: unknown) => (v != null && typeof v === 'string' ? v.trim() || undefined : undefined),
+    startTime: (v: unknown) => optionalTime(v),
+    endTime: (v: unknown) => optionalTime(v),
   });
   const updated = await foodEntryModel.update(id, userId, updates);
   requireFound(updated, 'Food entry');
@@ -59,7 +59,7 @@ export async function update(userId, id, body) {
   return updated;
 }
 
-export async function remove(userId, id) {
+export async function remove(userId: string, id: string) {
   requireId(id);
   const deleted = await foodEntryModel.deleteById(id, userId);
   requireFound(deleted, 'Food entry');

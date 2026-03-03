@@ -3,16 +3,22 @@
  */
 import { SQSClient, SendMessageCommand, ReceiveMessageCommand, DeleteMessageCommand } from '@aws-sdk/client-sqs';
 import { logger } from '../../lib/logger.js';
+import { EventEnvelope } from '../dispatcher.js';
+
+interface SqsTransportOptions {
+  region: string;
+  queueUrl: string;
+}
 
 /**
- * @param {{ region: string; queueUrl: string }} options
+ * @param {SqsTransportOptions} options
  */
-export function createSqsTransport(options) {
+export function createSqsTransport(options: SqsTransportOptions) {
   const { region, queueUrl } = options;
   const client = new SQSClient({ region });
 
   return {
-    async publish(event) {
+    async publish(event: EventEnvelope) {
       const isFifo = queueUrl.endsWith('.fifo');
       const command = new SendMessageCommand({
         QueueUrl: queueUrl,
@@ -25,7 +31,7 @@ export function createSqsTransport(options) {
       await client.send(command);
     },
 
-    startConsumer(onMessage) {
+    startConsumer(onMessage: (event: EventEnvelope) => Promise<void>) {
       let running = true;
       const poll = async () => {
         while (running) {

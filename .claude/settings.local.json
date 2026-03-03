@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(xargs wc -l)",
+      "Bash(wc -l /d/Downloads/Git/BMe/frontend/src/pages/*.tsx)"
+    ]
+  }
+}

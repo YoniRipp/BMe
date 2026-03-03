@@ -15,7 +15,7 @@ if (process.env.DB_FORCE_IPV4 === 'true' || process.env.DB_FORCE_IPV4 === '1') {
 const { Pool } = pg;
 const dnsPromises = dns.promises;
 
-const CONTEXT_CONFIG_KEYS = {
+const CONTEXT_CONFIG_KEYS: Record<string, string> = {
   money: 'moneyDbUrl',
   schedule: 'scheduleDbUrl',
   body: 'bodyDbUrl',
@@ -23,25 +23,25 @@ const CONTEXT_CONFIG_KEYS = {
   goals: 'goalsDbUrl',
 };
 
-let defaultPool = null;
-const contextPools = new Map();
+let defaultPool: pg.Pool | null = null;
+const contextPools = new Map<string, pg.Pool>();
 
-function getConnectionString(context) {
+function getConnectionString(context: string | null | undefined): string | null {
   if (context && CONTEXT_CONFIG_KEYS[context]) {
-    const url = config[CONTEXT_CONFIG_KEYS[context]] || config.dbUrl;
+    const url = (config as Record<string, unknown>)[CONTEXT_CONFIG_KEYS[context]] as string | undefined || config.dbUrl;
     return url || null;
   }
   return config.dbUrl || null;
 }
 
-const poolMax = Math.max(1, parseInt(process.env.DB_POOL_MAX, 10) || 10);
+const poolMax = Math.max(1, parseInt(process.env.DB_POOL_MAX ?? '10', 10) || 10);
 const sslRejectUnauthorized = process.env.DB_SSL_REJECT_UNAUTHORIZED !== 'false';
 
 /**
  * Resolve hostname to IPv4 address when DB_FORCE_IPV4 is set.
  * Use when your network has no IPv6 connectivity (common on home networks).
  */
-async function resolveToIPv4(connectionString) {
+async function resolveToIPv4(connectionString: string): Promise<string> {
   if (process.env.DB_FORCE_IPV4 !== 'true' && process.env.DB_FORCE_IPV4 !== '1') {
     return connectionString;
   }
@@ -59,18 +59,18 @@ async function resolveToIPv4(connectionString) {
     }
     url.hostname = addrs[0];
     return url.toString();
-  } catch (e) {
+  } catch (e: unknown) {
     try {
       const url = new URL(connectionString.replace(/^postgres:/, 'postgresql:'));
-      logger.warn({ host: url.hostname, err: e?.code }, 'DB resolve4 failed, using hostname');
+      logger.warn({ host: url.hostname, err: (e as { code?: string })?.code }, 'DB resolve4 failed, using hostname');
     } catch {
-      logger.warn({ err: e?.code }, 'DB resolve4 failed');
+      logger.warn({ err: (e as { code?: string })?.code }, 'DB resolve4 failed');
     }
     return connectionString;
   }
 }
 
-function createPool(connectionString) {
+function createPool(connectionString: string): pg.Pool {
   // Strip sslmode/ssl params from URL - they override our ssl config and cause self-signed cert rejection
   const url = new URL(connectionString.replace(/^postgres:/, 'postgresql:'));
   url.searchParams.delete('sslmode');
@@ -117,7 +117,7 @@ export function getPool(context?: string) {
   if (!contextPools.has(context)) {
     contextPools.set(context, createPool(conn));
   }
-  return contextPools.get(context);
+  return contextPools.get(context)!;
 }
 
 export function isDbConfigured() {

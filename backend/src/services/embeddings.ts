@@ -7,7 +7,7 @@ import { config } from '../config/index.js';
 import { getPool } from '../db/pool.js';
 import { logger } from '../lib/logger.js';
 
-const EMBEDDING_MODEL = 'text-embedding-004';
+const EMBEDDING_MODEL = 'text-embedding-005';
 const EMBEDDING_DIM = 768;
 
 function getEmbeddingClient() {
@@ -16,7 +16,7 @@ function getEmbeddingClient() {
 }
 
 /** Generate a single embedding vector for a text string. */
-export async function embed(text) {
+export async function embed(text: string) {
   const model = getEmbeddingClient();
   const result = await model.embedContent(text);
   return result.embedding.values;
@@ -27,7 +27,7 @@ export async function embed(text) {
  * @param {'transaction'|'workout'|'food_entry'|'schedule'} type
  * @param {object} record
  */
-export function buildEmbeddingText(type, record) {
+export function buildEmbeddingText(type: string, record: Record<string, unknown>) {
   switch (type) {
     case 'transaction':
       return [
@@ -47,7 +47,7 @@ export function buildEmbeddingText(type, record) {
         `on ${record.date}`,
         record.notes ?? '',
         Array.isArray(record.exercises)
-          ? record.exercises.map((e) => `${e.name} ${e.sets}x${e.reps}${e.weight ? ` @${e.weight}kg` : ''}`).join(', ')
+          ? (record.exercises as Array<Record<string, unknown>>).map((e: Record<string, unknown>) => `${e.name} ${e.sets}x${e.reps}${e.weight ? ` @${e.weight}kg` : ''}`).join(', ')
           : '',
       ].filter(Boolean).join('. ');
 
@@ -82,7 +82,7 @@ export function buildEmbeddingText(type, record) {
  * @param {string} recordId
  * @param {string} text - Plain-text representation for embedding
  */
-export async function upsertEmbedding(userId, recordType, recordId, text) {
+export async function upsertEmbedding(userId: string, recordType: string, recordId: string, text: string) {
   if (!config.geminiApiKey) return; // gracefully skip when not configured
   const pool = getPool();
   try {
@@ -106,7 +106,7 @@ export async function upsertEmbedding(userId, recordType, recordId, text) {
  * @param {string} recordId
  * @param {'transaction'|'workout'|'food_entry'|'schedule'} recordType
  */
-export async function deleteEmbedding(recordId, recordType) {
+export async function deleteEmbedding(recordId: string, recordType: string) {
   const pool = getPool();
   try {
     await pool.query('DELETE FROM user_embeddings WHERE record_id = $1 AND record_type = $2', [recordId, recordType]);
@@ -122,13 +122,13 @@ export async function deleteEmbedding(recordId, recordType) {
  * @param {{ types?: string[], limit?: number }} options
  * @returns {Promise<Array<{ recordType: string, recordId: string, contentText: string, similarity: number }>>}
  */
-export async function semanticSearch(userId, query, { types = [], limit = 10 } = {}) {
+export async function semanticSearch(userId: string, query: string, { types = [] as string[], limit = 10 }: { types?: string[]; limit?: number } = {}) {
   const pool = getPool();
   const queryVector = await embed(query);
   const vectorLiteral = `[${queryVector.join(',')}]`;
 
   const conditions = ['user_id = $1'];
-  const params = [userId, vectorLiteral, limit];
+  const params: unknown[] = [userId, vectorLiteral, limit];
   let paramIdx = 4;
 
   if (types.length > 0) {
@@ -148,7 +148,7 @@ export async function semanticSearch(userId, query, { types = [], limit = 10 } =
     params
   );
 
-  return result.rows.map((row) => ({
+  return result.rows.map((row: Record<string, unknown>) => ({
     recordType: row.record_type,
     recordId: row.record_id,
     contentText: row.content_text,

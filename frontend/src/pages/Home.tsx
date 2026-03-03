@@ -1,59 +1,42 @@
 import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useSettings } from '@/hooks/useSettings';
-import { useWorkouts } from '@/hooks/useWorkouts';
 import { useEnergy } from '@/hooks/useEnergy';
 import { useSchedule } from '@/hooks/useSchedule';
 import { useGoals } from '@/hooks/useGoals';
-import { DashboardHero } from '@/components/home/DashboardHero';
-import { VoiceMicHero } from '@/components/voice/VoiceMicHero';
+import { DashboardProgressCards } from '@/components/home/DashboardProgressCards';
 import { ScheduleItem } from '@/components/home/ScheduleItem';
 import { ScheduleModal } from '@/components/home/ScheduleModal';
-import { GoalCard } from '@/components/goals/GoalCard';
+import { SleepEditModal } from '@/components/energy/SleepEditModal';
 import { GoalModal } from '@/components/goals/GoalModal';
 import { ConfirmationDialog } from '@/components/shared/ConfirmationDialog';
 import { ContentWithLoading } from '@/components/shared/ContentWithLoading';
 import { SectionHeader } from '@/components/shared/SectionHeader';
 import { Card, CardContent } from '@/components/ui/card';
 import { Plus } from 'lucide-react';
-import { isWithinInterval, format } from 'date-fns';
+import { getGreeting } from '@/lib/utils';
+import { format } from 'date-fns';
 import { isScheduleItemPastUtc, utcScheduleToLocalDateStr } from '@/lib/utils';
-import { getPeriodRange } from '@/lib/dateRanges';
 import { ScheduleItem as ScheduleItemType } from '@/types/schedule';
 import { Goal } from '@/types/goals';
 import { toast } from 'sonner';
 
 export function Home() {
+  const navigate = useNavigate();
   const { settings } = useSettings();
-  const { workouts } = useWorkouts();
-  const { checkIns } = useEnergy();
+  const { checkIns, addCheckIn, updateCheckIn, getCheckInByDate } = useEnergy();
   const { scheduleItems, scheduleLoading, scheduleError, addScheduleItem, updateScheduleItem, deleteScheduleItem } = useSchedule();
-  const { goals, goalsLoading, goalsError, addGoal, updateGoal } = useGoals();
+  const { addGoal, updateGoal } = useGoals();
 
   const [scheduleModalOpen, setScheduleModalOpen] = useState(false);
   const [editingSchedule, setEditingSchedule] = useState<ScheduleItemType | undefined>(undefined);
   const [goalModalOpen, setGoalModalOpen] = useState(false);
   const [editingGoal, setEditingGoal] = useState<Goal | undefined>(undefined);
+  const [sleepModalOpen, setSleepModalOpen] = useState(false);
   const [deleteScheduleConfirmId, setDeleteScheduleConfirmId] = useState<string | null>(null);
 
-  // Memoize date values to prevent unnecessary re-renders
   const todayStr = useMemo(() => format(new Date(), 'yyyy-MM-dd'), []);
   const todayLabel = useMemo(() => format(new Date(), 'MMMM d'), []);
-
-  // Workouts this week (Sunday-Saturday)
-  const { start: weekStart, end: weekEnd } = useMemo(() => getPeriodRange('weekly', new Date()), []);
-  const workoutsThisWeek = useMemo(
-    () => workouts.filter((w) => isWithinInterval(new Date(w.date), { start: weekStart, end: weekEnd })).length,
-    [workouts, weekStart, weekEnd]
-  );
-
-  // Last sleep: most recent check-in by date
-  const lastSleepHours = useMemo(() => {
-    const sorted = [...checkIns].sort(
-      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
-    );
-    const latest = sorted[0];
-    return latest?.sleepHours;
-  }, [checkIns]);
 
   const activeSchedule = useMemo(
     () =>
@@ -68,8 +51,6 @@ export function Home() {
     [scheduleItems, todayStr]
   );
 
-  // New user detection for welcome banner
-  const isNewUser = !scheduleLoading && !goalsLoading && activeSchedule.length === 0 && goals.length === 0;
 
   const handleScheduleSave = async (item: Omit<ScheduleItemType, 'id'>) => {
     try {
@@ -103,34 +84,53 @@ export function Home() {
     setEditingGoal(undefined);
   };
 
-  const handleGoalEdit = (goal: Goal) => {
-    setEditingGoal(goal);
-    setGoalModalOpen(true);
+  const now = useMemo(() => new Date(), []);
+  const todayCheckIn = useMemo(
+    () => getCheckInByDate(now),
+    [getCheckInByDate, checkIns, now]
+  );
+
+  const handleSleepSave = (hours: number) => {
+    if (todayCheckIn) {
+      updateCheckIn(todayCheckIn.id, { sleepHours: hours });
+      toast.success('Sleep updated');
+    } else {
+      addCheckIn({ date: now, sleepHours: hours });
+      toast.success('Sleep logged');
+    }
+    setSleepModalOpen(false);
   };
+
+  const greeting = getGreeting();
 
   return (
     <div className="max-w-6xl mx-auto space-y-8">
-      <DashboardHero
-        workoutsThisWeek={workoutsThisWeek}
-        lastSleepHours={lastSleepHours}
-        energyScore={undefined}
-      />
+      {/* Hero: greeting + date */}
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">{greeting}</h1>
+        <p className="text-muted-foreground mt-0.5">{todayLabel}</p>
+      </div>
 
-      <VoiceMicHero />
-
-      {isNewUser && (
-        <Card className="p-5 border-primary/30 bg-primary/5">
-          <h3 className="font-semibold mb-2">Welcome to BeMe!</h3>
-          <p className="text-sm text-muted-foreground">
-            Get started by adding your daily routine to the schedule, setting a fitness or nutrition goal, or tracking your first expense in the Money tab.
-          </p>
+      <div className="space-y-6 sm:space-y-8">
+        {/* Progress cards (goals) first, under main container */}
+        <Card className="rounded-2xl overflow-hidden bg-gradient-to-br from-card to-muted/30">
+          <CardContent className="p-5 sm:p-6">
+            <SectionHeader title="Goals" subtitle="Today's progress" />
+            <DashboardProgressCards
+              onAddGoal={() => {
+                setEditingGoal(undefined);
+                setGoalModalOpen(true);
+              }}
+              onAddWorkout={() => navigate('/body')}
+              onAddFood={() => navigate('/energy')}
+              onAddSleep={() => setSleepModalOpen(true)}
+            />
+          </CardContent>
         </Card>
-      )}
 
-      {/* Single column: Today's Schedule on top, Goals below */}
-      <div className="space-y-4 sm:space-y-6">
-        <Card>
-          <CardContent className="p-5">
+        {/* Today's Schedule second */}
+        <Card className="rounded-2xl overflow-hidden">
+          <CardContent className="p-5 sm:p-6">
             <SectionHeader
               title="Today's Schedule"
               subtitle={todayLabel}
@@ -139,7 +139,7 @@ export function Home() {
               <div className="space-y-2">
                 {activeSchedule.length === 0 ? (
                   <Card
-                    className="p-8 border-2 border-dashed border-border cursor-pointer hover:border-primary transition-colors text-center"
+                    className="p-8 rounded-xl border-2 border-dashed border-border cursor-pointer hover:border-primary transition-colors text-center"
                     onClick={() => {
                       setEditingSchedule(undefined);
                       setScheduleModalOpen(true);
@@ -162,7 +162,7 @@ export function Home() {
                       />
                     ))}
                     <Card
-                      className="p-6 border-2 border-dashed border-border cursor-pointer hover:border-primary transition-colors text-center bg-muted"
+                      className="p-6 rounded-xl border-2 border-dashed border-border cursor-pointer hover:border-primary transition-colors text-center bg-muted/50"
                       onClick={() => {
                         setEditingSchedule(undefined);
                         setScheduleModalOpen(true);
@@ -170,45 +170,6 @@ export function Home() {
                     >
                       <Plus className="w-8 h-8 mx-auto text-primary" />
                       <p className="text-sm font-medium mt-2 text-muted-foreground">Add another schedule item</p>
-                    </Card>
-                  </>
-                )}
-              </div>
-            </ContentWithLoading>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-5">
-            <SectionHeader title="Goals" subtitle="Track what matters" />
-            <ContentWithLoading loading={goalsLoading} loadingText="Loading goals..." error={goalsError}>
-              <div className="space-y-3">
-                {goals.length === 0 ? (
-                  <Card
-                    className="p-8 border-2 border-dashed border-border cursor-pointer hover:border-primary transition-colors text-center"
-                    onClick={() => {
-                      setEditingGoal(undefined);
-                      setGoalModalOpen(true);
-                    }}
-                  >
-                    <Plus className="w-12 h-12 mx-auto mb-3 text-muted-foreground" />
-                    <p className="text-lg font-medium mb-1">Add your first goal</p>
-                    <p className="text-sm text-muted-foreground">Tap to track your progress</p>
-                  </Card>
-                ) : (
-                  <>
-                    {goals.map((goal) => (
-                      <GoalCard key={goal.id} goal={goal} onEdit={handleGoalEdit} />
-                    ))}
-                    <Card
-                      className="p-6 border-2 border-dashed border-border cursor-pointer hover:border-primary transition-colors text-center bg-muted"
-                      onClick={() => {
-                        setEditingGoal(undefined);
-                        setGoalModalOpen(true);
-                      }}
-                    >
-                      <Plus className="w-8 h-8 mx-auto text-primary" />
-                      <p className="text-sm font-medium mt-2 text-muted-foreground">Add another goal</p>
                     </Card>
                   </>
                 )}
@@ -231,6 +192,13 @@ export function Home() {
         onOpenChange={setGoalModalOpen}
         onSave={handleGoalSave}
         goal={editingGoal}
+      />
+
+      <SleepEditModal
+        open={sleepModalOpen}
+        onOpenChange={setSleepModalOpen}
+        onSave={handleSleepSave}
+        currentHours={todayCheckIn?.sleepHours}
       />
 
       <ConfirmationDialog

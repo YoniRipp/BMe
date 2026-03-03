@@ -12,6 +12,7 @@ export interface EventEnvelope {
     timestamp: string;
     correlationId?: string;
     causationId?: string;
+    version?: number;
   };
 }
 

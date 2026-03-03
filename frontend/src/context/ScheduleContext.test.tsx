@@ -132,13 +132,11 @@ describe('ScheduleContext', () => {
     expect(item?.title).toBe('Test Schedule');
   });
 
-  it('throws error when used outside provider', () => {
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-
-    expect(() => {
-      renderHook(() => useSchedule());
-    }).toThrow('useSchedule must be used within ScheduleProvider');
-
-    consoleSpy.mockRestore();
+  it('works without a context provider (uses React Query directly)', () => {
+    const simpleWrapper = ({ children }: { children: React.ReactNode }) => (
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    );
+    const { result } = renderHook(() => useSchedule(), { wrapper: simpleWrapper });
+    expect(result.current.scheduleItems).toBeDefined();
   });
 });

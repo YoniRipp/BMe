@@ -42,7 +42,7 @@ export async function createApp() {
   if (config.isRedisConfigured) {
     const client = await getRedisClient();
     const redisStoreConfig = {
-      sendCommand: (...args) => client.sendCommand(args),
+      sendCommand: (...args: string[]) => client.sendCommand(args) as any,
     };
     apiLimiter = rateLimit({
       ...apiLimiterBase,

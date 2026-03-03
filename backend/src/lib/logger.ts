@@ -10,6 +10,6 @@ export const logger = pino({
 });
 
 /** Create a child logger with a module name for filtering. */
-export function createModuleLogger(module) {
+export function createModuleLogger(module: string) {
   return logger.child({ module });
 }

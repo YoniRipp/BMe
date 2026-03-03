@@ -44,7 +44,7 @@ const GeminiFoodSchema = z.object({
     .optional(),
 });
 
-function extractJson(text) {
+function extractJson(text: unknown) {
   if (!text || typeof text !== 'string') return null;
   const trimmed = text.trim();
   const stripped = trimmed.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
@@ -66,7 +66,7 @@ function extractJson(text) {
 /**
  * Check if a similar-named food already exists to avoid duplicates.
  */
-async function findExistingByName(pool, name) {
+async function findExistingByName(pool: { query: (sql: string, params: unknown[]) => Promise<{ rows: Record<string, unknown>[] }> }, name: string) {
   const normalized = name.toLowerCase().trim().replace(/\s+/g, ' ');
   const result = await pool.query(
     `SELECT id, name, calories, protein, carbs, fat, is_liquid, serving_sizes_ml
@@ -85,7 +85,7 @@ async function findExistingByName(pool, name) {
  * @param {{ liquidHint?: boolean }} [options]
  * @returns {Promise<{ id: string, name: string, calories: number, protein: number, carbs: number, fat: number, is_liquid: boolean, serving_sizes_ml: object | null } | null>}
  */
-export async function lookupAndCreateFood(pool, foodName, options = {}) {
+export async function lookupAndCreateFood(pool: { query: (sql: string, params: unknown[]) => Promise<{ rows: Record<string, unknown>[] }> }, foodName: string, options: { liquidHint?: boolean } = {}) {
   const name = typeof foodName === 'string' ? foodName.trim() : '';
   if (!name) return null;
   if (!config.geminiApiKey) return null;
@@ -106,7 +106,7 @@ export async function lookupAndCreateFood(pool, foodName, options = {}) {
     const response = result.response;
     if (!response || !response.text) return null;
     text = response.text();
-  } catch (e) {
+  } catch (e: unknown) {
     logger.error({ err: e }, 'foodLookupGemini generateContent');
     return null;
   }

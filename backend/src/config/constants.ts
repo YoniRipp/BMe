@@ -13,6 +13,6 @@ export const TRANSACTION_CATEGORIES = {
 
 export const WORKOUT_TYPES = ['strength', 'cardio', 'flexibility', 'sports'];
 
-export const GOAL_TYPES = ['calories', 'workouts', 'savings'];
+export const GOAL_TYPES = ['calories', 'workouts', 'savings', 'sleep'];
 
 export const GOAL_PERIODS = ['daily', 'weekly', 'monthly', 'yearly'];

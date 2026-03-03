@@ -53,16 +53,17 @@ const wrapper = ({ children }: { children: React.ReactNode }) => (
 );
 
 describe('TopBar', () => {
-  it('renders sign out button', () => {
+  it('renders user menu trigger', () => {
     render(<TopBar />, { wrapper });
-    expect(screen.getByRole('button', { name: /sign out/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /open user menu/i })).toBeInTheDocument();
   });
 
-  it('clicking Sign out calls logout', async () => {
+  it('clicking Sign out in user menu calls logout', async () => {
     const user = userEvent.setup();
     render(<TopBar />, { wrapper });
 
-    await user.click(screen.getByRole('button', { name: /sign out/i }));
+    await user.click(screen.getByRole('button', { name: /open user menu/i }));
+    await user.click(screen.getByRole('menuitem', { name: /sign out/i }));
 
     expect(mockLogout).toHaveBeenCalled();
   });

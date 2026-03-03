@@ -9,7 +9,7 @@ import * as userActivityLog from '../models/userActivityLog.js';
 
 const router = Router();
 
-function rowToUser(row) {
+function rowToUser(row: Record<string, any>) {
   return {
     id: row.id,
     email: row.email,
@@ -44,8 +44,8 @@ router.get('/api/admin/activity', requireAuth, requireAdmin, async (req, res, ne
       eventType: typeof eventType === 'string' ? eventType : undefined,
     });
     res.json(result);
-  } catch (e) {
-    if (e.message?.includes('required') || e.message?.includes('range') || e.message?.includes('exceed')) {
+  } catch (e: unknown) {
+    if (e instanceof Error && (e.message?.includes('required') || e.message?.includes('range') || e.message?.includes('exceed'))) {
       return res.status(400).json({ error: e.message });
     }
     next(e);

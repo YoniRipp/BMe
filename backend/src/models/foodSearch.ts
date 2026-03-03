@@ -1,28 +1,29 @@
 /**
  * Food search model — foods table lookup (name, calories, protein, carbs, fat).
  */
+import { Pool } from 'pg';
 import { getPool } from '../db/pool.js';
 
 const REFERENCE_GRAMS = 100;
 
 /** Escape LIKE wildcards (% and _) so they are matched literally. */
-function escapeLike(s) {
+function escapeLike(s: string): string {
   return String(s)
     .replace(/\\/g, '\\\\')
-    .replace(/%/g, '\\%')
-    .replace(/_/g, '\\_');
+    .replace(/%/g, '\%')
+    .replace(/_/g, '\_');
 }
 
 /** Use "uncooked" consistently (not "raw") for display. */
-function normalizePreparationName(name, preparation) {
+function normalizePreparationName(name: string, preparation: string | null | undefined): string {
   if (!name || typeof name !== 'string') return name;
   const prep = (preparation || 'cooked').toLowerCase();
   if (prep === 'uncooked') return name.replace(/\braw\b/gi, 'uncooked');
   return name;
 }
 
-function rowToResult(row) {
-  const name = normalizePreparationName(row.name, row.preparation);
+function rowToResult(row: Record<string, unknown>) {
+  const name = normalizePreparationName(row.name as string, row.preparation as string | null);
   return {
     name,
     calories: Number(row.calories),
@@ -31,18 +32,18 @@ function rowToResult(row) {
     fat: Number(row.fat),
     referenceGrams: REFERENCE_GRAMS,
     isLiquid: Boolean(row.is_liquid),
-    servingSizesMl: row.serving_sizes_ml ?? null,
-    preparation: row.preparation ?? 'cooked',
+    servingSizesMl: (row.serving_sizes_ml as unknown) ?? null,
+    preparation: (row.preparation as string) ?? 'cooked',
   };
 }
 
 /** Approximate grams per unit for countable/portion items (e.g. eggs, bananas). */
-const PORTION_GRAMS = {
+const PORTION_GRAMS: Record<string, number> = {
   egg: 50, eggs: 50, banana: 120, bananas: 120, apple: 180, apples: 180,
   slice: 30, slices: 30, piece: 50, pieces: 50, serving: 100, servings: 100,
 };
 
-export function unitToGrams(amount, unit) {
+export function unitToGrams(amount: number | string, unit: string | null | undefined): number {
   const u = (unit || 'g').toLowerCase().replace(/\s+/g, '');
   const n = Number(amount);
   const num = Number.isFinite(n) && n > 0 ? n : 100;
@@ -58,7 +59,7 @@ export function unitToGrams(amount, unit) {
  * Look up one food by name and return scaled nutrition.
  * preferUncooked: when true, prefer rows with preparation = 'uncooked' (e.g. "uncooked rice").
  */
-export async function getNutritionForFoodName(pool, foodName, amount, unit, preferUncooked = false) {
+export async function getNutritionForFoodName(pool: Pool, foodName: string, amount: number | string, unit: string | null | undefined, preferUncooked = false) {
   const name = typeof foodName === 'string' ? foodName.trim() : '';
   if (!name) return null;
   const wantPrep = preferUncooked ? 'uncooked' : 'cooked';
@@ -85,7 +86,7 @@ export async function getNutritionForFoodName(pool, foodName, amount, unit, pref
   };
 }
 
-export async function search(q, limit = 10) {
+export async function search(q: string, limit = 10) {
   const pool = getPool();
   const result = await pool.query(
     `SELECT id, name, calories, protein, carbs, fat, is_liquid, serving_sizes_ml, preparation

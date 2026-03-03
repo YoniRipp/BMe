@@ -10,11 +10,11 @@ import { publishEvent } from '../events/publish.js';
 const TYPE_ERROR = 'type must be one of: ' + GOAL_TYPES.join(', ');
 const PERIOD_ERROR = 'period must be one of: ' + GOAL_PERIODS.join(', ');
 
-export async function list(userId) {
+export async function list(userId: string) {
   return goalModel.findByUserId(userId);
 }
 
-export async function create(userId, body) {
+export async function create(userId: string, body: Record<string, unknown>) {
   const { type, target, period } = body ?? {};
   normOneOf(type, GOAL_TYPES, { errorMessage: TYPE_ERROR });
   normOneOf(period, GOAL_PERIODS, { errorMessage: PERIOD_ERROR });
@@ -28,12 +28,12 @@ export async function create(userId, body) {
   return goal;
 }
 
-export async function update(userId, id, body) {
+export async function update(userId: string, id: string, body: Record<string, unknown>) {
   requireId(id);
   const updates = buildUpdates(body ?? {}, {
-    type: (v) => normOneOf(v, GOAL_TYPES, { errorMessage: TYPE_ERROR }),
-    period: (v) => normOneOf(v, GOAL_PERIODS, { errorMessage: PERIOD_ERROR }),
-    target: (v) => validateNonNegative(v, 'target'),
+    type: (v: unknown) => normOneOf(v, GOAL_TYPES, { errorMessage: TYPE_ERROR }),
+    period: (v: unknown) => normOneOf(v, GOAL_PERIODS, { errorMessage: PERIOD_ERROR }),
+    target: (v: unknown) => validateNonNegative(v, 'target'),
   });
   const updated = await goalModel.update(id, userId, updates);
   requireFound(updated, 'Goal');
@@ -41,7 +41,7 @@ export async function update(userId, id, body) {
   return updated;
 }
 
-export async function remove(userId, id) {
+export async function remove(userId: string, id: string) {
   requireId(id);
   const deleted = await goalModel.deleteById(id, userId);
   requireFound(deleted, 'Goal');

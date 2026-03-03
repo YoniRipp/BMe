@@ -4,6 +4,7 @@
  */
 import { getPool } from '../db/pool.js';
 import { NotFoundError, ForbiddenError, ConflictError } from '../errors.js';
+type QueryParam = string | number | boolean | null | undefined;
 
 function toISO(val) {
   if (!val) return undefined;
@@ -189,8 +190,8 @@ export async function update(id, userId, updates) {
   const pool = getPool();
   const admin = await isAdmin(pool, id, userId);
   if (!admin) throw new ForbiddenError('Only group admins can update the group');
-  const setClauses = [];
-  const values = [];
+  const setClauses: string[] = [];
+  const values: QueryParam[] = [];
   let i = 1;
   if (updates.name !== undefined) {
     setClauses.push(`name = $${i++}`);

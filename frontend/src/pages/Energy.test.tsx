@@ -4,7 +4,6 @@ import userEvent from '@testing-library/user-event';
 import { BrowserRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Energy } from './Energy';
-import { EnergyProvider } from '@/context/EnergyContext';
 import { AppProvider } from '@/context/AppContext';
 
 vi.mock('@/context/AuthContext', () => ({
@@ -27,9 +26,7 @@ const wrapper = ({ children }: { children: React.ReactNode }) => (
   <BrowserRouter>
     <QueryClientProvider client={queryClient}>
       <AppProvider>
-        <EnergyProvider>
-          {children}
-        </EnergyProvider>
+        {children}
       </AppProvider>
     </QueryClientProvider>
   </BrowserRouter>

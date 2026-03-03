@@ -1,6 +1,7 @@
 /**
  * Food search controller. No auth required.
  */
+import { Request, Response } from 'express';
 import { asyncHandler } from '../middleware/errorHandler.js';
 import { config } from '../config/index.js';
 import { getPool } from '../db/index.js';
@@ -12,22 +13,24 @@ import { sendError } from '../utils/response.js';
 
 const FOOD_SEARCH_CACHE_TTL_SEC = 3600;
 
-export const search = asyncHandler(async (req, res) => {
+export const search = asyncHandler(async (req: Request, res: Response) => {
   if (!config.isDbConfigured) {
     return res.status(503).json({ error: 'Food search is not configured (missing DATABASE_URL)' });
   }
   const q = typeof req.query?.q === 'string' ? req.query.q.trim() : '';
-  const limit = Math.min(Math.max(1, parseInt(req.query?.limit, 10) || 10), 25);
+  const limit = Math.min(Math.max(1, parseInt(req.query?.limit as string, 10) || 10), 25);
   if (!q) {
     return sendJson(res, []);
   }
 
   if (config.isRedisConfigured) {
     const redis = await getRedisClient();
-    const cacheKey = `food:search:${encodeURIComponent(q)}:${limit}`;
-    const cached = await redis.get(cacheKey);
-    if (cached) {
-      return sendJson(res, JSON.parse(cached));
+    if (redis) {
+      const cacheKey = `food:search:${encodeURIComponent(q)}:${limit}`;
+      const cached = await redis.get(cacheKey);
+      if (cached) {
+        return sendJson(res, JSON.parse(cached));
+      }
     }
   }
 
@@ -35,14 +38,16 @@ export const search = asyncHandler(async (req, res) => {
 
   if (config.isRedisConfigured) {
     const redis = await getRedisClient();
-    const cacheKey = `food:search:${encodeURIComponent(q)}:${limit}`;
-    await redis.setEx(cacheKey, FOOD_SEARCH_CACHE_TTL_SEC, JSON.stringify(results));
+    if (redis) {
+      const cacheKey = `food:search:${encodeURIComponent(q)}:${limit}`;
+      await redis.setEx(cacheKey, FOOD_SEARCH_CACHE_TTL_SEC, JSON.stringify(results));
+    }
   }
 
   sendJson(res, results);
 });
 
-export const lookupOrCreate = asyncHandler(async (req, res) => {
+export const lookupOrCreate = asyncHandler(async (req: Request, res: Response) => {
   if (!config.isDbConfigured) {
     return sendError(res, 503, 'Food lookup is not configured (missing DATABASE_URL)');
   }

@@ -5,12 +5,13 @@
  * and cache 2xx responses for 24h.
  * Uses Redis when REDIS_URL is set; in-memory otherwise.
  */
+import { Request, Response, NextFunction } from 'express';
 import { kvGet, kvSet } from '../lib/keyValueStore.js';
 
 const TTL_MS = 24 * 60 * 60 * 1000;
 const KEY_PREFIX = 'idempotency:';
 
-function getKey(req) {
+function getKey(req: Request): string | null {
   const header = req.get('X-Idempotency-Key');
   if (header && typeof header === 'string' && header.trim()) return header.trim();
   const body = req.body && req.body.idempotencyKey;
@@ -23,7 +24,7 @@ function getKey(req) {
  * X-Idempotency-Key header or body.idempotencyKey; returns cached response
  * if key was used before within TTL.
  */
-export async function idempotencyMiddleware(req, res, next) {
+export async function idempotencyMiddleware(req: Request, res: Response, next: NextFunction) {
   const key = getKey(req);
   if (!key) return next();
 
@@ -41,7 +42,7 @@ export async function idempotencyMiddleware(req, res, next) {
   }
 
   const originalJson = res.json.bind(res);
-  res.json = function (body) {
+  res.json = function (body: unknown) {
     if (res.statusCode >= 200 && res.statusCode < 300) {
       kvSet(storeKey, JSON.stringify({ statusCode: res.statusCode, body }), TTL_MS).catch(() => {});
     }

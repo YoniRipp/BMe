@@ -34,7 +34,9 @@ export async function kvGet(key: string): Promise<string | null> {
   if (config.isRedisConfigured) {
     try {
       const redis = await getRedisClient();
-      return await redis.get(key);
+      if (redis) {
+        return await redis.get(key);
+      }
     } catch (e) {
       logger.warn({ err: e }, 'Redis get failed, falling back to memory');
       // Fall through to memory
@@ -53,13 +55,15 @@ export async function kvSet(key: string, value: string, ttlMs?: number): Promise
   if (config.isRedisConfigured) {
     try {
       const redis = await getRedisClient();
-      const ttlSec = ttlMs != null ? Math.ceil(ttlMs / 1000) : undefined;
-      if (ttlSec != null) {
-        await redis.setEx(key, ttlSec, value);
-      } else {
-        await redis.set(key, value);
+      if (redis) {
+        const ttlSec = ttlMs != null ? Math.ceil(ttlMs / 1000) : undefined;
+        if (ttlSec != null) {
+          await redis.setEx(key, ttlSec, value);
+        } else {
+          await redis.set(key, value);
+        }
+        return;
       }
-      return;
     } catch (e) {
       logger.warn({ err: e }, 'Redis set failed, falling back to memory');
     }
@@ -73,8 +77,10 @@ export async function kvDelete(key: string): Promise<void> {
   if (config.isRedisConfigured) {
     try {
       const redis = await getRedisClient();
-      await redis.del(key);
-      return;
+      if (redis) {
+        await redis.del(key);
+        return;
+      }
     } catch (e) {
       logger.warn({ err: e }, 'Redis del failed');
     }

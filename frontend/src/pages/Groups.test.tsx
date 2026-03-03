@@ -4,7 +4,6 @@ import userEvent from '@testing-library/user-event';
 import { BrowserRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Groups } from './Groups';
-import { GroupProvider } from '@/context/GroupContext';
 import { AppProvider } from '@/context/AppContext';
 
 vi.mock('@/context/AuthContext', () => ({
@@ -25,9 +24,7 @@ const wrapper = ({ children }: { children: React.ReactNode }) => (
   <BrowserRouter>
     <QueryClientProvider client={queryClient}>
       <AppProvider>
-        <GroupProvider>
-          {children}
-        </GroupProvider>
+        {children}
       </AppProvider>
     </QueryClientProvider>
   </BrowserRouter>
@@ -47,10 +44,10 @@ describe('Groups Page', () => {
   it('opens create group modal when new group button is clicked', async () => {
     const user = userEvent.setup();
     render(<Groups />, { wrapper });
-    
+
     const newGroupButton = screen.getByText(/new group/i);
     await user.click(newGroupButton);
-    
+
     await waitFor(() => {
       expect(screen.getByText(/create group/i)).toBeInTheDocument();
     });

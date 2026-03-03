@@ -92,13 +92,11 @@ describe('GoalsContext', () => {
     await waitFor(() => expect(mockDelete).toHaveBeenCalledWith('test-id'));
   });
 
-  it('throws error when used outside provider', () => {
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-
-    expect(() => {
-      renderHook(() => useGoals());
-    }).toThrow('useGoals must be used within GoalsProvider');
-
-    consoleSpy.mockRestore();
+  it('works without a context provider (uses React Query directly)', () => {
+    const simpleWrapper = ({ children }: { children: React.ReactNode }) => (
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    );
+    const { result } = renderHook(() => useGoals(), { wrapper: simpleWrapper });
+    expect(result.current.goals).toBeDefined();
   });
 });

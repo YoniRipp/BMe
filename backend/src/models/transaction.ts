@@ -3,13 +3,15 @@
  */
 import { getPool } from '../db/pool.js';
 
-function rowToTransaction(row) {
+type QueryParam = string | number | boolean | null | undefined;
+
+function rowToTransaction(row: Record<string, unknown>) {
   return {
     id: row.id,
     date: row.date,
     type: row.type,
     amount: Number(row.amount),
-    currency: row.currency ?? 'USD',
+    currency: (row.currency as string) ?? 'USD',
     category: row.category,
     description: row.description ?? undefined,
     isRecurring: row.is_recurring,
@@ -50,10 +52,10 @@ export async function findByUserId(
   return { items: result.rows.map(rowToTransaction), total };
 }
 
-export async function create(params) {
+export async function create(params: Record<string, unknown>) {
   const pool = getPool('money');
   const { userId, date, type, amount, currency, category, description, isRecurring, groupId } = params;
-  const d = date ? new Date(date) : new Date();
+  const d = date ? new Date(date as string) : new Date();
   const curr = currency && String(currency).length === 3 ? String(currency).toUpperCase() : 'USD';
   const result = await pool.query(
     `INSERT INTO transactions (date, type, amount, currency, category, description, is_recurring, group_id, user_id)
@@ -64,18 +66,18 @@ export async function create(params) {
   return rowToTransaction(result.rows[0]);
 }
 
-export async function update(id, userId, updates) {
+export async function update(id: string, userId: string, updates: Record<string, unknown>) {
   const pool = getPool('money');
-  const entries = [];
-  const values = [];
+  const entries: string[] = [];
+  const values: QueryParam[] = [];
   let i = 1;
-  if (updates.date !== undefined) { entries.push(`date = $${i}::date`); values.push(updates.date); i++; }
-  if (updates.type !== undefined) { entries.push('type = $' + i); values.push(updates.type); i++; }
-  if (updates.amount !== undefined) { entries.push('amount = $' + i); values.push(updates.amount); i++; }
-  if (updates.category !== undefined) { entries.push('category = $' + i); values.push(updates.category); i++; }
-  if (updates.description !== undefined) { entries.push('description = $' + i); values.push(updates.description ?? null); i++; }
+  if (updates.date !== undefined) { entries.push(`date = $${i}::date`); values.push(updates.date as QueryParam); i++; }
+  if (updates.type !== undefined) { entries.push('type = $' + i); values.push(updates.type as QueryParam); i++; }
+  if (updates.amount !== undefined) { entries.push('amount = $' + i); values.push(updates.amount as QueryParam); i++; }
+  if (updates.category !== undefined) { entries.push('category = $' + i); values.push(updates.category as QueryParam); i++; }
+  if (updates.description !== undefined) { entries.push('description = $' + i); values.push((updates.description ?? null) as QueryParam); i++; }
   if (updates.isRecurring !== undefined) { entries.push('is_recurring = $' + i); values.push(!!updates.isRecurring); i++; }
-  if (updates.groupId !== undefined) { entries.push('group_id = $' + i); values.push(updates.groupId ?? null); i++; }
+  if (updates.groupId !== undefined) { entries.push('group_id = $' + i); values.push((updates.groupId ?? null) as QueryParam); i++; }
   if (updates.currency !== undefined) { entries.push('currency = $' + i); values.push(updates.currency && String(updates.currency).length === 3 ? String(updates.currency).toUpperCase() : 'USD'); i++; }
   if (entries.length === 0) return null;
   values.push(id, userId);
@@ -83,19 +85,19 @@ export async function update(id, userId, updates) {
     `UPDATE transactions SET ${entries.join(', ')} WHERE id = $${i} AND user_id = $${i + 1} RETURNING id, date, type, amount, currency, category, description, is_recurring, group_id`,
     values
   );
-  return result.rowCount > 0 ? rowToTransaction(result.rows[0]) : null;
+  return (result.rowCount ?? 0) > 0 ? rowToTransaction(result.rows[0]) : null;
 }
 
-export async function deleteById(id, userId) {
+export async function deleteById(id: string, userId: string) {
   const pool = getPool('money');
   const result = await pool.query('DELETE FROM transactions WHERE id = $1 AND user_id = $2 RETURNING id', [id, userId]);
-  return result.rowCount > 0;
+  return (result.rowCount ?? 0) > 0;
 }
 
-export async function getBalance(userId, month) {
+export async function getBalance(userId: string, month?: string) {
   const pool = getPool('money');
   let query = 'SELECT type, SUM(amount)::numeric AS total FROM transactions WHERE user_id = $1';
-  const params = [userId];
+  const params: string[] = [userId];
   if (month) {
     query += ' AND date >= $2::date AND date < ($2::date + interval \'1 month\')';
     params.push(month);

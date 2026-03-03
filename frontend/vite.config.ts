@@ -138,5 +138,6 @@ export default defineConfig({
         singleFork: true,
       },
     },
+    exclude: ['e2e/**', 'node_modules/**'],
   },
 });

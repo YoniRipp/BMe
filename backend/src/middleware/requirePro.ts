@@ -5,10 +5,11 @@
  * When Stripe is not configured (no STRIPE_SECRET_KEY), all users are
  * allowed through so development works without Stripe keys.
  */
+import { Request, Response, NextFunction } from 'express';
 import { config } from '../config/index.js';
 import { getPool } from '../db/pool.js';
 
-export async function requirePro(req, res, next) {
+export async function requirePro(req: Request, res: Response, next: NextFunction) {
   // When Stripe is not configured, allow all access (dev convenience)
   if (!config.stripeSecretKey) {
     return next();

@@ -4,11 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { GoalCard } from './GoalCard';
 import { Goal } from '@/types/goals';
-import { GoalsProvider } from '@/context/GoalsContext';
 import { AppProvider } from '@/context/AppContext';
-import { TransactionProvider } from '@/context/TransactionContext';
-import { WorkoutProvider } from '@/context/WorkoutContext';
-import { EnergyProvider } from '@/context/EnergyContext';
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
@@ -37,7 +33,7 @@ vi.mock('@/features/goals/useGoalProgress', () => ({
       : { current: 0, target: 2000, percentage: 0 },
 }));
 
-// API mocks for context providers (WorkoutProvider, EnergyProvider, TransactionProvider, GoalsProvider)
+// API mocks for React Query hooks
 vi.mock('@/features/body/api', () => ({
   workoutsApi: {
     list: vi.fn().mockResolvedValue([]),
@@ -79,15 +75,7 @@ const mockGoal: Goal = {
 const wrapper = ({ children }: { children: React.ReactNode }) => (
   <QueryClientProvider client={queryClient}>
     <AppProvider>
-      <TransactionProvider>
-        <WorkoutProvider>
-          <EnergyProvider>
-            <GoalsProvider>
-              {children}
-            </GoalsProvider>
-          </EnergyProvider>
-        </WorkoutProvider>
-      </TransactionProvider>
+      {children}
     </AppProvider>
   </QueryClientProvider>
 );
@@ -114,10 +102,10 @@ describe('GoalCard', () => {
     const onEdit = vi.fn();
     const user = userEvent.setup();
     render(<GoalCard goal={mockGoal} onEdit={onEdit} />, { wrapper });
-    
+
     const editButton = screen.getByText(/edit/i);
     await user.click(editButton);
-    
+
     expect(onEdit).toHaveBeenCalledWith(mockGoal);
   });
 

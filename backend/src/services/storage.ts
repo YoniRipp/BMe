@@ -36,7 +36,7 @@ const ALLOWED_MIME_TYPES = new Set([
  * @param {'avatar'|'workout'|'food'} context - Where the file belongs
  * @returns {Promise<{ uploadUrl: string, fileUrl: string, key: string }>}
  */
-export async function createPresignedUploadUrl(userId, mimeType, context = 'avatar') {
+export async function createPresignedUploadUrl(userId: string, mimeType: string, context: string = 'avatar') {
   if (!ALLOWED_MIME_TYPES.has(mimeType)) {
     throw new Error(`Unsupported file type: ${mimeType}. Allowed: JPEG, PNG, WebP, GIF`);
   }
@@ -64,7 +64,7 @@ export async function createPresignedUploadUrl(userId, mimeType, context = 'avat
  * Delete a file from S3 by its key.
  * @param {string} key
  */
-export async function deleteFile(key) {
+export async function deleteFile(key: string) {
   const s3 = getS3Client();
   await s3.send(new DeleteObjectCommand({ Bucket: config.awsS3Bucket, Key: key }));
 }

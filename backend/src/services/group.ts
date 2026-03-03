@@ -10,24 +10,24 @@ import { logger } from '../lib/logger.js';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-function requireNonEmptyString(val, field) {
+function requireNonEmptyString(val: unknown, field: string) {
   if (val == null || typeof val !== 'string' || !val.trim()) {
     throw new ValidationError(`${field} is required`);
   }
   return val.trim();
 }
 
-export async function list(userId) {
+export async function list(userId: string) {
   return groupModel.findByUserId(userId);
 }
 
-export async function get(id, userId) {
+export async function get(id: string, userId: string) {
   const group = await groupModel.findById(id, userId);
   if (!group) return null;
   return group;
 }
 
-export async function create(userId, body) {
+export async function create(userId: string, body: Record<string, unknown>) {
   const name = requireNonEmptyString(body?.name, 'name');
   const type = requireNonEmptyString(body?.type ?? 'other', 'type');
   const description = body?.description != null ? String(body.description).trim() || undefined : undefined;
@@ -47,53 +47,57 @@ export async function update(id: string, userId: string, body: Record<string, un
   return groupModel.update(id, userId, updates);
 }
 
-export async function remove(id, userId) {
+export async function remove(id: string, userId: string) {
   await groupModel.remove(id, userId);
 }
 
-export async function addInvitation(groupId, userId, email) {
+export async function addInvitation(groupId: string, userId: string, email: unknown) {
   const trimmed = email != null ? String(email).trim() : '';
   if (!trimmed) throw new ValidationError('email is required');
   if (!EMAIL_REGEX.test(trimmed)) throw new ValidationError('Invalid email format');
   const { group, invitationId } = await groupModel.addInvitation(groupId, userId, trimmed);
-  if (invitationId) {
+  if (invitationId && group) {
     const baseUrl = (config.appBaseUrl || '').replace(/\/$/, '');
     const inviteLink = `${baseUrl}/invite/join?token=${invitationId}`;
-    sendGroupInviteEmail(trimmed, group.name, inviteLink).catch((err) =>
+    sendGroupInviteEmail(trimmed, group.name, inviteLink).catch((err: unknown) =>
       logger.error({ err }, 'Failed to send group invite email')
     );
   }
   return group;
 }
 
-export async function cancelInvitation(groupId, userId, email) {
+export async function cancelInvitation(groupId: string, userId: string, email: unknown) {
   const trimmed = email != null ? String(email).trim() : '';
   if (!trimmed) throw new ValidationError('email is required');
   return groupModel.cancelInvitation(groupId, userId, trimmed);
 }
 
-export async function acceptInvitation(groupId, userId, userEmail) {
+export async function acceptInvitation(groupId: string, userId: string, userEmail: string) {
   const group = await groupModel.acceptInvitation(groupId, userId, userEmail);
-  const emailNorm = (userEmail || '').trim().toLowerCase();
-  sendAddedToGroupEmail(emailNorm, group.name, group.id).catch((err) =>
-    logger.error({ err }, 'Failed to send added-to-group email')
-  );
+  if (group) {
+    const emailNorm = (userEmail || '').trim().toLowerCase();
+    sendAddedToGroupEmail(emailNorm, group.name, group.id).catch((err: unknown) =>
+      logger.error({ err }, 'Failed to send added-to-group email')
+    );
+  }
   return group;
 }
 
-export async function removeMember(groupId, userId, targetUserId) {
+export async function removeMember(groupId: string, userId: string, targetUserId: string) {
   return groupModel.removeMember(groupId, userId, targetUserId);
 }
 
-export async function getInvitationByToken(token) {
+export async function getInvitationByToken(token: string) {
   return groupModel.findInvitationByToken(token);
 }
 
-export async function acceptInviteByToken(token, userId, userEmail) {
+export async function acceptInviteByToken(token: string, userId: string, userEmail: string) {
   const group = await groupModel.acceptInvitationByToken(token, userId, userEmail);
-  const emailNorm = (userEmail || '').trim().toLowerCase();
-  sendAddedToGroupEmail(emailNorm, group.name, group.id).catch((err) =>
-    logger.error({ err }, 'Failed to send added-to-group email')
-  );
+  if (group) {
+    const emailNorm = (userEmail || '').trim().toLowerCase();
+    sendAddedToGroupEmail(emailNorm, group.name, group.id).catch((err: unknown) =>
+      logger.error({ err }, 'Failed to send added-to-group email')
+    );
+  }
   return group;
 }

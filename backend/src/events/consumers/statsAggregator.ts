@@ -13,12 +13,13 @@
  */
 import { getPool } from '../../db/pool.js';
 import { logger } from '../../lib/logger.js';
+import { EventEnvelope } from '../dispatcher.js';
 
 /**
  * Upsert the daily stats row for a user on a given date.
  * Recalculates from source tables to ensure idempotency.
  */
-async function recomputeDayStats(userId, date) {
+async function recomputeDayStats(userId: string, date: string) {
   const pool = getPool();
   try {
     await pool.query(
@@ -47,17 +48,19 @@ async function recomputeDayStats(userId, date) {
 }
 
 /** Extract date from event payload (falls back to today). */
-function eventDate(event) {
-  const d = event.payload?.date ?? event.metadata?.timestamp?.slice(0, 10);
-  return d && /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : new Date().toISOString().slice(0, 10);
+function eventDate(event: EventEnvelope): string {
+  const d = event.payload?.date ?? (event.metadata?.timestamp?.slice(0, 10) as string | undefined);
+  return d && typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : new Date().toISOString().slice(0, 10);
 }
+
+type SubscribeFn = (eventType: string, handler: (event: EventEnvelope) => Promise<void> | void) => void;
 
 /**
  * Register all stats aggregation consumers.
- * @param {(type: string, handler: Function) => void} subscribe
+ * @param {SubscribeFn} subscribe
  */
-export function registerStatsAggregatorConsumer(subscribe) {
-  const handler = async (event) => {
+export function registerStatsAggregatorConsumer(subscribe: SubscribeFn) {
+  const handler = async (event: EventEnvelope) => {
     const userId = event.metadata?.userId;
     if (!userId) return;
     const date = eventDate(event);

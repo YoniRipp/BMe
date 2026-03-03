@@ -24,7 +24,7 @@ export const eventEnvelopeSchema = z.object({
  * @param {unknown} event
  * @returns {z.infer<typeof eventEnvelopeSchema>}
  */
-export function parseEvent(event) {
+export function parseEvent(event: unknown) {
   return eventEnvelopeSchema.parse(event);
 }
 
@@ -32,6 +32,6 @@ export function parseEvent(event) {
  * Safe parse; returns { success: true, data } or { success: false, error }.
  * @param {unknown} event
  */
-export function safeParseEvent(event) {
+export function safeParseEvent(event: unknown) {
   return eventEnvelopeSchema.safeParse(event);
 }

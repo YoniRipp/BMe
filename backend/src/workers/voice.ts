@@ -13,6 +13,10 @@ export function startVoiceWorker() {
     async (job) => {
       const { jobId, audio, mimeType, userId, today, timezone } = job.data;
       const redis = await getRedisClient();
+      if (!redis) {
+        logger.error({ jobId }, 'Voice job failed: Redis not available');
+        return;
+      }
 
       try {
         const data = await voiceService.parseAudio(audio, mimeType, userId, {
@@ -29,14 +33,14 @@ export function startVoiceWorker() {
             completedAt: Date.now(),
           })
         );
-      } catch (e) {
+      } catch (e: unknown) {
         logger.error({ err: e, jobId }, 'Voice job failed');
         await redis.setEx(
           `job:${jobId}`,
           300,
           JSON.stringify({
             status: 'failed',
-            error: e?.message ?? 'Voice processing failed',
+            error: (e as Error)?.message ?? 'Voice processing failed',
             completedAt: Date.now(),
           })
         );

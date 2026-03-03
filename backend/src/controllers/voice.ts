@@ -1,6 +1,7 @@
 /**
  * Voice controller. Accepts audio (enqueues job) or transcript (sync processing).
  */
+import { Request, Response } from 'express';
 import { randomUUID } from 'crypto';
 import { asyncHandler } from '../middleware/errorHandler.js';
 import { config } from '../config/index.js';
@@ -11,12 +12,12 @@ import { enqueue } from '../queue/index.js';
 import { sendJson, sendError } from '../utils/response.js';
 
 const DATE_ONLY_REGEX = /^\d{4}-\d{2}-\d{2}$/;
-function isValidDateStr(str) {
+function isValidDateStr(str: string): boolean {
   if (!str || !DATE_ONLY_REGEX.test(str)) return false;
   const d = new Date(str + 'T12:00:00Z');
   return !isNaN(d.getTime()) && d.toISOString().slice(0, 10) === str;
 }
-function isValidTimezone(tz) {
+function isValidTimezone(tz: string): boolean {
   if (!tz || typeof tz !== 'string' || tz.length > 64) return false;
   try {
     Intl.DateTimeFormat(undefined, { timeZone: tz });
@@ -26,7 +27,7 @@ function isValidTimezone(tz) {
   }
 }
 
-export const understand = asyncHandler(async (req, res) => {
+export const understand = asyncHandler(async (req: Request, res: Response) => {
   if (!config.geminiApiKey) {
     return sendError(res, 503, 'Voice service not configured (missing GEMINI_API_KEY)');
   }
@@ -40,10 +41,17 @@ export const understand = asyncHandler(async (req, res) => {
 
   if (audio && typeof audio === 'string' && mimeType && typeof mimeType === 'string' && mimeType.startsWith('audio/')) {
     if (!isRedisConfigured()) {
-      return sendError(res, 503, 'Voice queue not configured (REDIS_URL required for audio)');
+      return sendError(
+        res,
+        503,
+        'Voice recording requires Redis. Set REDIS_URL in your backend .env (e.g. redis://localhost:6379) and restart the server. See docs or README for setup.'
+      );
     }
     const jobId = randomUUID();
     const redis = await getRedisClient();
+    if (!redis) {
+      return sendError(res, 503, 'Redis not available');
+    }
     await redis.setEx(
       `job:${jobId}`,
       300,
@@ -70,9 +78,9 @@ export const understand = asyncHandler(async (req, res) => {
     try {
       const data = await voiceService.parseTranscript(text, (lang != null ? String(lang) : undefined) ?? 'auto', userId, options);
       return sendJson(res, data);
-    } catch (e) {
+    } catch (e: unknown) {
       logger.error({ err: e }, 'Gemini / voice understand error');
-      return sendError(res, 502, 'Failed to understand voice', { details: e?.message ?? String(e) });
+      return sendError(res, 502, 'Failed to understand voice', { details: (e as Error)?.message ?? String(e) });
     }
   }
 

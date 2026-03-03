@@ -4,8 +4,6 @@ import userEvent from '@testing-library/user-event';
 import { BrowserRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Money } from './Money';
-import { TransactionProvider } from '@/context/TransactionContext';
-import { GroupProvider } from '@/context/GroupContext';
 import { AppProvider } from '@/context/AppContext';
 
 vi.mock('@/context/AuthContext', () => ({
@@ -34,11 +32,7 @@ const wrapper = ({ children }: { children: React.ReactNode }) => (
   <BrowserRouter>
     <QueryClientProvider client={queryClient}>
       <AppProvider>
-        <GroupProvider>
-          <TransactionProvider>
-            {children}
-          </TransactionProvider>
-        </GroupProvider>
+        {children}
       </AppProvider>
     </QueryClientProvider>
   </BrowserRouter>
@@ -53,10 +47,10 @@ describe('Money Page', () => {
   it('filters transactions by type', async () => {
     const user = userEvent.setup();
     render(<Money />, { wrapper });
-    
+
     const incomeTab = screen.getByRole('tab', { name: /income/i });
     await user.click(incomeTab);
-    
+
     // Should show income transactions
     await waitFor(() => {
       expect(incomeTab).toHaveAttribute('aria-selected', 'true');

@@ -1,8 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { TransactionProvider } from '@/context/TransactionContext';
-import { useTransactions } from './useTransactions';
+import { useTransactions } from '@/features/money/useTransactions';
 
 vi.mock('@/features/money/api', () => ({
   transactionsApi: {
@@ -20,7 +19,7 @@ const queryClient = new QueryClient({
 describe('useTransactions', () => {
   const wrapper = ({ children }: { children: React.ReactNode }) => (
     <QueryClientProvider client={queryClient}>
-      <TransactionProvider>{children}</TransactionProvider>
+      {children}
     </QueryClientProvider>
   );
 
@@ -28,17 +27,11 @@ describe('useTransactions', () => {
     vi.clearAllMocks();
   });
 
-  it('provides transactions from context', () => {
+  it('provides transactions data and mutations', () => {
     const { result } = renderHook(() => useTransactions(), { wrapper });
     expect(result.current).toHaveProperty('transactions');
     expect(result.current).toHaveProperty('addTransaction');
     expect(result.current).toHaveProperty('updateTransaction');
     expect(result.current).toHaveProperty('deleteTransaction');
-  });
-
-  it('throws error when used outside provider', () => {
-    expect(() => {
-      renderHook(() => useTransactions());
-    }).toThrow('useTransactions must be used within TransactionProvider');
   });
 });

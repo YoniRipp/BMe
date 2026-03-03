@@ -6,7 +6,7 @@ import { Resend } from 'resend';
 import { config } from '../config/index.js';
 import { logger } from './logger.js';
 
-let resend = null;
+let resend: Resend | null = null;
 if (config.resendApiKey) {
   resend = new Resend(config.resendApiKey);
 }
@@ -17,7 +17,7 @@ const FROM = process.env.RESEND_FROM || 'BeMe <onboarding@resend.dev>';
  * Send an email. No-op if Resend is not configured.
  * @param {{ to: string, subject: string, html: string }} opts
  */
-export async function sendMail({ to, subject, html }) {
+export async function sendMail({ to, subject, html }: { to: string; subject: string; html: string }) {
   if (!resend) {
     logger.warn({ to, subject: subject?.slice(0, 50) }, 'Email not sent (RESEND_API_KEY not set)');
     return;
@@ -41,7 +41,7 @@ export async function sendMail({ to, subject, html }) {
 /**
  * Send "You've been added to {groupName}" with link to the group.
  */
-export async function sendAddedToGroupEmail(toEmail, groupName, groupId) {
+export async function sendAddedToGroupEmail(toEmail: string, groupName: string, groupId: string) {
   const baseUrl = (config.appBaseUrl || '').replace(/\/$/, '');
   const link = `${baseUrl}/groups/${groupId}`;
   const subject = `You've been added to ${groupName}`;
@@ -55,7 +55,7 @@ export async function sendAddedToGroupEmail(toEmail, groupName, groupId) {
 /**
  * Send invite email with signup/login link.
  */
-export async function sendGroupInviteEmail(toEmail, groupName, inviteLink) {
+export async function sendGroupInviteEmail(toEmail: string, groupName: string, inviteLink: string) {
   const subject = `You're invited to join ${groupName}`;
   const html = `
     <p>You're invited to join the group <strong>${escapeHtml(groupName)}</strong>.</p>
@@ -64,7 +64,7 @@ export async function sendGroupInviteEmail(toEmail, groupName, inviteLink) {
   return sendMail({ to: toEmail, subject, html });
 }
 
-function escapeHtml(s) {
+function escapeHtml(s: unknown): string {
   if (typeof s !== 'string') return '';
   return s
     .replace(/&/g, '&amp;')

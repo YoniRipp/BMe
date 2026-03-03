@@ -6,18 +6,18 @@ import { Queue, Worker } from 'bullmq';
 import { config } from '../config/index.js';
 import { logger } from '../lib/logger.js';
 import { createSqsTransport } from './transports/sqs.js';
-import { createDispatcher } from './dispatcher.js';
+import { createDispatcher, EventEnvelope } from './dispatcher.js';
 
 const QUEUE_NAME = 'events';
 
 const dispatcher = createDispatcher();
 
-let eventsQueue = null;
-let eventsWorker = null;
-let sqsConsumer = null;
+let eventsQueue: Queue | null = null;
+let eventsWorker: Worker | null = null;
+let sqsConsumer: { close(): Promise<void> } | null = null;
 
 /** @returns {'memory' | 'redis' | 'sqs'} */
-function getTransport() {
+function getTransport(): 'memory' | 'redis' | 'sqs' {
   if (config.eventTransport === 'sqs' && config.eventQueueUrl && config.awsRegion) return 'sqs';
   if (config.isRedisConfigured) return 'redis';
   return 'memory';
@@ -26,7 +26,7 @@ function getTransport() {
 /**
  * Subscribe to an event type. Handler receives the full event envelope.
  */
-export function subscribe(eventType, handler) {
+export function subscribe(eventType: string, handler: (event: EventEnvelope) => Promise<void> | void) {
   dispatcher.subscribe(eventType, handler);
 }
 
@@ -35,7 +35,7 @@ export function subscribe(eventType, handler) {
  * @param {EventEnvelope} event
  * @returns {Promise<void>}
  */
-export async function publish(event) {
+export async function publish(event: EventEnvelope) {
   const transport = getTransport();
   if (transport === 'sqs') {
     const sqs = createSqsTransport({
@@ -57,7 +57,7 @@ export async function publish(event) {
   }
 }
 
-export async function getEventsQueue() {
+export async function getEventsQueue(): Promise<Queue | null> {
   if (getTransport() !== 'redis') return null;
   if (!eventsQueue) {
     eventsQueue = new Queue(QUEUE_NAME, { connection: { url: config.redisUrl } });
@@ -65,7 +65,7 @@ export async function getEventsQueue() {
   return eventsQueue;
 }
 
-async function invokeHandlers(event) {
+async function invokeHandlers(event: EventEnvelope) {
   try {
     await dispatcher.dispatch(event);
   } catch (err) {
@@ -95,7 +95,7 @@ export function startEventsWorker() {
       region: config.awsRegion,
       queueUrl: config.eventQueueUrl,
     });
-    sqsConsumer = sqs.startConsumer((event) => invokeHandlers(event));
+    sqsConsumer = sqs.startConsumer((event: unknown) => invokeHandlers(event as EventEnvelope));
     return sqsConsumer;
   }
   return null;

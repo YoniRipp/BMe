@@ -20,6 +20,7 @@ function buildGoalCurrentCalcs(deps: {
   foodEntries: { date: Date | string; calories: number }[];
   workouts: { date: Date }[];
   transactions: Transaction[];
+  checkIns: { date: Date | string; sleepHours?: number }[];
   convertToDisplay: (amount: number, currency: string) => number;
 }) {
   return {
@@ -44,6 +45,14 @@ function buildGoalCurrentCalcs(deps: {
       const balance = income - expenses;
       return income > 0 ? Math.round((balance / income) * 100) : 0;
     },
+    sleep: (_goal: Goal, dateRange: { start: Date; end: Date }) => {
+      const periodCheckIns = deps.checkIns.filter((c) =>
+        isWithinInterval(new Date(c.date), dateRange)
+      ).filter((c) => c.sleepHours != null);
+      if (periodCheckIns.length === 0) return 0;
+      const total = periodCheckIns.reduce((sum, c) => sum + (c.sleepHours ?? 0), 0);
+      return total / periodCheckIns.length;
+    },
   } as Record<GoalType, (goal: Goal, dateRange: { start: Date; end: Date }) => number>;
 }
 
@@ -58,7 +67,7 @@ export function useGoalProgress(goalId: string): GoalProgress {
   );
   const { convertToDisplay } = useExchangeRates(displayCurrency, fromCurrencies);
   const { workouts } = useWorkouts();
-  const { foodEntries } = useEnergy();
+  const { foodEntries, checkIns } = useEnergy();
 
   return useMemo(() => {
     const goal = goals.find((g) => g.id === goalId);
@@ -72,6 +81,7 @@ export function useGoalProgress(goalId: string): GoalProgress {
       foodEntries,
       workouts,
       transactions,
+      checkIns,
       convertToDisplay,
     });
     const current = calcs[goal.type](goal, dateRange);
@@ -79,5 +89,5 @@ export function useGoalProgress(goalId: string): GoalProgress {
     const percentage =
       goal.target > 0 ? Math.min((current / goal.target) * 100, 100) : 0;
     return { current, target: goal.target, percentage };
-  }, [goalId, goals, transactions, convertToDisplay, workouts, foodEntries]);
+  }, [goalId, goals, transactions, convertToDisplay, workouts, foodEntries, checkIns]);
 }

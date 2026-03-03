@@ -6,7 +6,7 @@ import { logger } from '../lib/logger.js';
 
 const LOG_LIMIT = 200;
 
-async function insertLog(level, message, details, userId) {
+async function insertLog(level: string, message: string, details: unknown, userId: string | null | undefined) {
   if (!isDbConfigured()) {
     logger.info({ level, message, details }, 'appLog');
     return;
@@ -17,7 +17,7 @@ async function insertLog(level, message, details, userId) {
       `INSERT INTO app_logs (level, message, details, user_id) VALUES ($1, $2, $3, $4)`,
       [level, message, details ? JSON.stringify(details) : null, userId ?? null]
     );
-  } catch (e) {
+  } catch (e: unknown) {
     logger.error({ err: e }, 'appLog insert failed');
   }
 }
@@ -28,7 +28,7 @@ async function insertLog(level, message, details, userId) {
  * @param {object} [details]
  * @param {string} [userId] - Admin/user who performed the action
  */
-export async function logAction(message, details, userId) {
+export async function logAction(message: string, details?: unknown, userId?: string | null) {
   await insertLog('action', message, details, userId);
 }
 
@@ -38,7 +38,7 @@ export async function logAction(message, details, userId) {
  * @param {object} [details]
  * @param {string} [userId] - User affected if any
  */
-export async function logError(message, details, userId) {
+export async function logError(message: string, details?: unknown, userId?: string | null) {
   await insertLog('error', message, details, userId);
 }
 
@@ -47,7 +47,7 @@ export async function logError(message, details, userId) {
  * @param {string} level
  * @returns {Promise<{ id: string, level: string, message: string, details: object|null, userId: string|null, createdAt: string }[]>}
  */
-export async function listLogs(level) {
+export async function listLogs(level: string) {
   if (!isDbConfigured()) {
     return [];
   }
@@ -57,7 +57,7 @@ export async function listLogs(level) {
      FROM app_logs WHERE level = $1 ORDER BY created_at DESC LIMIT $2`,
     [level, LOG_LIMIT]
   );
-  return result.rows.map((row) => ({
+  return result.rows.map((row: Record<string, unknown>) => ({
     ...row,
     details: row.details != null ? row.details : null,
   }));

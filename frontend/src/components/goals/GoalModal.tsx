@@ -93,7 +93,7 @@ export function GoalModal({ open, onOpenChange, onSave, goal }: GoalModalProps) 
                 value={formData.type}
                 onValueChange={(value) => {
                   const newType = value as GoalType;
-                  const period = !goal && newType === 'calories' ? 'daily' : !goal && newType !== 'calories' ? 'weekly' : formData.period;
+                  const period = !goal && (newType === 'calories' || newType === 'sleep') ? 'daily' : !goal && newType !== 'calories' && newType !== 'sleep' ? 'weekly' : formData.period;
                   setFormData({ ...formData, type: newType, period });
                 }}
               >
@@ -144,6 +144,7 @@ export function GoalModal({ open, onOpenChange, onSave, goal }: GoalModalProps) 
                 {formData.type === 'calories' && 'Target calories for this period'}
                 {formData.type === 'workouts' && 'Target number of workouts for this period'}
                 {formData.type === 'savings' && 'Target savings rate percentage for this period'}
+                {formData.type === 'sleep' && 'Target average sleep hours for this period'}
               </p>
             </div>
 

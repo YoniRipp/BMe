@@ -11,7 +11,7 @@ import { upsertEmbedding, buildEmbeddingText, deleteEmbedding } from './embeddin
 
 const TYPE_ERROR = 'type must be income or expense';
 
-function normTransactionCategory(value, body) {
+function normTransactionCategory(value: unknown, body: Record<string, unknown> | undefined) {
   const type = body?.type;
   const allowed =
     type !== undefined && TRANSACTION_CATEGORIES[type]
@@ -31,7 +31,7 @@ export async function list(userId: string, query: { limit?: number; offset?: num
   });
 }
 
-export async function create(userId, body) {
+export async function create(userId: string, body: Record<string, unknown>) {
   const { date, type, amount, currency, category, description, isRecurring, groupId } = body ?? {};
   normOneOf(type, ['income', 'expense'], { errorMessage: TYPE_ERROR });
   const cat = TRANSACTION_CATEGORIES[type]?.includes(category) ? category : 'Other';
@@ -51,18 +51,18 @@ export async function create(userId, body) {
   return transaction;
 }
 
-export async function update(userId, id, body) {
+export async function update(userId: string, id: string, body: Record<string, unknown>) {
   requireId(id);
   const input = body ?? {};
   const updates = buildUpdates(input, {
-    date: (v) => v,
-    type: (v) => normOneOf(v, ['income', 'expense'], { errorMessage: TYPE_ERROR }),
-    amount: (v) => validateNonNegative(v, 'amount'),
-    currency: (v) => (v && String(v).length === 3 ? String(v).toUpperCase() : undefined),
-    category: (v) => normTransactionCategory(v, input),
-    description: (v) => v,
-    isRecurring: (v) => !!v,
-    groupId: (v) => v ?? null,
+    date: (v: unknown) => v,
+    type: (v: unknown) => normOneOf(v, ['income', 'expense'], { errorMessage: TYPE_ERROR }),
+    amount: (v: unknown) => validateNonNegative(v, 'amount'),
+    currency: (v: unknown) => (v && String(v).length === 3 ? String(v).toUpperCase() : undefined),
+    category: (v: unknown) => normTransactionCategory(v, input),
+    description: (v: unknown) => v,
+    isRecurring: (v: unknown) => !!v,
+    groupId: (v: unknown) => v ?? null,
   });
   const updated = await transactionModel.update(id, userId, updates);
   requireFound(updated, 'Transaction');
@@ -71,7 +71,7 @@ export async function update(userId, id, body) {
   return updated;
 }
 
-export async function remove(userId, id) {
+export async function remove(userId: string, id: string) {
   requireId(id);
   const deleted = await transactionModel.deleteById(id, userId);
   requireFound(deleted, 'Transaction');
@@ -79,6 +79,6 @@ export async function remove(userId, id) {
   deleteEmbedding(id, 'transaction');
 }
 
-export async function getBalance(userId, month) {
+export async function getBalance(userId: string, month: string | undefined) {
   return transactionModel.getBalance(userId, month);
 }

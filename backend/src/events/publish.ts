@@ -13,7 +13,7 @@ import { publish as busPublish } from './bus.js';
  * @param {{ correlationId?: string; causationId?: string }} [meta]
  */
 type PublishMeta = { correlationId?: string; causationId?: string };
-export async function publishEvent(type, payload, userId, meta: PublishMeta = {}) {
+export async function publishEvent(type: string, payload: Record<string, unknown>, userId: string, meta: PublishMeta = {}) {
   const correlationId = meta.correlationId ?? getRequestId();
   await busPublish({
     eventId: crypto.randomUUID(),

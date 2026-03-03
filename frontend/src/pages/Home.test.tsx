@@ -6,12 +6,6 @@ import userEvent from '@testing-library/user-event';
 import { BrowserRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Home } from './Home';
-import { TransactionProvider } from '../context/TransactionContext';
-import { WorkoutProvider } from '../context/WorkoutContext';
-import { EnergyProvider } from '../context/EnergyContext';
-import { ScheduleProvider } from '../context/ScheduleContext';
-import { GoalsProvider } from '../context/GoalsContext';
-import { GroupProvider } from '../context/GroupContext';
 import { AppProvider } from '../context/AppContext';
 
 vi.mock('@/context/AuthContext', () => ({
@@ -47,28 +41,20 @@ const wrapper = ({ children }: { children: ReactNode }) => (
   <BrowserRouter>
     <QueryClientProvider client={queryClient}>
       <AppProvider>
-        <TransactionProvider>
-          <WorkoutProvider>
-            <EnergyProvider>
-              <ScheduleProvider>
-                <GroupProvider>
-                  <GoalsProvider>
-                    {children}
-                  </GoalsProvider>
-                </GroupProvider>
-              </ScheduleProvider>
-            </EnergyProvider>
-          </WorkoutProvider>
-        </TransactionProvider>
+        {children}
       </AppProvider>
     </QueryClientProvider>
   </BrowserRouter>
 );
 
 describe('Home Page', () => {
-  it('renders home page with hero', () => {
+  beforeEach(() => {
+    queryClient.clear();
+  });
+
+  it('renders home page with progress cards', () => {
     render(<Home />, { wrapper });
-    expect(screen.getByText(/how are you feeling today/i)).toBeInTheDocument();
+    expect(screen.getByText(/workouts/i)).toBeInTheDocument();
   });
 
   it('displays today\'s schedule section', () => {
@@ -81,9 +67,10 @@ describe('Home Page', () => {
     expect(screen.getByText(/workouts/i)).toBeInTheDocument();
   });
 
-  it('displays wellness copy', () => {
+  it('displays calories and avg sleep in progress cards', () => {
     render(<Home />, { wrapper });
-    expect(screen.getByText(/track your wellness/i)).toBeInTheDocument();
+    expect(screen.getByText(/calories/i)).toBeInTheDocument();
+    expect(screen.getByText(/avg sleep/i)).toBeInTheDocument();
   });
 
   it('displays goals section', () => {
@@ -106,15 +93,17 @@ describe('Home Page', () => {
     });
   });
 
-  it('opens goal modal when new goal button is clicked', async () => {
+  it('opens goal modal when a progress card without a goal is clicked', async () => {
     const user = userEvent.setup();
     render(<Home />, { wrapper });
 
     await waitFor(() => {
-      expect(screen.getByText(/add your first goal/i)).toBeInTheDocument();
+      expect(screen.getAllByText(/tap to set goal/i).length).toBeGreaterThanOrEqual(1);
     });
-    const newGoalButton = screen.getByText(/add your first goal/i);
-    await user.click(newGoalButton);
+    const tapToSetGoal = screen.getAllByText(/tap to set goal/i)[0];
+    // Click the card (parent element with role="button")
+    const card = tapToSetGoal.closest('[role="button"]')!;
+    await user.click(card);
 
     await waitFor(() => {
       const createGoalElements = screen.getAllByText(/create goal/i);
@@ -129,10 +118,10 @@ describe('Home Page', () => {
     });
   });
 
-  it('shows empty state when no goals exist', async () => {
+  it('shows tap to set goal when no goals exist', async () => {
     render(<Home />, { wrapper });
     await waitFor(() => {
-      expect(screen.getByText(/add your first goal/i)).toBeInTheDocument();
+      expect(screen.getAllByText(/tap to set goal/i).length).toBeGreaterThanOrEqual(1);
     });
   });
 });
