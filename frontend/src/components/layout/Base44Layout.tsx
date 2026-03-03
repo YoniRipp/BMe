@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Link, Outlet, useLocation } from 'react-router-dom';
+import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { startOfMonth, endOfMonth, isAfter } from 'date-fns';
 import {
   LayoutDashboard,
@@ -17,12 +17,15 @@ import {
   Settings,
   Users,
   ShieldCheck,
+  LogOut,
 } from 'lucide-react';
 import { useSettings } from '@/hooks/useSettings';
 import { useApp } from '@/context/AppContext';
+import { useAuth } from '@/context/AuthContext';
 import { useTransactions } from '@/hooks/useTransactions';
 import { useExchangeRates } from '@/features/money/useExchangeRates';
 import { HeaderBalance } from './HeaderBalance';
+import { Button } from '@/components/ui/button';
 import { VoiceAgentButton } from '../voice/VoiceAgentButton';
 
 const ROUTE_TO_TITLE: Record<string, string> = {
@@ -65,9 +68,16 @@ function getPageTitle(pathname: string): string {
 
 export function Base44Layout() {
   const { pathname } = useLocation();
+  const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const { user } = useApp();
+  const { logout } = useAuth();
+
+  const handleSignOut = () => {
+    logout();
+    navigate('/login', { replace: true });
+  };
   const { settings } = useSettings();
   const { transactions, transactionsLoading } = useTransactions();
   const sidebarNav = useMemo(() => getSidebarNav(user?.role === 'admin'), [user?.role]);
@@ -208,19 +218,31 @@ export function Base44Layout() {
               </button>
               <h2 className="text-lg font-semibold text-charcoal">{pageTitle}</h2>
             </div>
-            <div className="hidden sm:flex flex-col items-end gap-2">
-              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/10 text-primary">
-                <Sun className="w-3.5 h-3.5" />
-                <span className="text-xs font-medium">{dateStr}</span>
+            <div className="flex items-center gap-2 sm:gap-3">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleSignOut}
+                className="flex items-center gap-1.5 text-stone hover:text-charcoal shrink-0"
+                aria-label="Sign out"
+              >
+                <LogOut className="h-4 w-4" />
+                <span className="hidden sm:inline">Sign out</span>
+              </Button>
+              <div className="hidden sm:flex flex-col items-end gap-2">
+                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/10 text-primary">
+                  <Sun className="w-3.5 h-3.5" />
+                  <span className="text-xs font-medium">{dateStr}</span>
+                </div>
+                <HeaderBalance
+                  balance={balance}
+                  income={income}
+                  expenses={expenses}
+                  currency={settings.currency}
+                  balanceDisplayLayout={settings.balanceDisplayLayout}
+                  loading={transactionsLoading}
+                />
               </div>
-              <HeaderBalance
-                balance={balance}
-                income={income}
-                expenses={expenses}
-                currency={settings.currency}
-                balanceDisplayLayout={settings.balanceDisplayLayout}
-                loading={transactionsLoading}
-              />
             </div>
           </div>
         </header>
