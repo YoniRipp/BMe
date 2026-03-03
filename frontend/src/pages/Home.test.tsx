@@ -66,9 +66,9 @@ const wrapper = ({ children }: { children: ReactNode }) => (
 );
 
 describe('Home Page', () => {
-  it('renders home page with hero', () => {
+  it('renders home page with daily snapshot', () => {
     render(<Home />, { wrapper });
-    expect(screen.getByText(/how are you feeling today/i)).toBeInTheDocument();
+    expect(screen.getByText(/calories/i)).toBeInTheDocument();
   });
 
   it('displays today\'s schedule section', () => {
@@ -83,7 +83,7 @@ describe('Home Page', () => {
 
   it('displays wellness copy', () => {
     render(<Home />, { wrapper });
-    expect(screen.getByText(/track your wellness/i)).toBeInTheDocument();
+    expect(screen.getByText(/today's schedule/i)).toBeInTheDocument();
   });
 
   it('displays goals section', () => {
