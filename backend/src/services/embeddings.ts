@@ -7,7 +7,7 @@ import { config } from '../config/index.js';
 import { getPool } from '../db/pool.js';
 import { logger } from '../lib/logger.js';
 
-const EMBEDDING_MODEL = 'text-embedding-004';
+const EMBEDDING_MODEL = 'gemini-embedding-001';
 const EMBEDDING_DIM = 768;
 
 function getEmbeddingClient() {
@@ -19,6 +19,9 @@ function getEmbeddingClient() {
 export async function embed(text) {
   const model = getEmbeddingClient();
   const result = await model.embedContent(text);
+  if (!result.embedding || !result.embedding.values) {
+    throw new Error('Invalid response from Gemini Embedding API');
+  }
   return result.embedding.values;
 }
 

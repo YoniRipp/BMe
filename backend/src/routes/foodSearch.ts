@@ -4,6 +4,7 @@
 import { Router } from 'express';
 import { requireAuth } from '../middleware/auth.js';
 import { requirePro } from '../middleware/requirePro.js';
+import { foodLookupRateLimit } from '../middleware/aiRateLimit.js';
 import { validateBody } from '../middleware/validateBody.js';
 import { lookupOrCreateFoodSchema } from '../schemas/food.js';
 import * as foodSearchController from '../controllers/foodSearch.js';
@@ -11,6 +12,7 @@ import * as foodSearchController from '../controllers/foodSearch.js';
 const router = Router();
 
 router.get('/api/food/search', foodSearchController.search);
-router.post('/api/food/lookup-or-create', requireAuth, requirePro, validateBody(lookupOrCreateFoodSchema), foodSearchController.lookupOrCreate);
+router.get('/api/food/barcode/:code', foodSearchController.barcodeLookup);
+router.post('/api/food/lookup-or-create', requireAuth, requirePro, foodLookupRateLimit, validateBody(lookupOrCreateFoodSchema), foodSearchController.lookupOrCreate);
 
 export default router;

@@ -111,18 +111,23 @@ export async function executeActions(actions: VoiceAction[], userId: string): Pr
 
     try {
       switch (action.intent) {
-        case 'add_transaction':
+        case 'add_transaction': {
+          const type = (action.type as string) ?? 'expense';
+          const amount = Number(action.amount) ?? 0;
+          const currency = (action.currency as string) ?? 'USD';
+          const description = (action.description as string) ?? '';
           await transactionService.create(userId, {
-            type: action.type as 'income' | 'expense',
-            amount: Number(action.amount) ?? 0,
-            currency: (action.currency as string) ?? 'USD',
+            type: type as 'income' | 'expense',
+            amount,
+            currency,
             category: (action.category as string) ?? 'Other',
-            description: action.description as string,
+            description,
             date: parseDate(action.date),
             isRecurring: !!action.isRecurring,
           });
-          results.push({ intent: 'add_transaction', success: true });
+          results.push({ intent: 'add_transaction', success: true, message: `Added ${type}: ${description || 'transaction'} (${amount} ${currency})` });
           break;
+        }
 
         case 'edit_transaction': {
           const tx = await resolveTransaction(userId, action);
@@ -167,7 +172,10 @@ export async function executeActions(actions: VoiceAction[], userId: string): Pr
             date: parseDate(it.date),
           }));
           await scheduleService.createBatch(userId, normalized);
-          results.push({ intent: 'add_schedule', success: true, message: `Added ${normalized.length} item(s)` });
+          const scheduleMsg = normalized.length === 1
+            ? `Added to schedule: ${normalized[0].title}`
+            : `Added ${normalized.length} items to schedule`;
+          results.push({ intent: 'add_schedule', success: true, message: scheduleMsg });
           break;
         }
 
@@ -198,17 +206,19 @@ export async function executeActions(actions: VoiceAction[], userId: string): Pr
           break;
         }
 
-        case 'add_workout':
+        case 'add_workout': {
+          const title = (action.title as string) ?? 'Workout';
           await workoutService.create(userId, {
             date: parseDate(action.date),
-            title: (action.title as string) ?? 'Workout',
+            title,
             type: (action.type as string) ?? 'cardio',
             durationMinutes: Number(action.durationMinutes) || 30,
             exercises: Array.isArray(action.exercises) ? action.exercises : [],
             notes: action.notes as string,
           });
-          results.push({ intent: 'add_workout', success: true });
+          results.push({ intent: 'add_workout', success: true, message: `Added workout: ${title}` });
           break;
+        }
 
         case 'edit_workout': {
           const w = await resolveWorkout(userId, action);
@@ -239,10 +249,11 @@ export async function executeActions(actions: VoiceAction[], userId: string): Pr
           break;
         }
 
-        case 'add_food':
+        case 'add_food': {
+          const name = (action.name as string) ?? 'Unknown';
           await foodEntryService.create(userId, {
             date: parseDate(action.date),
-            name: (action.name as string) ?? 'Unknown',
+            name,
             calories: Number(action.calories) ?? 0,
             protein: Number(action.protein) ?? 0,
             carbs: Number(action.carbs) ?? 0,
@@ -252,8 +263,12 @@ export async function executeActions(actions: VoiceAction[], userId: string): Pr
             startTime: action.startTime as string,
             endTime: action.endTime as string,
           });
-          results.push({ intent: 'add_food', success: true });
+          const pa = action.portionAmount != null ? Number(action.portionAmount) : null;
+          const pu = action.portionUnit ? String(action.portionUnit).trim() : '';
+          const portionStr = pa != null && pu ? ` ${pa}${pu}` : '';
+          results.push({ intent: 'add_food', success: true, message: `Added food ${name}${portionStr}` });
           break;
+        }
 
         case 'edit_food_entry': {
           const e = await resolveFoodEntry(userId, action);
@@ -293,7 +308,7 @@ export async function executeActions(actions: VoiceAction[], userId: string): Pr
           } else {
             await dailyCheckInService.create(userId, { date: dateStr, sleepHours: hours });
           }
-          results.push({ intent: 'log_sleep', success: true });
+          results.push({ intent: 'log_sleep', success: true, message: `Logged ${hours}h sleep` });
           break;
         }
 
@@ -327,14 +342,16 @@ export async function executeActions(actions: VoiceAction[], userId: string): Pr
           break;
         }
 
-        case 'add_goal':
+        case 'add_goal': {
+          const goalType = (action.type as string) ?? 'workouts';
           await goalService.create(userId, {
-            type: (action.type as string) ?? 'workouts',
+            type: goalType,
             target: Number(action.target) ?? 0,
             period: (action.period as string) ?? 'weekly',
           });
-          results.push({ intent: 'add_goal', success: true });
+          results.push({ intent: 'add_goal', success: true, message: `Added ${goalType} goal` });
           break;
+        }
 
         case 'edit_goal': {
           const g = await resolveGoal(userId, action);

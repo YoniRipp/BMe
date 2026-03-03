@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo } from 'react';
-import { Link, Outlet, useLocation } from 'react-router-dom';
+import { useState, useEffect, useMemo, Fragment } from 'react';
+import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { startOfMonth, endOfMonth, isAfter } from 'date-fns';
 import {
   LayoutDashboard,
@@ -17,13 +17,19 @@ import {
   Settings,
   Users,
   ShieldCheck,
+  Plus,
+  Utensils,
+  LogOut,
 } from 'lucide-react';
 import { useSettings } from '@/hooks/useSettings';
 import { useApp } from '@/context/AppContext';
+import { useAuth } from '@/context/AuthContext';
 import { useTransactions } from '@/hooks/useTransactions';
 import { useExchangeRates } from '@/features/money/useExchangeRates';
 import { HeaderBalance } from './HeaderBalance';
 import { VoiceAgentButton } from '../voice/VoiceAgentButton';
+import { OnboardingTour } from '../onboarding/OnboardingTour';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '../ui/sheet';
 
 const ROUTE_TO_TITLE: Record<string, string> = {
   '/': 'Dashboard',
@@ -55,8 +61,8 @@ function getSidebarNav(isAdmin: boolean) {
   return [...SIDEBAR_NAV_BASE, { name: 'Admin', path: '/admin', icon: ShieldCheck }];
 }
 
-/** Base44-style: first 6 items only (Dashboard, Money, Body, Energy, Schedule, Goals) */
-const BOTTOM_NAV_ITEMS = 6;
+/** Bottom nav: first 5 sidebar items (Dashboard, Money, Body, Energy, Schedule) + center quick-add */
+const BOTTOM_NAV_ITEMS = 5;
 
 function getPageTitle(pathname: string): string {
   if (pathname.startsWith('/groups/') && pathname.length > 8) return 'Groups';
@@ -65,9 +71,17 @@ function getPageTitle(pathname: string): string {
 
 export function Base44Layout() {
   const { pathname } = useLocation();
+  const navigate = useNavigate();
+  const { logout } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [quickAddOpen, setQuickAddOpen] = useState(false);
   const { user } = useApp();
+
+  const handleSignOut = () => {
+    logout();
+    navigate('/login', { replace: true });
+  };
   const { settings } = useSettings();
   const { transactions, transactionsLoading } = useTransactions();
   const sidebarNav = useMemo(() => getSidebarNav(user?.role === 'admin'), [user?.role]);
@@ -160,6 +174,7 @@ export function Base44Layout() {
                   <Link
                     key={item.path}
                     to={item.path}
+                    data-onboarding={item.path === '/' ? 'home' : item.path.slice(1)}
                     className={`group flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200
                       ${isActive
                         ? 'bg-primary/10 text-primary'
@@ -208,19 +223,30 @@ export function Base44Layout() {
               </button>
               <h2 className="text-lg font-semibold text-charcoal">{pageTitle}</h2>
             </div>
-            <div className="hidden sm:flex flex-col items-end gap-2">
-              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/10 text-primary">
-                <Sun className="w-3.5 h-3.5" />
-                <span className="text-xs font-medium">{dateStr}</span>
+            <div className="flex items-center gap-2 sm:gap-3">
+              <button
+                type="button"
+                onClick={handleSignOut}
+                className="flex items-center gap-2 px-3 py-2 text-[15px] font-semibold text-stone hover:text-charcoal rounded-xl transition-colors min-h-[40px]"
+                aria-label="Log out"
+              >
+                <LogOut className="w-4 h-4 shrink-0" strokeWidth={2.25} />
+                Log out
+              </button>
+              <div className="hidden sm:flex flex-col items-end gap-2">
+                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/10 text-primary">
+                  <Sun className="w-3.5 h-3.5" />
+                  <span className="text-xs font-medium">{dateStr}</span>
+                </div>
+                <HeaderBalance
+                  balance={balance}
+                  income={income}
+                  expenses={expenses}
+                  currency={settings.currency}
+                  balanceDisplayLayout={settings.balanceDisplayLayout}
+                  loading={transactionsLoading}
+                />
               </div>
-              <HeaderBalance
-                balance={balance}
-                income={income}
-                expenses={expenses}
-                currency={settings.currency}
-                balanceDisplayLayout={settings.balanceDisplayLayout}
-                loading={transactionsLoading}
-              />
             </div>
           </div>
         </header>
@@ -236,14 +262,16 @@ export function Base44Layout() {
         aria-label="Main navigation"
       >
         <div className="flex items-center justify-around px-2 py-1">
-          {sidebarNav.slice(0, BOTTOM_NAV_ITEMS).map((item) => {
+          {sidebarNav.slice(0, BOTTOM_NAV_ITEMS).map((item, idx) => {
             const isActive = pathname === item.path;
             const Icon = item.icon;
-            return (
+
+            const navLink = (
               <Link
                 key={item.path}
                 to={item.path}
-                className={`flex flex-col items-center gap-0.5 px-3 py-2 rounded-xl transition-all
+                data-onboarding={item.path === '/' ? 'home' : item.path.slice(1)}
+                className={`flex flex-col items-center gap-0.5 px-2 py-2 rounded-xl transition-all
                   ${isActive ? 'text-primary' : 'text-stone'}`}
               >
                 <div className={`p-1 rounded-lg ${isActive ? 'bg-primary/15' : ''}`}>
@@ -252,11 +280,83 @@ export function Base44Layout() {
                 <span className="text-[10px] font-medium">{item.name}</span>
               </Link>
             );
+
+            if (idx === Math.floor(BOTTOM_NAV_ITEMS / 2)) {
+              return (
+                <Fragment key="quick-add-group">
+                  <Sheet open={quickAddOpen} onOpenChange={setQuickAddOpen}>
+                    <SheetTrigger asChild>
+                      <button
+                        type="button"
+                        className="flex flex-col items-center -mt-5"
+                        aria-label="Quick add"
+                      >
+                        <div className="p-3 rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/30">
+                          <Plus className="w-5 h-5" />
+                        </div>
+                        <span className="text-[10px] font-medium mt-0.5 text-primary">Add</span>
+                      </button>
+                    </SheetTrigger>
+                    <SheetContent side="bottom" className="rounded-t-2xl">
+                      <SheetHeader>
+                        <SheetTitle>Quick Add</SheetTitle>
+                      </SheetHeader>
+                      <div className="grid grid-cols-4 gap-3 py-4">
+                        <Link
+                          to="/energy"
+                          onClick={() => setQuickAddOpen(false)}
+                          className="flex flex-col items-center gap-2 p-3 rounded-xl hover:bg-muted transition-colors"
+                        >
+                          <div className="p-2.5 rounded-full bg-green-100 dark:bg-green-900">
+                            <Utensils className="w-5 h-5 text-green-600" />
+                          </div>
+                          <span className="text-xs font-medium">Food</span>
+                        </Link>
+                        <Link
+                          to="/money"
+                          onClick={() => setQuickAddOpen(false)}
+                          className="flex flex-col items-center gap-2 p-3 rounded-xl hover:bg-muted transition-colors"
+                        >
+                          <div className="p-2.5 rounded-full bg-blue-100 dark:bg-blue-900">
+                            <Wallet className="w-5 h-5 text-blue-600" />
+                          </div>
+                          <span className="text-xs font-medium">Expense</span>
+                        </Link>
+                        <Link
+                          to="/body"
+                          onClick={() => setQuickAddOpen(false)}
+                          className="flex flex-col items-center gap-2 p-3 rounded-xl hover:bg-muted transition-colors"
+                        >
+                          <div className="p-2.5 rounded-full bg-orange-100 dark:bg-orange-900">
+                            <Dumbbell className="w-5 h-5 text-orange-600" />
+                          </div>
+                          <span className="text-xs font-medium">Workout</span>
+                        </Link>
+                        <Link
+                          to="/schedule"
+                          onClick={() => setQuickAddOpen(false)}
+                          className="flex flex-col items-center gap-2 p-3 rounded-xl hover:bg-muted transition-colors"
+                        >
+                          <div className="p-2.5 rounded-full bg-purple-100 dark:bg-purple-900">
+                            <Calendar className="w-5 h-5 text-purple-600" />
+                          </div>
+                          <span className="text-xs font-medium">Schedule</span>
+                        </Link>
+                      </div>
+                    </SheetContent>
+                  </Sheet>
+                  {navLink}
+                </Fragment>
+              );
+            }
+
+            return navLink;
           })}
         </div>
       </nav>
 
       <VoiceAgentButton />
+      <OnboardingTour />
     </div>
   );
 }

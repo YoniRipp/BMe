@@ -85,7 +85,10 @@ const handleAddSchedule: Handler = async (action, ctx) => {
     };
   });
   await ctx.addScheduleItems(itemsToAdd);
-  return { success: true, message: `Added ${itemsToAdd.length} to schedule` };
+  const scheduleMsg = itemsToAdd.length === 1
+    ? `Added to schedule: ${itemsToAdd[0].title}`
+    : `Added ${itemsToAdd.length} items to schedule`;
+  return { success: true, message: scheduleMsg };
 };
 
 const handleEditSchedule: Handler = async (action, ctx) => {
@@ -114,8 +117,11 @@ const handleDeleteSchedule: Handler = async (action, ctx) => {
 const handleAddTransaction: Handler = async (action, ctx) => {
   if (action.intent !== 'add_transaction') return { success: false };
   const category: string = action.type === 'income' ? (VALID_INCOME.has(action.category as (typeof TRANSACTION_CATEGORIES.income)[number]) ? action.category : 'Other') : (VALID_EXPENSE.has(action.category as (typeof TRANSACTION_CATEGORIES.expense)[number]) ? action.category : 'Other');
-  await ctx.addTransaction({ type: action.type, amount: action.amount >= 0 ? action.amount : 0, currency: 'USD', category, description: action.description, date: parseDateOrToday(action.date), isRecurring: action.isRecurring ?? false });
-  return { success: true };
+  const type = action.type;
+  const amount = action.amount >= 0 ? action.amount : 0;
+  const description = action.description ?? '';
+  await ctx.addTransaction({ type: action.type, amount, currency: 'USD', category, description, date: parseDateOrToday(action.date), isRecurring: action.isRecurring ?? false });
+  return { success: true, message: `Added ${type}: ${description || 'transaction'} (${amount} USD)` };
 };
 
 const handleEditTransaction: Handler = async (action, ctx) => {
@@ -213,7 +219,7 @@ const handleAddWorkout: Handler = async (action, ctx) => {
     exercises,
     notes,
   });
-  return { success: true };
+  return { success: true, message: `Added workout: ${title}` };
 };
 
 const handleEditWorkout: Handler = async (action, ctx) => {
@@ -258,7 +264,10 @@ const handleAddFood: Handler = async (action, ctx) => {
   };
   try {
     await ctx.addFoodEntry(payload);
-    return { success: true };
+    const pa = payload.portionAmount;
+    const pu = payload.portionUnit?.trim() ?? '';
+    const portionStr = pa != null && pu ? ` ${pa}${pu}` : '';
+    return { success: true, message: `Added food ${payload.name}${portionStr}` };
   } catch (e) {
     throw e;
   }
@@ -290,10 +299,11 @@ const handleDeleteFoodEntry: Handler = async (action, ctx) => {
 const handleLogSleep: Handler = async (action, ctx) => {
   if (action.intent !== 'log_sleep') return { success: false };
   const date = parseDateOrToday(action.date);
+  const hours = action.sleepHours ?? 0;
   const existing = ctx.getCheckInByDate(date);
-  if (existing) await ctx.updateCheckIn(existing.id, { sleepHours: action.sleepHours });
-  else await ctx.addCheckIn({ date, sleepHours: action.sleepHours });
-  return { success: true };
+  if (existing) await ctx.updateCheckIn(existing.id, { sleepHours: hours });
+  else await ctx.addCheckIn({ date, sleepHours: hours });
+  return { success: true, message: `Logged ${hours}h sleep` };
 };
 
 const handleEditCheckIn: Handler = async (action, ctx) => {
@@ -316,8 +326,9 @@ const handleDeleteCheckIn: Handler = async (action, ctx) => {
 
 const handleAddGoal: Handler = async (action, ctx) => {
   if (action.intent !== 'add_goal') return { success: false };
-  await ctx.addGoal({ type: action.type as 'calories' | 'workouts' | 'savings', target: action.target, period: action.period as 'daily' | 'weekly' | 'monthly' | 'yearly' });
-  return { success: true };
+  const goalType = (action.type as string) ?? 'workouts';
+  await ctx.addGoal({ type: goalType as 'calories' | 'workouts' | 'savings', target: action.target, period: action.period as 'daily' | 'weekly' | 'monthly' | 'yearly' });
+  return { success: true, message: `Added ${goalType} goal` };
 };
 
 const handleEditGoal: Handler = async (action, ctx) => {

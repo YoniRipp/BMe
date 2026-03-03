@@ -73,3 +73,9 @@ export function lookupOrCreateFood(name: string, liquid?: boolean): Promise<Look
     body: { name: name.trim(), ...(liquid != null && { liquid }) },
   });
 }
+
+export function getFoodByBarcode(barcode: string): Promise<FoodSearchResult> {
+  const code = barcode.trim().replace(/\D/g, '');
+  if (!code) return Promise.reject(new Error('Invalid barcode'));
+  return request<FoodSearchResult>(`/api/food/barcode/${encodeURIComponent(code)}`);
+}

@@ -22,8 +22,8 @@ export const refreshInsightsController = asyncHandler(async (req, res) => {
   if (!config.geminiApiKey) {
     return sendError(res, 503, 'AI insights not configured (missing GEMINI_API_KEY)');
   }
-  const { main } = await refreshInsights(req.user.id);
-  return sendJson(res, main);
+  const { main, cached } = await refreshInsights(req.user.id);
+  return sendJson(res, { ...main, cached });
 });
 
 /** GET /api/insights/stats?days=30 — aggregated daily stats from the read-model pipeline */

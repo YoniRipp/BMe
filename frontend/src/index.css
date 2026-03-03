@@ -1,9 +1,21 @@
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   :root {
+    /* BeMe website palette (for /welcome landing, MyFitnessPal-inspired) */
+    --beme-cream: #f0f0e8;
+    --beme-cream-dark: #e8e8e0;
+    --beme-hero-bg: #2d5a4a;
+    --beme-green: #6b8c65;
+    --beme-green-light: #7fa076;
+    --beme-green-muted: #ddebd7;
+    --beme-text: #2c2c2c;
+    --beme-text-muted: #7a7a72;
+    --beme-border: #ddddd5;
     /* base44 palette (hex ref: sage #7C9A82, cream #FAFAF7, charcoal #2D3436, terracotta #C67B5C, gold #C4A962, stone #636E72, mist #DFE6E9, cream-warm #F5F0E8, border #E8E5DF) */
     --sage: 138 15% 54%;
     --sage-light: 138 20% 68%;
@@ -13,7 +25,7 @@
     --terracotta: 17 48% 60%;
     --terracotta-light: 18 65% 75%;
     --gold: 43 44% 58%;
-    --charcoal: 195 9% 18%;
+    --charcoal: 195 9% 14%;
     --stone: 195 7% 42%;
     --mist: 200 15% 91%;
     --border-base44: 36 15% 90%;
@@ -98,8 +110,10 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-sans antialiased;
     font-feature-settings: "rlig" 1, "calt" 1;
+    font-size: 15px;
+    line-height: 1.5;
   }
 }
 

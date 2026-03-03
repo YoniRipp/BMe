@@ -138,11 +138,49 @@ export async function getOrGenerateInsights(userId) {
 }
 
 /**
- * Force regenerate insights, ignoring cache. Used by Refresh button.
+ * Force regenerate insights when data has changed. Used by Refresh button.
+ * If last_action_at <= ai_insights.created_at, returns cached insights without calling Gemini.
  * @param {string} userId
- * @returns {Promise<{ main: object, today: object }>}
+ * @returns {Promise<{ main: object, today: object, cached: boolean }>}
  */
 export async function refreshInsights(userId) {
+  const pool = getPool();
+
+  const [userRow, lastInsight] = await Promise.all([
+    pool.query('SELECT last_action_at FROM users WHERE id = $1', [userId]),
+    getLastInsight(userId),
+  ]);
+
+  const lastActionAt = userRow.rows[0]?.last_action_at
+    ? new Date(userRow.rows[0].last_action_at).getTime()
+    : null;
+  const lastInsightsCreatedAt = lastInsight?.created_at
+    ? new Date(lastInsight.created_at).getTime()
+    : null;
+
+  const shouldSkipRegenerate =
+    lastActionAt == null ||
+    lastInsightsCreatedAt == null ||
+    lastActionAt <= lastInsightsCreatedAt;
+
+  if (shouldSkipRegenerate && lastInsight) {
+    return {
+      main: {
+        summary: lastInsight.summary,
+        highlights: lastInsight.highlights ?? [],
+        suggestions: lastInsight.suggestions ?? [],
+        score: Number(lastInsight.score) ?? 0,
+      },
+      today: {
+        workout: lastInsight.today_workout ?? '',
+        budget: lastInsight.today_budget ?? '',
+        nutrition: lastInsight.today_nutrition ?? '',
+        focus: lastInsight.today_focus ?? '',
+      },
+      cached: true,
+    };
+  }
+
   const result = await generateInsights(userId);
   const main = {
     summary: result.summary,
@@ -151,7 +189,7 @@ export async function refreshInsights(userId) {
     score: result.score ?? 0,
   };
   const today = result.today ?? { workout: '', budget: '', nutrition: '', focus: '' };
-  return { main, today };
+  return { main, today, cached: false };
 }
 
 /**

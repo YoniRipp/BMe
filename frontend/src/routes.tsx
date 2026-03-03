@@ -39,6 +39,12 @@ const Landing = lazy(() =>
 const NotFound = lazy(() =>
   import('./pages/NotFound').then((m) => ({ default: m.NotFound }))
 );
+const TermsOfService = lazy(() =>
+  import('./pages/TermsOfService').then((m) => ({ default: m.TermsOfService }))
+);
+const PrivacyPolicy = lazy(() =>
+  import('./pages/PrivacyPolicy').then((m) => ({ default: m.PrivacyPolicy }))
+);
 
 function ProtectedRoutes() {
   const { user, authLoading } = useAuth();
@@ -240,6 +246,22 @@ export function AppRoutes() {
           element={
             <Suspense fallback={<LoadingSpinner text="Loading..." />}>
               <Landing />
+            </Suspense>
+          }
+        />
+        <Route
+          path="/terms-of-service"
+          element={
+            <Suspense fallback={<LoadingSpinner text="Loading..." />}>
+              <TermsOfService />
+            </Suspense>
+          }
+        />
+        <Route
+          path="/privacy-policy"
+          element={
+            <Suspense fallback={<LoadingSpinner text="Loading..." />}>
+              <PrivacyPolicy />
             </Suspense>
           }
         />

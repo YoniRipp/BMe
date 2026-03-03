@@ -4,10 +4,15 @@ import { useWorkouts } from '@/hooks/useWorkouts';
 import { useEnergy } from '@/hooks/useEnergy';
 import { useSchedule } from '@/hooks/useSchedule';
 import { useGoals } from '@/hooks/useGoals';
-import { DashboardHero } from '@/components/home/DashboardHero';
+import { useTransactions } from '@/hooks/useTransactions';
+import { DailySnapshot } from '@/components/home/DailySnapshot';
+import { QuickActions } from '@/components/home/QuickActions';
 import { VoiceMicHero } from '@/components/voice/VoiceMicHero';
 import { ScheduleItem } from '@/components/home/ScheduleItem';
 import { ScheduleModal } from '@/components/home/ScheduleModal';
+import { FoodEntryModal } from '@/components/energy/FoodEntryModal';
+import { TransactionModal } from '@/features/money/components/TransactionModal';
+import { WorkoutModal } from '@/components/body/WorkoutModal';
 import { GoalCard } from '@/components/goals/GoalCard';
 import { GoalModal } from '@/components/goals/GoalModal';
 import { ConfirmationDialog } from '@/components/shared/ConfirmationDialog';
@@ -24,36 +29,64 @@ import { toast } from 'sonner';
 
 export function Home() {
   const { settings } = useSettings();
-  const { workouts } = useWorkouts();
-  const { checkIns } = useEnergy();
+  const { workouts, addWorkout } = useWorkouts();
+  const { checkIns, foodEntries, addFoodEntry } = useEnergy();
   const { scheduleItems, scheduleLoading, scheduleError, addScheduleItem, updateScheduleItem, deleteScheduleItem } = useSchedule();
   const { goals, goalsLoading, goalsError, addGoal, updateGoal } = useGoals();
+  const { transactions, addTransaction } = useTransactions();
 
   const [scheduleModalOpen, setScheduleModalOpen] = useState(false);
   const [editingSchedule, setEditingSchedule] = useState<ScheduleItemType | undefined>(undefined);
   const [goalModalOpen, setGoalModalOpen] = useState(false);
   const [editingGoal, setEditingGoal] = useState<Goal | undefined>(undefined);
   const [deleteScheduleConfirmId, setDeleteScheduleConfirmId] = useState<string | null>(null);
+  const [foodModalOpen, setFoodModalOpen] = useState(false);
+  const [expenseModalOpen, setExpenseModalOpen] = useState(false);
+  const [workoutModalOpen, setWorkoutModalOpen] = useState(false);
 
-  // Memoize date values to prevent unnecessary re-renders
   const todayStr = useMemo(() => format(new Date(), 'yyyy-MM-dd'), []);
   const todayLabel = useMemo(() => format(new Date(), 'MMMM d'), []);
 
-  // Workouts this week (Sunday-Saturday)
   const { start: weekStart, end: weekEnd } = useMemo(() => getPeriodRange('weekly', new Date()), []);
   const workoutsThisWeek = useMemo(
     () => workouts.filter((w) => isWithinInterval(new Date(w.date), { start: weekStart, end: weekEnd })).length,
     [workouts, weekStart, weekEnd]
   );
 
-  // Last sleep: most recent check-in by date
   const lastSleepHours = useMemo(() => {
     const sorted = [...checkIns].sort(
       (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
     );
-    const latest = sorted[0];
-    return latest?.sleepHours;
+    return sorted[0]?.sleepHours;
   }, [checkIns]);
+
+  // Today's calories
+  const todayCalories = useMemo(() => {
+    return foodEntries
+      .filter((e) => format(new Date(e.date), 'yyyy-MM-dd') === todayStr)
+      .reduce((sum, e) => sum + (e.calories || 0), 0);
+  }, [foodEntries, todayStr]);
+
+  // Calories goal from goals
+  const caloriesGoal = useMemo(() => {
+    const calGoal = goals.find((g) => g.type === 'calories');
+    return calGoal?.target || 0;
+  }, [goals]);
+
+  // Today's spending
+  const todaySpent = useMemo(() => {
+    return transactions
+      .filter((t) => t.type === 'expense' && format(new Date(t.date), 'yyyy-MM-dd') === todayStr)
+      .reduce((sum, t) => sum + t.amount, 0);
+  }, [transactions, todayStr]);
+
+  // Daily budget from savings goal (monthly target / 30)
+  const dailyBudget = useMemo(() => {
+    const savingsGoal = goals.find((g) => g.type === 'savings');
+    if (!savingsGoal) return 0;
+    const divisor = savingsGoal.period === 'weekly' ? 7 : savingsGoal.period === 'yearly' ? 365 : 30;
+    return savingsGoal.target / divisor;
+  }, [goals]);
 
   const activeSchedule = useMemo(
     () =>
@@ -68,7 +101,6 @@ export function Home() {
     [scheduleItems, todayStr]
   );
 
-  // New user detection for welcome banner
   const isNewUser = !scheduleLoading && !goalsLoading && activeSchedule.length === 0 && goals.length === 0;
 
   const handleScheduleSave = async (item: Omit<ScheduleItemType, 'id'>) => {
@@ -108,14 +140,33 @@ export function Home() {
     setGoalModalOpen(true);
   };
 
+  const openScheduleModal = () => {
+    setEditingSchedule(undefined);
+    setScheduleModalOpen(true);
+  };
+
   return (
-    <div className="max-w-6xl mx-auto space-y-8">
-      <DashboardHero
-        workoutsThisWeek={workoutsThisWeek}
-        lastSleepHours={lastSleepHours}
-        energyScore={undefined}
+    <div className="max-w-6xl mx-auto space-y-6" data-onboarding="home">
+      {/* Daily snapshot with rings */}
+      <DailySnapshot
+        caloriesEaten={todayCalories}
+        caloriesGoal={caloriesGoal}
+        todaySpent={todaySpent}
+        dailyBudget={dailyBudget}
+        workoutStreak={workoutsThisWeek}
+        sleepHours={lastSleepHours}
+        currency={settings.currency}
       />
 
+      {/* Quick actions */}
+      <QuickActions
+        onLogFood={() => setFoodModalOpen(true)}
+        onLogExpense={() => setExpenseModalOpen(true)}
+        onLogWorkout={() => setWorkoutModalOpen(true)}
+        onLogSchedule={openScheduleModal}
+      />
+
+      {/* Voice */}
       <VoiceMicHero />
 
       {isNewUser && (
@@ -127,96 +178,91 @@ export function Home() {
         </Card>
       )}
 
-      {/* Single column: Today's Schedule on top, Goals below */}
-      <div className="space-y-4 sm:space-y-6">
-        <Card>
-          <CardContent className="p-5">
-            <SectionHeader
-              title="Today's Schedule"
-              subtitle={todayLabel}
-            />
-            <ContentWithLoading loading={scheduleLoading} loadingText="Loading schedule..." error={scheduleError}>
-              <div className="space-y-2">
-                {activeSchedule.length === 0 ? (
-                  <Card
-                    className="p-8 border-2 border-dashed border-border cursor-pointer hover:border-primary transition-colors text-center"
-                    onClick={() => {
-                      setEditingSchedule(undefined);
-                      setScheduleModalOpen(true);
-                    }}
+      {/* Today's Schedule */}
+      <Card>
+        <CardContent className="p-5">
+          <SectionHeader
+            title="Today's Schedule"
+            subtitle={todayLabel}
+          />
+          <ContentWithLoading loading={scheduleLoading} loadingText="Loading schedule..." error={scheduleError}>
+            <div className="space-y-1.5" data-onboarding="add-schedule">
+              {activeSchedule.length === 0 ? (
+                <Card
+                  className="p-8 border-2 border-dashed border-border cursor-pointer hover:border-primary transition-colors text-center"
+                  onClick={openScheduleModal}
+                >
+                  <Plus className="w-12 h-12 mx-auto mb-3 text-muted-foreground" />
+                  <p className="text-lg font-medium mb-1">Add your first schedule item</p>
+                  <p className="text-sm text-muted-foreground">Tap to create a daily routine</p>
+                </Card>
+              ) : (
+                <>
+                  {activeSchedule.map((item) => (
+                    <ScheduleItem
+                      key={item.id}
+                      item={item}
+                      isPast={isScheduleItemPastUtc(item.date, item.endTime ?? '00:00')}
+                      onEdit={handleScheduleEdit}
+                      onDelete={setDeleteScheduleConfirmId}
+                      categoryColors={settings.scheduleCategoryColors}
+                    />
+                  ))}
+                  <button
+                    type="button"
+                    className="w-full p-3 border-2 border-dashed border-border rounded-xl cursor-pointer hover:border-primary transition-colors text-center bg-muted/30"
+                    onClick={openScheduleModal}
                   >
-                    <Plus className="w-12 h-12 mx-auto mb-3 text-muted-foreground" />
-                    <p className="text-lg font-medium mb-1">Add your first schedule item</p>
-                    <p className="text-sm text-muted-foreground">Tap to create a daily routine</p>
-                  </Card>
-                ) : (
-                  <>
-                    {activeSchedule.map((item) => (
-                      <ScheduleItem
-                        key={item.id}
-                        item={item}
-                        isPast={isScheduleItemPastUtc(item.date, item.endTime ?? '00:00')}
-                        onEdit={handleScheduleEdit}
-                        onDelete={setDeleteScheduleConfirmId}
-                        categoryColors={settings.scheduleCategoryColors}
-                      />
-                    ))}
-                    <Card
-                      className="p-6 border-2 border-dashed border-border cursor-pointer hover:border-primary transition-colors text-center bg-muted"
-                      onClick={() => {
-                        setEditingSchedule(undefined);
-                        setScheduleModalOpen(true);
-                      }}
-                    >
-                      <Plus className="w-8 h-8 mx-auto text-primary" />
-                      <p className="text-sm font-medium mt-2 text-muted-foreground">Add another schedule item</p>
-                    </Card>
-                  </>
-                )}
-              </div>
-            </ContentWithLoading>
-          </CardContent>
-        </Card>
+                    <Plus className="w-5 h-5 mx-auto text-primary" />
+                    <p className="text-xs font-medium mt-1 text-muted-foreground">Add another</p>
+                  </button>
+                </>
+              )}
+            </div>
+          </ContentWithLoading>
+        </CardContent>
+      </Card>
 
-        <Card>
-          <CardContent className="p-5">
-            <SectionHeader title="Goals" subtitle="Track what matters" />
-            <ContentWithLoading loading={goalsLoading} loadingText="Loading goals..." error={goalsError}>
-              <div className="space-y-3">
-                {goals.length === 0 ? (
-                  <Card
-                    className="p-8 border-2 border-dashed border-border cursor-pointer hover:border-primary transition-colors text-center"
+      {/* Goals progress */}
+      <Card>
+        <CardContent className="p-5">
+          <SectionHeader title="Goals" subtitle="Track what matters" />
+          <ContentWithLoading loading={goalsLoading} loadingText="Loading goals..." error={goalsError}>
+            <div className="space-y-3">
+              {goals.length === 0 ? (
+                <Card
+                  className="p-8 border-2 border-dashed border-border cursor-pointer hover:border-primary transition-colors text-center"
+                  onClick={() => {
+                    setEditingGoal(undefined);
+                    setGoalModalOpen(true);
+                  }}
+                >
+                  <Plus className="w-12 h-12 mx-auto mb-3 text-muted-foreground" />
+                  <p className="text-lg font-medium mb-1">Add your first goal</p>
+                  <p className="text-sm text-muted-foreground">Tap to track your progress</p>
+                </Card>
+              ) : (
+                <>
+                  {goals.map((goal) => (
+                    <GoalCard key={goal.id} goal={goal} onEdit={handleGoalEdit} />
+                  ))}
+                  <button
+                    type="button"
+                    className="w-full p-3 border-2 border-dashed border-border rounded-xl cursor-pointer hover:border-primary transition-colors text-center bg-muted/30"
                     onClick={() => {
                       setEditingGoal(undefined);
                       setGoalModalOpen(true);
                     }}
                   >
-                    <Plus className="w-12 h-12 mx-auto mb-3 text-muted-foreground" />
-                    <p className="text-lg font-medium mb-1">Add your first goal</p>
-                    <p className="text-sm text-muted-foreground">Tap to track your progress</p>
-                  </Card>
-                ) : (
-                  <>
-                    {goals.map((goal) => (
-                      <GoalCard key={goal.id} goal={goal} onEdit={handleGoalEdit} />
-                    ))}
-                    <Card
-                      className="p-6 border-2 border-dashed border-border cursor-pointer hover:border-primary transition-colors text-center bg-muted"
-                      onClick={() => {
-                        setEditingGoal(undefined);
-                        setGoalModalOpen(true);
-                      }}
-                    >
-                      <Plus className="w-8 h-8 mx-auto text-primary" />
-                      <p className="text-sm font-medium mt-2 text-muted-foreground">Add another goal</p>
-                    </Card>
-                  </>
-                )}
-              </div>
-            </ContentWithLoading>
-          </CardContent>
-        </Card>
-      </div>
+                    <Plus className="w-5 h-5 mx-auto text-primary" />
+                    <p className="text-xs font-medium mt-1 text-muted-foreground">Add another goal</p>
+                  </button>
+                </>
+              )}
+            </div>
+          </ContentWithLoading>
+        </CardContent>
+      </Card>
 
       <ScheduleModal
         open={scheduleModalOpen}
@@ -224,6 +270,38 @@ export function Home() {
         onSave={handleScheduleSave}
         item={editingSchedule}
         initialDate={todayStr}
+      />
+
+      <FoodEntryModal
+        open={foodModalOpen}
+        onOpenChange={setFoodModalOpen}
+        onSave={(entry) => {
+          addFoodEntry(entry);
+          toast.success('Food logged');
+          setFoodModalOpen(false);
+        }}
+        recentFoods={foodEntries}
+      />
+
+      <TransactionModal
+        open={expenseModalOpen}
+        onOpenChange={setExpenseModalOpen}
+        onSave={(tx) => {
+          addTransaction(tx);
+          toast.success('Expense logged');
+          setExpenseModalOpen(false);
+        }}
+        transaction={undefined}
+      />
+
+      <WorkoutModal
+        open={workoutModalOpen}
+        onOpenChange={setWorkoutModalOpen}
+        onSave={(w) => {
+          addWorkout(w);
+          toast.success('Workout logged');
+          setWorkoutModalOpen(false);
+        }}
       />
 
       <GoalModal

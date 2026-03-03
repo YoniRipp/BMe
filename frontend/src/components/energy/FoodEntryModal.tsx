@@ -1,10 +1,10 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { FoodEntry } from '@/types/energy';
 import { foodEntryFormSchema, type FoodEntryFormValues } from '@/schemas/foodEntry';
 import { useDebounce } from '@/hooks/useDebounce';
-import { searchFoods, lookupOrCreateFood, type FoodSearchResult } from '@/features/energy/api';
+import { searchFoods, lookupOrCreateFood, getFoodByBarcode, type FoodSearchResult } from '@/features/energy/api';
 import {
   Dialog,
   DialogContent,
@@ -22,7 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Loader2 } from 'lucide-react';
+import { Loader2, ScanBarcode } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface FoodEntryModalProps {
@@ -30,6 +30,7 @@ interface FoodEntryModalProps {
   onOpenChange: (open: boolean) => void;
   onSave: (entry: Omit<FoodEntry, 'id'>) => void;
   entry?: FoodEntry;
+  recentFoods?: FoodEntry[];
 }
 
 const MIN_SEARCH_LENGTH = 2;
@@ -61,7 +62,7 @@ const defaultValues: FoodEntryFormValues = {
   fats: '',
 };
 
-export function FoodEntryModal({ open, onOpenChange, onSave, entry }: FoodEntryModalProps) {
+export function FoodEntryModal({ open, onOpenChange, onSave, entry, recentFoods = [] }: FoodEntryModalProps) {
   const [portionGrams, setPortionGrams] = useState(DEFAULT_REFERENCE_GRAMS);
   const [per100g, setPer100g] = useState<Per100g | null>(null);
   const [isLiquid, setIsLiquid] = useState(false);
@@ -73,7 +74,10 @@ export function FoodEntryModal({ open, onOpenChange, onSave, entry }: FoodEntryM
   const [searchError, setSearchError] = useState<string | null>(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [isLookingUp, setIsLookingUp] = useState(false);
+  const [isScanning, setIsScanning] = useState(false);
   const searchContainerRef = useRef<HTMLDivElement>(null);
+
+  const canScanBarcode = true;
 
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
 
@@ -113,6 +117,7 @@ export function FoodEntryModal({ open, onOpenChange, onSave, entry }: FoodEntryM
     setSearchError(null);
     setDropdownOpen(false);
     setIsLookingUp(false);
+    setIsScanning(false);
   }, [entry, open, reset]);
 
   useEffect(() => {
@@ -233,6 +238,35 @@ export function FoodEntryModal({ open, onOpenChange, onSave, entry }: FoodEntryM
     setTimeout(() => setDropdownOpen(false), 150);
   }, []);
 
+  const handleScanBarcode = useCallback(async () => {
+    if (!canScanBarcode) return;
+    setIsScanning(true);
+    setSearchError(null);
+    try {
+      const { CapacitorBarcodeScanner, CapacitorBarcodeScannerTypeHintALLOption } = await import(
+        '@capacitor/barcode-scanner'
+      );
+      const result = await CapacitorBarcodeScanner.scanBarcode({
+        hint: CapacitorBarcodeScannerTypeHintALLOption.ALL,
+        scanInstructions: 'Point your camera at a product barcode',
+      });
+      const barcode = result?.ScanResult?.trim();
+      if (!barcode) {
+        setSearchError('No barcode detected. Please try again.');
+        return;
+      }
+      const food = await getFoodByBarcode(barcode);
+      handleSelectFood(food);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Could not scan barcode. Please try again.';
+      if (!msg.toLowerCase().includes('cancel')) {
+        setSearchError(msg);
+      }
+    } finally {
+      setIsScanning(false);
+    }
+  }, [canScanBarcode, handleSelectFood]);
+
   const handleLookupWithAI = useCallback(async () => {
     const name = searchQuery.trim();
     if (name.length < 2) return;
@@ -267,6 +301,41 @@ export function FoodEntryModal({ open, onOpenChange, onSave, entry }: FoodEntryM
     onOpenChange(false);
   };
 
+  const dedupedRecent = useMemo(() => {
+    if (!recentFoods.length) return [];
+    const seen = new Set<string>();
+    return recentFoods
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      .filter((e) => {
+        const key = e.name.toLowerCase();
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      })
+      .slice(0, 8);
+  }, [recentFoods]);
+
+  const handleRecentClick = useCallback(
+    (food: FoodEntry) => {
+      setValue('name', food.name);
+      setValue('calories', food.calories.toString());
+      setValue('protein', food.protein.toString());
+      setValue('carbs', food.carbs.toString());
+      setValue('fats', food.fats.toString());
+      if (food.portionAmount) {
+        setPortionGrams(food.portionAmount);
+        setPer100g({
+          calories: Math.round((food.calories / food.portionAmount) * 100),
+          protein: Math.round(((food.protein / food.portionAmount) * 100) * 10) / 10,
+          carbs: Math.round(((food.carbs / food.portionAmount) * 100) * 10) / 10,
+          fats: Math.round(((food.fats / food.portionAmount) * 100) * 10) / 10,
+        });
+      }
+      void trigger();
+    },
+    [setValue, trigger]
+  );
+
   const showDropdown =
     dropdownOpen &&
     searchQuery.trim().length >= MIN_SEARCH_LENGTH &&
@@ -280,8 +349,50 @@ export function FoodEntryModal({ open, onOpenChange, onSave, entry }: FoodEntryM
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)}>
           <div className="space-y-4">
+            {/* Recent foods chips */}
+            {!entry && dedupedRecent.length > 0 && !searchQuery.trim() && (
+              <div>
+                <Label className="text-xs text-muted-foreground">Recent</Label>
+                <div className="flex flex-wrap gap-1.5 mt-1">
+                  {dedupedRecent.map((food) => (
+                    <button
+                      key={`${food.name}-${food.id}`}
+                      type="button"
+                      className="rounded-full border border-border bg-muted/50 px-2.5 py-1 text-xs font-medium hover:bg-primary/10 hover:border-primary/30 transition-colors"
+                      onClick={() => handleRecentClick(food)}
+                    >
+                      {food.name}
+                      <span className="ml-1 text-muted-foreground">{Math.round(food.calories)}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div ref={searchContainerRef} className="relative">
-              <Label htmlFor="food-search">Search food (optional)</Label>
+              <div className="flex items-center justify-between gap-2">
+                <Label htmlFor="food-search">Search food (optional)</Label>
+                {canScanBarcode && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-8 gap-1.5"
+                    disabled={isScanning}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      void handleScanBarcode();
+                    }}
+                  >
+                    {isScanning ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <ScanBarcode className="h-3.5 w-3.5" />
+                    )}
+                    Scan barcode
+                  </Button>
+                )}
+              </div>
               <Input
                 id="food-search"
                 type="text"

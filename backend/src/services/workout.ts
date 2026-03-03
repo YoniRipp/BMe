@@ -9,6 +9,7 @@ import { requireId, requireFound, normOneOf, buildUpdates, trim, identity } from
 import * as workoutModel from '../models/workout.js';
 import { publishEvent } from '../events/publish.js';
 import { upsertEmbedding, buildEmbeddingText, deleteEmbedding } from './embeddings.js';
+import { touchUserLastAction } from './lastAction.js';
 
 const TYPE_ERROR = 'type must be one of: ' + WORKOUT_TYPES.join(', ');
 
@@ -30,6 +31,7 @@ export async function create(userId, body) {
   });
   await publishEvent('body.WorkoutCreated', workout, userId);
   upsertEmbedding(userId, 'workout', workout.id, buildEmbeddingText('workout', workout));
+  await touchUserLastAction(userId);
   return workout;
 }
 
@@ -56,4 +58,5 @@ export async function remove(userId, id) {
   requireFound(deleted, 'Workout');
   await publishEvent('body.WorkoutDeleted', { id }, userId);
   deleteEmbedding(id, 'workout');
+  await touchUserLastAction(userId);
 }

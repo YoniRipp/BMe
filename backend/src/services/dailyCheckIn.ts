@@ -5,6 +5,7 @@ import { parseDate, validateNonNegative } from '../utils/validation.js';
 import { requireId, requireFound, buildUpdates } from '../utils/serviceHelpers.js';
 import * as dailyCheckInModel from '../models/dailyCheckIn.js';
 import { publishEvent } from '../events/publish.js';
+import { touchUserLastAction } from './lastAction.js';
 
 function normSleepHours(v) {
   if (v == null) return null;
@@ -23,6 +24,7 @@ export async function create(userId, body) {
     sleepHours: normSleepHours(sleepHours),
   });
   await publishEvent('energy.CheckInCreated', checkIn, userId);
+  await touchUserLastAction(userId);
   return checkIn;
 }
 
@@ -35,6 +37,7 @@ export async function update(userId, id, body) {
   const updated = await dailyCheckInModel.update(id, userId, updates);
   requireFound(updated, 'Daily check-in');
   await publishEvent('energy.CheckInUpdated', updated, userId);
+  await touchUserLastAction(userId);
   return updated;
 }
 
@@ -42,4 +45,5 @@ export async function remove(userId, id) {
   requireId(id);
   const deleted = await dailyCheckInModel.deleteById(id, userId);
   requireFound(deleted, 'Daily check-in');
+  await touchUserLastAction(userId);
 }
