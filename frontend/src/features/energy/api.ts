@@ -3,6 +3,7 @@ export {
   dailyCheckInsApi,
   searchFoods,
   lookupOrCreateFood,
+  getFoodByBarcode,
   type ApiFoodEntry,
   type ApiDailyCheckIn,
   type FoodSearchResult,

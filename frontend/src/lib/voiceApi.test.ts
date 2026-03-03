@@ -68,14 +68,36 @@ describe('submitVoiceAudio', () => {
     vi.unstubAllGlobals();
   });
 
-  it('returns jobId when backend returns job', async () => {
+  it('returns result when backend returns job (polls)', async () => {
+    (fetch as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ jobId: 'job-123', status: 'processing' }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            status: 'completed',
+            result: { actions: [{ intent: 'add_transaction', args: { amount: 10 } }] },
+          }),
+      });
+
+    const result = await submitVoiceAudio('base64audio', 'audio/webm');
+    expect(result.actions).toHaveLength(1);
+    expect(result.actions[0].intent).toBe('add_transaction');
+  });
+
+  it('returns result when backend returns sync response (no Redis)', async () => {
     (fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
       ok: true,
-      json: () => Promise.resolve({ jobId: 'job-123', status: 'pending' }),
+      json: () =>
+        Promise.resolve({ actions: [{ intent: 'add_food', args: { food: 'apple' } }], results: [] }),
     });
 
     const result = await submitVoiceAudio('base64audio', 'audio/webm');
-    expect(result).toEqual({ jobId: 'job-123', status: 'pending' });
+    expect(result.actions).toHaveLength(1);
+    expect(result.actions[0].intent).toBe('add_food');
   });
 
   it('throws when response is not ok', async () => {

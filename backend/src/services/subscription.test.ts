@@ -4,8 +4,11 @@ const mockQuery = vi.fn();
 
 vi.mock('../config/index.js', () => ({
   config: {
-    stripeSecretKey: 'sk_test_mock',
-    stripePriceId: 'price_test_mock',
+    lemonSqueezyApiKey: 'test_key',
+    lemonSqueezyWebhookSecret: 'test_webhook_secret',
+    lemonSqueezyStoreId: 'store_1',
+    lemonSqueezyVariantId: 'variant_monthly',
+    lemonSqueezyVariantIdAnnual: 'variant_annual',
   },
 }));
 
@@ -18,42 +21,11 @@ vi.mock('../lib/logger.js', () => ({
     info: vi.fn(),
     warn: vi.fn(),
     error: vi.fn(),
+    debug: vi.fn(),
   },
 }));
 
-// Mock Stripe — provide class-like constructor mock
-const mockStripeInstance = {
-  customers: {
-    create: vi.fn().mockResolvedValue({ id: 'cus_mock123' }),
-  },
-  checkout: {
-    sessions: {
-      create: vi.fn().mockResolvedValue({ url: 'https://checkout.stripe.com/mock' }),
-    },
-  },
-  billingPortal: {
-    sessions: {
-      create: vi.fn().mockResolvedValue({ url: 'https://billing.stripe.com/mock' }),
-    },
-  },
-  subscriptions: {
-    retrieve: vi.fn().mockResolvedValue({
-      id: 'sub_mock123',
-      status: 'active',
-      current_period_end: Math.floor(Date.now() / 1000) + 86400 * 30,
-    }),
-  },
-};
-
-function MockStripe() {
-  return mockStripeInstance;
-}
-
-vi.mock('stripe', () => ({
-  default: MockStripe,
-}));
-
-const { getUserSubscription, updateSubscriptionStatus, handleWebhookEvent } =
+const { getUserSubscription, updateSubscriptionStatus, handleWebhookEvent, verifyWebhookSignature } =
   await import('./subscription.js');
 
 describe('subscription service', () => {
@@ -102,82 +74,103 @@ describe('subscription service', () => {
     it('updates DB with new status', async () => {
       mockQuery.mockResolvedValue({ rows: [] });
 
-      await updateSubscriptionStatus('cus_123', 'pro', 'sub_123', new Date('2026-04-01'));
+      await updateSubscriptionStatus('user-123', 'pro', 'sub_ls_123', new Date('2026-04-01'));
 
       expect(mockQuery).toHaveBeenCalledWith(
         expect.stringContaining('UPDATE users'),
-        ['pro', 'sub_123', expect.any(Date), 'cus_123'],
+        ['pro', 'sub_ls_123', expect.any(Date), null, 'user-123'],
       );
     });
   });
 
   describe('handleWebhookEvent', () => {
-    it('activates subscription on checkout.session.completed', async () => {
+    it('activates subscription on subscription_created', async () => {
       mockQuery.mockResolvedValue({ rows: [] });
 
       await handleWebhookEvent({
-        type: 'checkout.session.completed',
+        meta: { event_name: 'subscription_created', custom_data: { user_id: 'user-123' } },
         data: {
-          object: {
-            mode: 'subscription',
-            customer: 'cus_123',
-            subscription: 'sub_123',
+          id: 'sub_ls_456',
+          attributes: {
+            status: 'active',
+            customer_id: 'cus_ls_789',
+            renews_at: '2026-04-01T00:00:00Z',
+            urls: { customer_portal: 'https://portal.example.com' },
           },
         },
-      } as any);
+      });
 
       expect(mockQuery).toHaveBeenCalledWith(
         expect.stringContaining('UPDATE users'),
-        expect.arrayContaining(['pro', 'sub_mock123', expect.any(Date), 'cus_123']),
+        expect.arrayContaining(['pro', 'sub_ls_456']),
       );
     });
 
-    it('cancels subscription on customer.subscription.deleted', async () => {
+    it('cancels subscription on subscription_cancelled', async () => {
       mockQuery.mockResolvedValue({ rows: [] });
 
       await handleWebhookEvent({
-        type: 'customer.subscription.deleted',
+        meta: { event_name: 'subscription_cancelled', custom_data: { user_id: 'user-123' } },
         data: {
-          object: {
-            customer: 'cus_123',
-            id: 'sub_123',
-            current_period_end: Math.floor(Date.now() / 1000),
+          id: 'sub_ls_456',
+          attributes: {
+            status: 'cancelled',
+            customer_id: 'cus_ls_789',
+            ends_at: '2026-04-01T00:00:00Z',
           },
         },
-      } as any);
+      });
 
       expect(mockQuery).toHaveBeenCalledWith(
         expect.stringContaining('UPDATE users'),
-        expect.arrayContaining(['canceled', 'sub_123']),
+        expect.arrayContaining(['canceled', 'sub_ls_456']),
       );
     });
 
-    it('sets past_due on invoice.payment_failed', async () => {
+    it('sets past_due on subscription_payment_failed', async () => {
       mockQuery.mockResolvedValue({ rows: [] });
 
       await handleWebhookEvent({
-        type: 'invoice.payment_failed',
+        meta: { event_name: 'subscription_payment_failed', custom_data: { user_id: 'user-123' } },
         data: {
-          object: {
-            customer: 'cus_123',
-            subscription: 'sub_123',
+          id: 'sub_ls_456',
+          attributes: {
+            status: 'past_due',
+            customer_id: 'cus_ls_789',
           },
         },
-      } as any);
+      });
 
       expect(mockQuery).toHaveBeenCalledWith(
         expect.stringContaining('UPDATE users'),
-        expect.arrayContaining(['past_due', 'sub_123']),
+        expect.arrayContaining(['past_due', 'sub_ls_456']),
       );
     });
 
-    it('ignores unknown event types', async () => {
+    it('ignores events without user ID or customer ID', async () => {
       await handleWebhookEvent({
-        type: 'some.unknown.event',
-        data: { object: {} },
-      } as any);
+        meta: { event_name: 'subscription_created' },
+        data: {
+          id: 'sub_ls_456',
+          attributes: { status: 'active' },
+        },
+      });
 
       expect(mockQuery).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('verifyWebhookSignature', () => {
+    it('verifies valid signature', () => {
+      const crypto = require('crypto');
+      const body = '{"test": true}';
+      const hmac = crypto.createHmac('sha256', 'test_webhook_secret').update(body).digest('hex');
+
+      expect(verifyWebhookSignature(body, hmac)).toBe(true);
+    });
+
+    it('rejects invalid signature', () => {
+      expect(verifyWebhookSignature('{"test": true}', 'invalid_hex')).toBe(false);
     });
   });
 });

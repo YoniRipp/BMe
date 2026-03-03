@@ -117,7 +117,11 @@ export function VoiceAgentButton({ panelOpen, onTogglePanel }: VoiceAgentButtonP
         }
 
         if (succeeded.length > 0 && failed.length === 0) {
-          toast.success(succeeded.length === 1 ? succeeded[0] : `Done: ${succeeded.join(', ')}`);
+          if (succeeded.length === 1) {
+            toast.success(succeeded[0]);
+          } else {
+            toast.success('Done', { description: <span className="whitespace-pre-line">{succeeded.join('\n')}</span> });
+          }
         } else if (succeeded.length > 0 && failed.length > 0) {
           toast.success(`Added ${succeeded.length} item(s). ${failed.length} failed: ${failed.map((f) => f.reason).join('; ')}`);
         } else if (failed.length > 0) {

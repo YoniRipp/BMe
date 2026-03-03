@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Check, Sparkles } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -23,6 +24,7 @@ const PRO_FEATURES = [
 
 export function Pricing() {
   const { isPro, subscribe } = useSubscription();
+  const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>('annual');
 
   return (
     <div className="mx-auto max-w-4xl space-y-8 p-6">
@@ -31,6 +33,35 @@ export function Pricing() {
         <p className="mt-2 text-muted-foreground">
           Start free. Upgrade when you want the AI-powered experience.
         </p>
+      </div>
+
+      {/* Billing toggle */}
+      <div className="flex items-center justify-center gap-3">
+        <button
+          type="button"
+          onClick={() => setBillingCycle('monthly')}
+          className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
+            billingCycle === 'monthly'
+              ? 'bg-primary text-primary-foreground'
+              : 'text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          Monthly
+        </button>
+        <button
+          type="button"
+          onClick={() => setBillingCycle('annual')}
+          className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
+            billingCycle === 'annual'
+              ? 'bg-primary text-primary-foreground'
+              : 'text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          Annual
+          <span className="ml-1.5 rounded-full bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-700 dark:bg-green-900 dark:text-green-300">
+            Save 38%
+          </span>
+        </button>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
@@ -60,14 +91,25 @@ export function Pricing() {
           <CardHeader>
             <div className="flex items-center gap-2">
               <CardTitle className="text-xl">Pro</CardTitle>
-              <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
-                Popular
-              </span>
+              {billingCycle === 'annual' && (
+                <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+                  Best value
+                </span>
+              )}
             </div>
             <CardDescription>AI-powered life tracking</CardDescription>
-            <p className="text-3xl font-bold">
-              $4.99<span className="text-sm font-normal text-muted-foreground">/month</span>
-            </p>
+            {billingCycle === 'monthly' ? (
+              <p className="text-3xl font-bold">
+                $7.99<span className="text-sm font-normal text-muted-foreground">/month</span>
+              </p>
+            ) : (
+              <div>
+                <p className="text-3xl font-bold">
+                  $59<span className="text-sm font-normal text-muted-foreground">/year</span>
+                </p>
+                <p className="text-sm text-muted-foreground">~$4.92/month</p>
+              </div>
+            )}
           </CardHeader>
           <CardContent className="space-y-4">
             <ul className="space-y-2">
@@ -83,8 +125,8 @@ export function Pricing() {
                 Current Plan
               </Button>
             ) : (
-              <Button className="w-full" onClick={subscribe}>
-                Upgrade to Pro
+              <Button className="w-full" onClick={() => subscribe(billingCycle)}>
+                {billingCycle === 'annual' ? 'Subscribe Annually' : 'Subscribe Monthly'}
               </Button>
             )}
           </CardContent>

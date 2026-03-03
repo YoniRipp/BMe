@@ -8,8 +8,8 @@ vi.mock('@/context/AuthContext', () => ({
 
 vi.mock('@/core/api/subscription', () => ({
   subscriptionApi: {
-    createCheckout: vi.fn().mockResolvedValue({ url: 'https://checkout.stripe.com/mock' }),
-    createPortal: vi.fn().mockResolvedValue({ url: 'https://billing.stripe.com/mock' }),
+    createCheckout: vi.fn().mockResolvedValue({ url: 'https://checkout.lemonsqueezy.com/mock' }),
+    createPortal: vi.fn().mockResolvedValue({ url: 'https://portal.lemonsqueezy.com/mock' }),
   },
 }));
 

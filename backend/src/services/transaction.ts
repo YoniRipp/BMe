@@ -8,6 +8,7 @@ import { requireId, requireFound, normOneOf, buildUpdates } from '../utils/servi
 import * as transactionModel from '../models/transaction.js';
 import { publishEvent } from '../events/publish.js';
 import { upsertEmbedding, buildEmbeddingText, deleteEmbedding } from './embeddings.js';
+import { touchUserLastAction } from './lastAction.js';
 
 const TYPE_ERROR = 'type must be income or expense';
 
@@ -48,6 +49,7 @@ export async function create(userId, body) {
   });
   await publishEvent('money.TransactionCreated', transaction, userId);
   upsertEmbedding(userId, 'transaction', transaction.id, buildEmbeddingText('transaction', transaction));
+  await touchUserLastAction(userId);
   return transaction;
 }
 
@@ -68,6 +70,7 @@ export async function update(userId, id, body) {
   requireFound(updated, 'Transaction');
   await publishEvent('money.TransactionUpdated', updated, userId);
   upsertEmbedding(userId, 'transaction', updated.id, buildEmbeddingText('transaction', updated));
+  await touchUserLastAction(userId);
   return updated;
 }
 
@@ -77,6 +80,7 @@ export async function remove(userId, id) {
   requireFound(deleted, 'Transaction');
   await publishEvent('money.TransactionDeleted', { id }, userId);
   deleteEmbedding(id, 'transaction');
+  await touchUserLastAction(userId);
 }
 
 export async function getBalance(userId, month) {

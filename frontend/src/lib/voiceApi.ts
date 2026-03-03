@@ -87,12 +87,12 @@ function sleep(ms: number, signal?: AbortSignal): Promise<void> {
   });
 }
 
-/** Submit audio for voice processing. Returns jobId for polling. */
+/** Submit audio for voice processing. Returns result (polls when backend returns jobId, uses direct response when sync). */
 export async function submitVoiceAudio(
   audio: string,
   mimeType: string,
   options?: { signal?: AbortSignal; timeoutMs?: number }
-): Promise<{ jobId: string; status: string }> {
+): Promise<VoiceUnderstandResult> {
   const today = toLocalDateString(new Date());
   const timezone = getUserTimezone();
   const timeoutMs = options?.timeoutMs ?? DEFAULT_TIMEOUT_MS;
@@ -100,7 +100,6 @@ export async function submitVoiceAudio(
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
-  // Link external signal to our controller
   if (options?.signal) {
     options.signal.addEventListener('abort', () => controller.abort());
   }
@@ -126,7 +125,11 @@ export async function submitVoiceAudio(
   }
   clearTimeout(timeoutId);
 
-  return handleResponse<{ jobId: string; status: string }>(res);
+  const data = await handleResponse<{ jobId?: string; status?: string; actions?: unknown[]; results?: unknown[] }>(res);
+  if (data.jobId) {
+    return pollForVoiceResult(data.jobId, { signal: options?.signal });
+  }
+  return parseVoiceResult(data);
 }
 
 /** Poll for voice job completion. */

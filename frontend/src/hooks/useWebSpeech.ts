@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState, useEffect } from 'react';
-import { submitVoiceAudio, pollForVoiceResult, blobToBase64, type VoiceUnderstandResult } from '@/lib/voiceApi';
+import { submitVoiceAudio, blobToBase64, type VoiceUnderstandResult } from '@/lib/voiceApi';
 
 interface UseWebSpeechOptions {
   language?: string;
@@ -174,8 +174,7 @@ export function useWebSpeech(options: UseWebSpeechOptions = {}): UseWebSpeechRet
 
         try {
           const base64 = await blobToBase64(blob);
-          const { jobId } = await submitVoiceAudio(base64, mimeType);
-          const result = await pollForVoiceResult(jobId);
+          const result = await submitVoiceAudio(base64, mimeType);
           lastResultRef.current = result;
 
           // Extract transcript from the first action if available

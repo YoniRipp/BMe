@@ -1,71 +1,83 @@
 /**
- * Subscription service — Stripe integration for BeMe Pro.
+ * Subscription service — Lemon Squeezy integration for BeMe Pro.
  */
-import Stripe from 'stripe';
+import crypto from 'crypto';
 import { config } from '../config/index.js';
 import { getPool } from '../db/pool.js';
 import { logger } from '../lib/logger.js';
 
-function getStripe(): Stripe {
-  if (!config.stripeSecretKey) {
-    throw new Error('Stripe is not configured (missing STRIPE_SECRET_KEY)');
-  }
-  return new Stripe(config.stripeSecretKey);
-}
+const LS_API_BASE = 'https://api.lemonsqueezy.com/v1';
 
-export async function getOrCreateStripeCustomer(userId: string, email: string): Promise<string> {
-  const pool = getPool();
-  const { rows } = await pool.query(
-    'SELECT stripe_customer_id FROM users WHERE id = $1',
-    [userId],
-  );
-  if (rows[0]?.stripe_customer_id) {
-    return rows[0].stripe_customer_id;
+async function lsFetch(path: string, options: RequestInit = {}) {
+  if (!config.lemonSqueezyApiKey) {
+    throw new Error('Lemon Squeezy is not configured (missing LEMONSQUEEZY_API_KEY)');
   }
-  const stripe = getStripe();
-  const customer = await stripe.customers.create({
-    email,
-    metadata: { userId },
+  const res = await fetch(`${LS_API_BASE}${path}`, {
+    ...options,
+    headers: {
+      Accept: 'application/vnd.api+json',
+      'Content-Type': 'application/vnd.api+json',
+      Authorization: `Bearer ${config.lemonSqueezyApiKey}`,
+      ...options.headers,
+    },
   });
-  await pool.query(
-    'UPDATE users SET stripe_customer_id = $1 WHERE id = $2',
-    [customer.id, userId],
-  );
-  return customer.id;
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`Lemon Squeezy API error ${res.status}: ${body}`);
+  }
+  return res.json();
 }
 
 export async function createCheckoutSession(
   userId: string,
   email: string,
+  plan: 'monthly' | 'annual',
   successUrl: string,
   cancelUrl: string,
 ): Promise<string> {
-  const stripe = getStripe();
-  const customerId = await getOrCreateStripeCustomer(userId, email);
-  if (!config.stripePriceId) {
-    throw new Error('STRIPE_PRICE_ID is not configured');
+  const variantId = plan === 'annual'
+    ? config.lemonSqueezyVariantIdAnnual
+    : config.lemonSqueezyVariantId;
+
+  if (!variantId || !config.lemonSqueezyStoreId) {
+    throw new Error('Lemon Squeezy variant/store IDs are not configured');
   }
-  const session = await stripe.checkout.sessions.create({
-    customer: customerId,
-    mode: 'subscription',
-    line_items: [{ price: config.stripePriceId, quantity: 1 }],
-    success_url: successUrl,
-    cancel_url: cancelUrl,
-    metadata: { userId },
+
+  const data = await lsFetch('/checkouts', {
+    method: 'POST',
+    body: JSON.stringify({
+      data: {
+        type: 'checkouts',
+        attributes: {
+          checkout_data: {
+            email,
+            custom: { user_id: userId },
+          },
+          checkout_options: {
+            redirect_url: successUrl,
+          },
+          product_options: {
+            redirect_url: successUrl,
+          },
+        },
+        relationships: {
+          store: { data: { type: 'stores', id: config.lemonSqueezyStoreId } },
+          variant: { data: { type: 'variants', id: variantId } },
+        },
+      },
+    }),
   });
-  return session.url!;
+
+  return data.data.attributes.url;
 }
 
-export async function createPortalSession(
-  stripeCustomerId: string,
-  returnUrl: string,
-): Promise<string> {
-  const stripe = getStripe();
-  const session = await stripe.billingPortal.sessions.create({
-    customer: stripeCustomerId,
-    return_url: returnUrl,
-  });
-  return session.url;
+export async function getCustomerPortalUrl(userId: string): Promise<string | null> {
+  const pool = getPool();
+  const { rows } = await pool.query(
+    'SELECT ls_customer_portal_url FROM users WHERE id = $1',
+    [userId],
+  );
+  return rows[0]?.ls_customer_portal_url || null;
 }
 
 export async function getUserSubscription(userId: string) {
@@ -82,79 +94,116 @@ export async function getUserSubscription(userId: string) {
 }
 
 export async function updateSubscriptionStatus(
-  stripeCustomerId: string,
+  userId: string,
   status: string,
   subscriptionId: string | null,
   periodEnd: Date | null,
+  customerPortalUrl: string | null = null,
 ) {
   const pool = getPool();
   await pool.query(
     `UPDATE users
      SET subscription_status = $1,
-         subscription_id = $2,
-         subscription_current_period_end = $3
-     WHERE stripe_customer_id = $4`,
-    [status, subscriptionId, periodEnd, stripeCustomerId],
+         ls_subscription_id = $2,
+         subscription_current_period_end = $3,
+         ls_customer_portal_url = COALESCE($4, ls_customer_portal_url)
+     WHERE id = $5`,
+    [status, subscriptionId, periodEnd, customerPortalUrl, userId],
   );
 }
 
-export async function handleWebhookEvent(event: Stripe.Event) {
-  switch (event.type) {
-    case 'checkout.session.completed': {
-      const session = event.data.object as Stripe.Checkout.Session;
-      if (session.mode === 'subscription' && session.customer && session.subscription) {
-        const stripe = getStripe();
-        const subscription = await stripe.subscriptions.retrieve(session.subscription as string);
-        await updateSubscriptionStatus(
-          session.customer as string,
-          'pro',
-          subscription.id,
-          new Date(subscription.current_period_end * 1000),
-        );
-        logger.info({ customerId: session.customer, subscriptionId: subscription.id }, 'Subscription activated');
-      }
+async function findUserByLsCustomerId(lsCustomerId: string): Promise<string | null> {
+  const pool = getPool();
+  const { rows } = await pool.query(
+    'SELECT id FROM users WHERE ls_customer_id = $1',
+    [lsCustomerId],
+  );
+  return rows[0]?.id || null;
+}
+
+export function verifyWebhookSignature(rawBody: string | Buffer, signature: string): boolean {
+  if (!config.lemonSqueezyWebhookSecret) return false;
+  const hmac = crypto
+    .createHmac('sha256', config.lemonSqueezyWebhookSecret)
+    .update(rawBody)
+    .digest('hex');
+  try {
+    return crypto.timingSafeEqual(
+      Buffer.from(hmac, 'hex'),
+      Buffer.from(signature, 'hex'),
+    );
+  } catch {
+    return false;
+  }
+}
+
+export async function handleWebhookEvent(event: any) {
+  const eventName: string = event.meta?.event_name;
+  const attrs = event.data?.attributes;
+  if (!eventName || !attrs) return;
+
+  const customData = event.meta?.custom_data || attrs.first_order_item?.custom_data;
+  const userId = customData?.user_id;
+  const lsCustomerId = String(attrs.customer_id || '');
+  const lsSubscriptionId = String(event.data?.id || '');
+  const customerPortalUrl: string | null = attrs.urls?.customer_portal || null;
+
+  let resolvedUserId = userId;
+  if (!resolvedUserId && lsCustomerId) {
+    resolvedUserId = await findUserByLsCustomerId(lsCustomerId);
+  }
+
+  if (!resolvedUserId) {
+    logger.warn({ eventName, lsCustomerId }, 'Webhook: could not resolve user ID');
+    return;
+  }
+
+  if (lsCustomerId) {
+    const pool = getPool();
+    await pool.query(
+      'UPDATE users SET ls_customer_id = $1 WHERE id = $2 AND (ls_customer_id IS NULL OR ls_customer_id = $1)',
+      [lsCustomerId, resolvedUserId],
+    );
+  }
+
+  const lsStatus: string = attrs.status || '';
+  const renewsAt = attrs.renews_at ? new Date(attrs.renews_at) : null;
+  const endsAt = attrs.ends_at ? new Date(attrs.ends_at) : null;
+  const periodEnd = renewsAt || endsAt;
+
+  switch (eventName) {
+    case 'subscription_created':
+    case 'subscription_resumed': {
+      await updateSubscriptionStatus(resolvedUserId, 'pro', lsSubscriptionId, periodEnd, customerPortalUrl);
+      logger.info({ userId: resolvedUserId, lsSubscriptionId }, `Subscription ${eventName}`);
       break;
     }
-    case 'customer.subscription.updated': {
-      const subscription = event.data.object as Stripe.Subscription;
-      const status = subscription.status === 'active' ? 'pro'
-        : subscription.status === 'past_due' ? 'past_due'
-        : subscription.status === 'canceled' ? 'canceled'
+    case 'subscription_updated': {
+      const status = lsStatus === 'active' ? 'pro'
+        : lsStatus === 'past_due' ? 'past_due'
+        : lsStatus === 'paused' || lsStatus === 'cancelled' || lsStatus === 'expired' ? 'canceled'
         : 'free';
-      await updateSubscriptionStatus(
-        subscription.customer as string,
-        status,
-        subscription.id,
-        new Date(subscription.current_period_end * 1000),
-      );
-      logger.info({ customerId: subscription.customer, status }, 'Subscription updated');
+      await updateSubscriptionStatus(resolvedUserId, status, lsSubscriptionId, periodEnd, customerPortalUrl);
+      logger.info({ userId: resolvedUserId, status, lsStatus }, 'Subscription updated');
       break;
     }
-    case 'customer.subscription.deleted': {
-      const subscription = event.data.object as Stripe.Subscription;
-      await updateSubscriptionStatus(
-        subscription.customer as string,
-        'canceled',
-        subscription.id,
-        new Date(subscription.current_period_end * 1000),
-      );
-      logger.info({ customerId: subscription.customer }, 'Subscription canceled');
+    case 'subscription_cancelled':
+    case 'subscription_expired': {
+      await updateSubscriptionStatus(resolvedUserId, 'canceled', lsSubscriptionId, periodEnd, customerPortalUrl);
+      logger.info({ userId: resolvedUserId }, `Subscription ${eventName}`);
       break;
     }
-    case 'invoice.payment_failed': {
-      const invoice = event.data.object as Stripe.Invoice;
-      if (invoice.customer && invoice.subscription) {
-        await updateSubscriptionStatus(
-          invoice.customer as string,
-          'past_due',
-          invoice.subscription as string,
-          null,
-        );
-        logger.warn({ customerId: invoice.customer }, 'Payment failed');
-      }
+    case 'subscription_payment_failed': {
+      await updateSubscriptionStatus(resolvedUserId, 'past_due', lsSubscriptionId, periodEnd, customerPortalUrl);
+      logger.warn({ userId: resolvedUserId }, 'Payment failed');
+      break;
+    }
+    case 'subscription_payment_success': {
+      await updateSubscriptionStatus(resolvedUserId, 'pro', lsSubscriptionId, periodEnd, customerPortalUrl);
       break;
     }
     default:
+      logger.debug({ eventName }, 'Unhandled webhook event');
       break;
   }
 }

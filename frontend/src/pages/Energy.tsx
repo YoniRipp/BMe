@@ -309,17 +309,40 @@ export function Energy() {
                       {entry.calories} cal • P: {entry.protein}g C: {entry.carbs}g F: {entry.fats}g
                     </p>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDeleteFood(entry.id);
-                    }}
-                    aria-label={`Delete food entry: ${entry.name}`}
-                  >
-                    <Trash2 className="w-4 h-4" aria-hidden="true" />
-                  </Button>
+                  <div className="flex items-center gap-0.5">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        addFoodEntry({
+                          date: new Date(),
+                          name: entry.name,
+                          calories: entry.calories,
+                          protein: entry.protein,
+                          carbs: entry.carbs,
+                          fats: entry.fats,
+                          portionAmount: entry.portionAmount,
+                          portionUnit: entry.portionUnit,
+                          servingType: entry.servingType,
+                        });
+                      }}
+                      aria-label={`Re-log ${entry.name}`}
+                    >
+                      <Plus className="w-4 h-4" aria-hidden="true" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteFood(entry.id);
+                      }}
+                      aria-label={`Delete food entry: ${entry.name}`}
+                    >
+                      <Trash2 className="w-4 h-4" aria-hidden="true" />
+                    </Button>
+                  </div>
                 </div>
               );
               })}
@@ -439,6 +462,7 @@ export function Energy() {
         onOpenChange={setFoodModalOpen}
         onSave={handleFoodSave}
         entry={editingFoodEntry}
+        recentFoods={foodEntries}
       />
 
       <ConfirmationDialog

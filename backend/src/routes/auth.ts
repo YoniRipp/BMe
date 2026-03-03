@@ -126,6 +126,12 @@ async function login(req, res) {
   }
 }
 
+async function logout(req, res) {
+  // JWT is stateless; client clears token. Backend accepts and returns 200.
+  // Future: invalidate refresh token or add to blocklist if needed.
+  res.status(200).json({ message: 'Signed out' });
+}
+
 async function me(req, res) {
   try {
     const pool = getPool();
@@ -535,6 +541,7 @@ router.post('/api/auth/twitter', loginTwitter);
 router.get('/api/auth/twitter/redirect', twitterRedirect);
 router.get('/api/auth/twitter/callback', twitterCallback);
 router.post('/api/auth/exchange', exchangeCode);
+router.post('/api/auth/logout', logout);
 router.get('/api/auth/me', requireAuth, me);
 router.post('/api/auth/forgot-password', forgotPassword);
 router.post('/api/auth/reset-password', resetPassword);

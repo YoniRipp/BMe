@@ -8,6 +8,7 @@ import { Sparkles, TrendingUp, Lightbulb, AlertCircle, Search, X, RefreshCw } fr
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { toast } from 'sonner';
 import { aiInsightsApi, type SearchResult } from '@/core/api/aiInsights';
 import { cn } from '@/lib/utils';
 
@@ -209,7 +210,10 @@ export function AiInsightsSection() {
 
   const refreshMutation = useMutation({
     mutationFn: aiInsightsApi.refreshInsights,
-    onSuccess: () => {
+    onSuccess: (result) => {
+      if (result?.cached) {
+        toast.info('Insights are up to date — no new data to refresh.');
+      }
       void queryClient.invalidateQueries({ queryKey: ['ai-insights'] });
       void queryClient.invalidateQueries({ queryKey: ['ai-today-recs'] });
     },

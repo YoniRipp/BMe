@@ -39,10 +39,11 @@ export function Signup() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-md">
+    <div className="min-h-screen flex items-center justify-center bg-background font-sans p-4">
+      <Card className="w-full max-w-md border border-border shadow-lg">
         <CardHeader className="text-center space-y-4">
-          <img src="/logo.png" alt="BeMê" className="mx-auto max-w-[160px] w-auto h-16 object-contain" />
+          <img src="/logo.png" alt="BeMe" className="mx-auto max-w-[160px] w-auto h-16 object-contain" />
+          <p className="text-sm font-semibold text-primary">BeMe – Life Balance</p>
           <CardTitle>Create an account</CardTitle>
           <CardDescription>Enter your details to get started.</CardDescription>
         </CardHeader>
@@ -106,7 +107,7 @@ export function Signup() {
             <SocialLoginButtons />
             <p className="text-sm text-muted-foreground">
               Already have an account?{' '}
-              <Link to="/login" className="text-primary underline-offset-4 hover:underline">
+              <Link to="/login" className="text-primary font-medium underline-offset-4 hover:underline">
                 Sign in
               </Link>
             </p>

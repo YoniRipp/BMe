@@ -9,6 +9,10 @@ export default {
   ],
   theme: {
     extend: {
+      fontFamily: {
+        sans: ["Nunito", "system-ui", "-apple-system", "BlinkMacSystemFont", "sans-serif"],
+        nunito: ["Nunito", "sans-serif"],
+      },
       keyframes: {
         "slide-in-from-left": {
           from: { transform: "translateX(-100%)" },
@@ -97,6 +101,19 @@ export default {
         },
         gold: "hsl(var(--gold))",
         charcoal: "hsl(var(--charcoal))",
+        beme: {
+          cream: "#f0f0e8",
+          "cream-dark": "#e8e8e0",
+          "hero-bg": "#2d5a4a",
+          background: "#f0f0e8",
+          foreground: "#2c2c2c",
+          primary: "#6b8c65",
+          "primary-light": "#7fa076",
+          "primary-muted": "#ddebd7",
+          muted: "#7a7a72",
+          border: "#ddddd5",
+          white: "#ffffff",
+        },
         stone: "hsl(var(--stone))",
         mist: "hsl(var(--mist))",
       },

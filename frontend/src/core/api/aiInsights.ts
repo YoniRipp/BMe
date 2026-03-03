@@ -40,7 +40,7 @@ export const aiInsightsApi = {
   getInsights: (): Promise<AiInsights> =>
     request('/api/insights'),
 
-  refreshInsights: (): Promise<AiInsights> =>
+  refreshInsights: (): Promise<AiInsights & { cached?: boolean }> =>
     request('/api/insights/refresh', { method: 'POST' }),
 
   getTodayRecommendations: (): Promise<TodayRecommendations> =>

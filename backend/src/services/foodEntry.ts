@@ -6,6 +6,7 @@ import { requireId, requireFound, buildUpdates } from '../utils/serviceHelpers.j
 import * as foodEntryModel from '../models/foodEntry.js';
 import { publishEvent } from '../events/publish.js';
 import { upsertEmbedding, buildEmbeddingText, deleteEmbedding } from './embeddings.js';
+import { touchUserLastAction } from './lastAction.js';
 
 export async function list(userId) {
   return foodEntryModel.findByUserId(userId);
@@ -34,6 +35,7 @@ export async function create(userId, body) {
   });
   await publishEvent('energy.FoodEntryCreated', entry, userId);
   upsertEmbedding(userId, 'food_entry', entry.id, buildEmbeddingText('food_entry', entry));
+  await touchUserLastAction(userId);
   return entry;
 }
 
@@ -56,6 +58,7 @@ export async function update(userId, id, body) {
   requireFound(updated, 'Food entry');
   await publishEvent('energy.FoodEntryUpdated', updated, userId);
   upsertEmbedding(userId, 'food_entry', updated.id, buildEmbeddingText('food_entry', updated));
+  await touchUserLastAction(userId);
   return updated;
 }
 
@@ -65,4 +68,5 @@ export async function remove(userId, id) {
   requireFound(deleted, 'Food entry');
   await publishEvent('energy.FoodEntryDeleted', { id }, userId);
   deleteEmbedding(id, 'food_entry');
+  await touchUserLastAction(userId);
 }

@@ -39,21 +39,30 @@ export async function createApp() {
   let apiLimiter;
   let authLimiter;
 
+  const authPaths = ['/api/auth/login', '/api/auth/register', '/api/auth/google', '/api/auth/facebook', '/api/auth/twitter'];
+  const skipApiLimitForAuth = (req: import('express').Request) => authPaths.some((p) => req.path === p);
   if (config.isRedisConfigured) {
-    const client = await getRedisClient();
-    const redisStoreConfig = {
-      sendCommand: (...args) => client.sendCommand(args),
-    };
-    apiLimiter = rateLimit({
-      ...apiLimiterBase,
-      store: new RedisStore(redisStoreConfig),
-    });
-    authLimiter = rateLimit({
-      ...authLimiterBase,
-      store: new RedisStore(redisStoreConfig),
-    });
+    try {
+      const client = await getRedisClient();
+      const redisStoreConfig = {
+        sendCommand: (...args) => client.sendCommand(args),
+      };
+      apiLimiter = rateLimit({
+        ...apiLimiterBase,
+        skip: skipApiLimitForAuth,
+        store: new RedisStore(redisStoreConfig),
+      });
+      authLimiter = rateLimit({
+        ...authLimiterBase,
+        store: new RedisStore(redisStoreConfig),
+      });
+    } catch (e) {
+      logger.warn({ err: e }, 'Redis unavailable at startup, falling back to in-memory rate limiting');
+      apiLimiter = rateLimit({ ...apiLimiterBase, skip: skipApiLimitForAuth });
+      authLimiter = rateLimit(authLimiterBase);
+    }
   } else {
-    apiLimiter = rateLimit(apiLimiterBase);
+    apiLimiter = rateLimit({ ...apiLimiterBase, skip: skipApiLimitForAuth });
     authLimiter = rateLimit(authLimiterBase);
   }
 
@@ -65,9 +74,9 @@ export async function createApp() {
   logger.info({ corsOrigin: config.corsOrigin, nodeEnv: process.env.NODE_ENV }, 'CORS configured');
   app.use(helmet({ crossOriginOpenerPolicy: false }));
 
-  // Stripe webhook needs raw body for signature verification — mount BEFORE express.json()
-  if (config.stripeSecretKey) {
-    app.use('/api/webhooks/stripe', express.raw({ type: 'application/json' }));
+  // Lemon Squeezy webhook needs raw body for HMAC signature verification — mount BEFORE express.json()
+  if (config.lemonSqueezyWebhookSecret) {
+    app.use('/api/webhooks/lemonsqueezy', express.raw({ type: 'application/json' }));
     app.use(createWebhookRouter());
   }
 
@@ -94,7 +103,8 @@ export async function createApp() {
         const redis = await getRedisClient();
         await redis.ping();
       } catch (e) {
-        return res.status(503).json({ status: 'not ready', reason: 'Redis unreachable' });
+        logger.warn({ err: e }, 'Redis unreachable for /ready (app continues in degraded mode)');
+        return res.status(200).json({ status: 'degraded', reason: 'Redis unreachable' });
       }
     }
     res.status(200).json({ status: 'ok' });

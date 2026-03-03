@@ -10,6 +10,7 @@ import { requireId, requireFound, normOneOf, buildUpdates, trim } from '../utils
 import * as scheduleModel from '../models/schedule.js';
 import { publishEvent } from '../events/publish.js';
 import { upsertEmbedding, buildEmbeddingText, deleteEmbedding } from './embeddings.js';
+import { touchUserLastAction } from './lastAction.js';
 
 export async function list(userId) {
   return scheduleModel.findByUserId(userId);
@@ -42,6 +43,7 @@ export async function create(userId, body) {
   });
   await publishEvent('schedule.ScheduleItemAdded', item, userId);
   upsertEmbedding(userId, 'schedule', item.id, buildEmbeddingText('schedule', item));
+  await touchUserLastAction(userId);
   return item;
 }
 
@@ -86,6 +88,7 @@ export async function update(userId, id, body) {
   requireFound(updated, 'Schedule item');
   await publishEvent('schedule.ScheduleItemUpdated', updated, userId);
   upsertEmbedding(userId, 'schedule', updated.id, buildEmbeddingText('schedule', updated));
+  await touchUserLastAction(userId);
   return updated;
 }
 
@@ -95,4 +98,5 @@ export async function remove(userId, id) {
   requireFound(deleted, 'Schedule item');
   await publishEvent('schedule.ScheduleItemDeleted', { id }, userId);
   deleteEmbedding(id, 'schedule');
+  await touchUserLastAction(userId);
 }

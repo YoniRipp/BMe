@@ -89,9 +89,13 @@ export function VoiceMicHero() {
         }
 
         if (succeeded.length > 0 && failed.length === 0) {
-          const msg = succeeded.length === 1 ? succeeded[0] : `Done: ${succeeded.join(', ')}`;
+          const msg = succeeded.length === 1 ? succeeded[0] : succeeded.join('\n');
           setStatusText(msg);
-          toast.success(msg);
+          if (succeeded.length === 1) {
+            toast.success(msg);
+          } else {
+            toast.success('Done', { description: <span className="whitespace-pre-line">{msg}</span> });
+          }
         } else if (succeeded.length > 0) {
           toast.success(`Added ${succeeded.length} item(s). ${failed.length} failed.`);
           setStatusText(`${succeeded.length} added, ${failed.length} failed`);

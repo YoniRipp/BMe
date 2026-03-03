@@ -6,8 +6,8 @@ export function useSubscription() {
   const { user } = useAuth();
   const isPro = user?.subscriptionStatus === 'pro';
 
-  const subscribe = useCallback(async () => {
-    const { url } = await subscriptionApi.createCheckout();
+  const subscribe = useCallback(async (plan: 'monthly' | 'annual' = 'monthly') => {
+    const { url } = await subscriptionApi.createCheckout(plan);
     window.location.href = url;
   }, []);
 

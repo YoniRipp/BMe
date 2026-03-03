@@ -23,6 +23,7 @@ import {
 } from '@/components/ui/select';
 import { Plus, Trash2, Copy, Save } from 'lucide-react';
 import { STORAGE_KEYS, storage } from '@/lib/storage';
+import { LIMITS } from '@/lib/constants';
 import { toast } from 'sonner';
 
 export type WorkoutTemplate = Omit<Workout, 'id' | 'date'>;
@@ -77,7 +78,7 @@ export function WorkoutModal({ open, onOpenChange, onSave, workout }: WorkoutMod
     const exercises = watchedExercises ?? [];
     exercises.forEach((ex, idx) => {
       if (!ex) return;
-      const sets = Math.min(20, Math.max(1, Number(ex.sets) || 1));
+      const sets = Math.min(LIMITS.MAX_EXERCISE_SETS, Math.max(1, Number(ex.sets) || 1));
       const current = ex.repsPerSet ?? [];
       if (current.length === sets) return;
       let next: number[];
@@ -311,7 +312,7 @@ export function WorkoutModal({ open, onOpenChange, onSave, workout }: WorkoutMod
                   <span className="text-center">Weight (kg)</span>
                 </div>
                 {fields.map((field, idx) => {
-                  const setsCount = Math.min(20, Math.max(1, Number(watchedExercises?.[idx]?.sets) || 1));
+                  const setsCount = Math.min(LIMITS.MAX_EXERCISE_SETS, Math.max(1, Number(watchedExercises?.[idx]?.sets) || 1));
                   const repsPerSet = watchedExercises?.[idx]?.repsPerSet ?? Array.from({ length: setsCount }, () => watchedExercises?.[idx]?.reps ?? 0);
                   const repsError = errors.exercises?.[idx]?.repsPerSet;
                   return (

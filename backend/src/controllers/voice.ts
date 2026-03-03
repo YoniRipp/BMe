@@ -39,29 +39,45 @@ export const understand = asyncHandler(async (req, res) => {
   const userId = req.user?.id ?? null;
 
   if (audio && typeof audio === 'string' && mimeType && typeof mimeType === 'string' && mimeType.startsWith('audio/')) {
-    if (!isRedisConfigured()) {
-      return sendError(res, 503, 'Voice queue not configured (REDIS_URL required for audio)');
+    const today = options.today || new Date().toISOString().slice(0, 10);
+    const timezone = options.timezone || 'UTC';
+
+    if (isRedisConfigured()) {
+      try {
+        const jobId = randomUUID();
+        const redis = await getRedisClient();
+        await redis.setEx(
+          `job:${jobId}`,
+          300,
+          JSON.stringify({ status: 'processing', createdAt: Date.now() })
+        );
+        await enqueue('voice.parse', {
+          jobId,
+          audio,
+          mimeType,
+          userId,
+          today,
+          timezone,
+        });
+        return sendJson(res, {
+          jobId,
+          status: 'processing',
+          pollUrl: `/api/jobs/${jobId}`,
+        });
+      } catch (redisErr) {
+        logger.warn({ err: redisErr }, 'Redis/queue unavailable, falling back to sync voice processing');
+        // Fall through to sync processing
+      }
     }
-    const jobId = randomUUID();
-    const redis = await getRedisClient();
-    await redis.setEx(
-      `job:${jobId}`,
-      300,
-      JSON.stringify({ status: 'processing', createdAt: Date.now() })
-    );
-    await enqueue('voice.parse', {
-      jobId,
-      audio,
-      mimeType,
-      userId,
-      today: options.today || new Date().toISOString().slice(0, 10),
-      timezone: options.timezone || 'UTC',
-    });
-    return sendJson(res, {
-      jobId,
-      status: 'processing',
-      pollUrl: `/api/jobs/${jobId}`,
-    });
+
+    // No Redis (or Redis failed): process audio synchronously (slower but works)
+    try {
+      const data = await voiceService.parseAudio(audio, mimeType, userId, { today, timezone });
+      return sendJson(res, data);
+    } catch (e) {
+      logger.error({ err: e }, 'Voice audio parse error');
+      return sendError(res, 502, 'Failed to process audio', { details: e?.message ?? String(e) });
+    }
   }
 
   if (transcript && typeof transcript === 'string') {

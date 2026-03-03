@@ -41,7 +41,7 @@ export function SubscriptionSection() {
         </div>
         {!isPro && (
           <p className="text-xs text-muted-foreground">
-            Pro includes voice input, AI insights, and AI food lookup for $4.99/month.
+            Pro includes voice input, AI insights, and AI food lookup. $7.99/month or $59/year.
           </p>
         )}
       </CardContent>

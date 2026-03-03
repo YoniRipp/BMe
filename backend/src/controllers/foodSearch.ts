@@ -68,3 +68,54 @@ export const lookupOrCreate = asyncHandler(async (req, res) => {
   };
   sendJson(res, payload);
 });
+
+const OPEN_FOOD_FACTS_BASE = 'https://world.openfoodfacts.org/api/v2/product';
+
+interface OpenFoodFactsProduct {
+  product_name?: string;
+  product_name_en?: string;
+  nutriments?: {
+    'energy-kcal_100g'?: number;
+    proteins_100g?: number;
+    carbohydrates_100g?: number;
+    fat_100g?: number;
+  };
+  quantity?: string;
+}
+
+export const barcodeLookup = asyncHandler(async (req, res) => {
+  const code = typeof req.params?.code === 'string' ? req.params.code.trim() : '';
+  if (!code || !/^\d{8,14}$/.test(code)) {
+    return sendError(res, 400, 'Invalid barcode (expect 8–14 digits)');
+  }
+
+  const url = `${OPEN_FOOD_FACTS_BASE}/${encodeURIComponent(code)}.json`;
+  const response = await fetch(url);
+  const data = await response.json();
+
+  if (data.status !== 1 || !data.product) {
+    return sendError(res, 404, 'Product not found for this barcode');
+  }
+
+  const p: OpenFoodFactsProduct = data.product;
+  const name =
+    p.product_name_en ?? p.product_name ?? 'Unknown product';
+  const nut = p.nutriments ?? {};
+  const calories = Math.round(nut['energy-kcal_100g'] ?? 0);
+  const protein = Math.round((nut.proteins_100g ?? 0) * 10) / 10;
+  const carbs = Math.round((nut.carbohydrates_100g ?? 0) * 10) / 10;
+  const fat = Math.round((nut.fat_100g ?? 0) * 10) / 10;
+
+  const payload = {
+    name: String(name).trim() || 'Unknown product',
+    calories: Math.max(0, calories),
+    protein: Math.max(0, protein),
+    carbs: Math.max(0, carbs),
+    fat: Math.max(0, fat),
+    referenceGrams: 100,
+    isLiquid: false,
+    servingSizesMl: null,
+  };
+
+  sendJson(res, payload);
+});
