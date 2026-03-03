@@ -68,7 +68,7 @@ export function useSpeechRecognition(
           setLastResult(result);
         } catch (e) {
           console.error('Failed to understand transcript:', e);
-          const fallback = {
+          const fallback: VoiceUnderstandResult = {
             actions: [{ intent: 'unknown', message: e instanceof Error ? e.message : 'Could not understand. Please try again.' }],
           };
           lastResultRef.current = fallback;
@@ -77,7 +77,7 @@ export function useSpeechRecognition(
           setIsProcessing(false);
         }
       } else {
-        const fallback = { actions: [{ intent: 'unknown' }] };
+        const fallback = { actions: [{ intent: 'unknown' }] } as VoiceUnderstandResult;
         lastResultRef.current = fallback;
         setLastResult(fallback);
       }
@@ -90,7 +90,7 @@ export function useSpeechRecognition(
   }, [impl, useNativeImpl, web, language]);
 
   const getVoiceResult = useCallback(async (): Promise<VoiceUnderstandResult> => {
-    return lastResultRef.current ?? lastResult ?? { actions: [{ intent: 'unknown' }] };
+    return lastResultRef.current ?? lastResult ?? ({ actions: [{ intent: 'unknown' }] } as VoiceUnderstandResult);
   }, [lastResult]);
 
   return {

@@ -23,7 +23,7 @@ export function UpgradePrompt({ feature, description, compact }: UpgradePromptPr
           size="sm"
           variant="outline"
           className="ml-auto shrink-0"
-          onClick={subscribe}
+          onClick={() => subscribe()}
         >
           Upgrade
         </Button>
@@ -43,7 +43,7 @@ export function UpgradePrompt({ feature, description, compact }: UpgradePromptPr
         </CardDescription>
       </CardHeader>
       <CardContent className="text-center">
-        <Button onClick={subscribe} className="px-8">
+        <Button onClick={() => subscribe()} className="px-8">
           Upgrade to Pro — $7.99/mo
         </Button>
       </CardContent>

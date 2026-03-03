@@ -34,7 +34,7 @@ export function SubscriptionSection() {
               <ExternalLink className="ml-1 h-3 w-3" />
             </Button>
           ) : (
-            <Button size="sm" onClick={subscribe}>
+            <Button size="sm" onClick={() => subscribe()}>
               Upgrade to Pro
             </Button>
           )}

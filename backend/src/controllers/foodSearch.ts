@@ -91,7 +91,7 @@ export const barcodeLookup = asyncHandler(async (req, res) => {
 
   const url = `${OPEN_FOOD_FACTS_BASE}/${encodeURIComponent(code)}.json`;
   const response = await fetch(url);
-  const data = await response.json();
+  const data = (await response.json()) as { status?: number; product?: OpenFoodFactsProduct };
 
   if (data.status !== 1 || !data.product) {
     return sendError(res, 404, 'Product not found for this barcode');

@@ -68,7 +68,8 @@ export async function createCheckoutSession(
     }),
   });
 
-  return data.data.attributes.url;
+  const typed = data as { data: { attributes: { url: string } } };
+  return typed.data.attributes.url;
 }
 
 export async function getCustomerPortalUrl(userId: string): Promise<string | null> {
