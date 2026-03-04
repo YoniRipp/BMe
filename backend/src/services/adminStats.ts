@@ -10,16 +10,24 @@ async function safe<T>(label: string, fn: () => Promise<T>, fallback: T): Promis
   }
 }
 
+const OVERVIEW_FALLBACK = {
+  totalUsers: 0,
+  newUsersThisWeek: 0,
+  proSubscribers: 0,
+  churned: 0,
+  voiceCallsThisMonth: 0,
+  weeklyActiveUsers: 0,
+};
+
 export async function getAll() {
-  const [overview, userGrowth, activityByDay, featureAdoption, recentErrors, tableSizes] =
+  const [overview, userGrowth, dailyVoiceCalls, voiceHeavyUsers, recentErrors] =
     await Promise.all([
-      safe('overview', () => adminStatsModel.getOverviewStats(), { totalUsers: 0, newUsersToday: 0, newUsersThisWeek: 0, workoutsToday: 0, foodEntriesToday: 0, checkInsToday: 0, activeGoals: 0 }),
+      safe('overview', () => adminStatsModel.getBusinessOverview(), OVERVIEW_FALLBACK),
       safe('userGrowth', () => adminStatsModel.getUserGrowth(), []),
-      safe('activityByDay', () => adminStatsModel.getActivityByDay(), []),
-      safe('featureAdoption', () => adminStatsModel.getFeatureAdoption(), { workouts: 0, foodEntries: 0, checkIns: 0, goals: 0, totalUsers: 0 }),
+      safe('dailyVoiceCalls', () => adminStatsModel.getDailyVoiceCalls(), []),
+      safe('voiceHeavyUsers', () => adminStatsModel.getVoiceHeavyUsers(), []),
       safe('recentErrors', () => adminStatsModel.getRecentErrors(), { count: 0, lastErrorMessage: null }),
-      safe('tableSizes', () => adminStatsModel.getTableSizes(), []),
     ]);
 
-  return { overview, userGrowth, activityByDay, featureAdoption, recentErrors, tableSizes };
+  return { overview, userGrowth, dailyVoiceCalls, voiceHeavyUsers, recentErrors };
 }

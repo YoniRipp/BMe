@@ -56,22 +56,22 @@ function buildActivityQuery(opts: {
   return params.toString();
 }
 
-export interface AdminOverview {
+export interface BusinessOverview {
   totalUsers: number;
-  newUsersToday: number;
   newUsersThisWeek: number;
-  workoutsToday: number;
-  foodEntriesToday: number;
-  checkInsToday: number;
-  activeGoals: number;
+  proSubscribers: number;
+  churned: number;
+  voiceCallsThisMonth: number;
+  weeklyActiveUsers: number;
 }
 
-export interface AdminFeatureAdoption {
-  workouts: number;
-  foodEntries: number;
-  checkIns: number;
-  goals: number;
-  totalUsers: number;
+export interface VoiceHeavyUser {
+  id: string;
+  name: string;
+  email: string;
+  subscriptionStatus: string;
+  voiceCalls: number;
+  lastActive: string;
 }
 
 export interface AdminRecentErrors {
@@ -80,12 +80,11 @@ export interface AdminRecentErrors {
 }
 
 export interface AdminStatsResponse {
-  overview: AdminOverview;
+  overview: BusinessOverview;
   userGrowth: Array<{ date: string; count: number }>;
-  activityByDay: Array<{ date: string; workouts: number; foodEntries: number; checkIns: number }>;
-  featureAdoption: AdminFeatureAdoption;
+  dailyVoiceCalls: Array<{ date: string; calls: number }>;
+  voiceHeavyUsers: VoiceHeavyUser[];
   recentErrors: AdminRecentErrors;
-  tableSizes: Array<{ table: string; sizeBytes: number }>;
 }
 
 export const adminApi = {

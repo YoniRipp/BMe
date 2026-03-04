@@ -1,44 +1,47 @@
-import { Users, Dumbbell, Apple, Target } from 'lucide-react';
+import { Users, CreditCard, Mic, Activity } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { useAdminStats } from '@/hooks/useAdminStats';
+import type { BusinessOverview } from '@/core/api/admin';
 
 const cards = [
   {
-    key: 'users' as const,
+    key: 'users',
     label: 'Total Users',
     icon: Users,
     color: 'border-l-blue-500',
     iconColor: 'text-blue-500',
-    getValue: (o: { totalUsers: number }) => o.totalUsers,
-    getSub: (o: { newUsersToday: number; newUsersThisWeek: number }) =>
-      `+${o.newUsersToday} today, +${o.newUsersThisWeek} this week`,
+    getValue: (o: BusinessOverview) => o.totalUsers,
+    getSub: (o: BusinessOverview) => `+${o.newUsersThisWeek} this week`,
   },
   {
-    key: 'workouts' as const,
-    label: 'Workouts Today',
-    icon: Dumbbell,
+    key: 'subs',
+    label: 'Pro Subscribers',
+    icon: CreditCard,
     color: 'border-l-green-500',
     iconColor: 'text-green-500',
-    getValue: (o: { workoutsToday: number }) => o.workoutsToday,
-    getSub: () => 'Logged today',
+    getValue: (o: BusinessOverview) => o.proSubscribers,
+    getSub: (o: BusinessOverview) => `${o.churned} churned`,
   },
   {
-    key: 'food' as const,
-    label: 'Food Entries Today',
-    icon: Apple,
-    color: 'border-l-red-500',
-    iconColor: 'text-red-500',
-    getValue: (o: { foodEntriesToday: number }) => o.foodEntriesToday,
-    getSub: () => 'Logged today',
+    key: 'voice',
+    label: 'Voice API (Month)',
+    icon: Mic,
+    color: 'border-l-purple-500',
+    iconColor: 'text-purple-500',
+    getValue: (o: BusinessOverview) => o.voiceCallsThisMonth,
+    getSub: () => 'Total calls this month',
   },
   {
-    key: 'goals' as const,
-    label: 'Active Goals',
-    icon: Target,
+    key: 'wau',
+    label: 'Weekly Active Users',
+    icon: Activity,
     color: 'border-l-amber-500',
     iconColor: 'text-amber-500',
-    getValue: (o: { activeGoals: number }) => o.activeGoals,
-    getSub: () => 'Across all users',
+    getValue: (o: BusinessOverview) => o.weeklyActiveUsers,
+    getSub: (o: BusinessOverview) =>
+      o.totalUsers > 0
+        ? `${Math.round((o.weeklyActiveUsers / o.totalUsers) * 100)}% of total`
+        : '',
   },
 ];
 
@@ -57,10 +60,10 @@ export function AdminOverviewCards() {
                 <div>
                   <p className="text-sm text-muted-foreground">{card.label}</p>
                   <p className="text-2xl font-bold">
-                    {isLoading ? '—' : overview ? card.getValue(overview as never) : 0}
+                    {isLoading ? '—' : overview ? card.getValue(overview) : 0}
                   </p>
                   <p className="text-xs text-muted-foreground mt-1">
-                    {isLoading ? '' : overview ? card.getSub(overview as never) : ''}
+                    {isLoading ? '' : overview ? card.getSub(overview) : ''}
                   </p>
                 </div>
                 <Icon className={`h-8 w-8 ${card.iconColor} opacity-80`} />
