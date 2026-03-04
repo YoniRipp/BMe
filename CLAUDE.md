@@ -1,6 +1,6 @@
 # BMe
 
-Full-stack wellness app: body, energy, goals, groups, voice.
+Full-stack wellness app: body, energy, goals, voice.
 
 ## Stack
 - Backend: Node/Express, TypeScript, PostgreSQL, optional Redis

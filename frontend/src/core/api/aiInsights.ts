@@ -9,7 +9,7 @@ export interface AiInsights {
 
 export interface TodayRecommendations {
   workout: string;
-  budget: string;
+  sleep: string;
   nutrition: string;
   focus: string;
 }
@@ -17,8 +17,6 @@ export interface TodayRecommendations {
 export interface DailyStat {
   date: string;
   total_calories: string;
-  total_income: string;
-  total_expenses: string;
   workout_count: number;
   sleep_hours: string | null;
 }

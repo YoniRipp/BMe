@@ -42,7 +42,7 @@ describe('AiInsightsSection', () => {
     mockGetInsights.mockResolvedValue(successData);
     mockGetTodayRecommendations.mockResolvedValue({
       workout: 'Run 30 min',
-      budget: 'Stick to budget',
+      sleep: 'Get 8 hours of sleep tonight',
       nutrition: 'Eat protein',
       focus: 'Deep work',
     });

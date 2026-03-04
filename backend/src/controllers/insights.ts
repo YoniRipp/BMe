@@ -34,7 +34,7 @@ export const getStats = asyncHandler(async (req: Request, res: Response) => {
   since.setDate(since.getDate() - days);
   const pool = getPool();
   const result = await pool.query(
-    `SELECT date, total_calories, total_income, total_expenses, workout_count, sleep_hours
+    `SELECT date, total_calories, workout_count, sleep_hours
      FROM user_daily_stats
      WHERE user_id = $1 AND date >= $2
      ORDER BY date ASC`,

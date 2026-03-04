@@ -37,7 +37,6 @@ export function Terms() {
         <li>Body and workout logging with exercise details, sets, reps, and weight tracking</li>
         <li>Energy and nutrition management, including food logging, calorie tracking, and macronutrient breakdowns</li>
         <li>Goal setting and progress tracking across health and fitness domains</li>
-        <li>Group collaboration for households, projects, and shared activities</li>
         <li>AI-powered features including voice input via Google Gemini, natural language processing for data entry, and AI-generated insights</li>
       </ul>
       <p className="text-sm text-muted-foreground mb-4 leading-relaxed">
@@ -150,7 +149,7 @@ export function Terms() {
       </p>
       <ul className="list-disc pl-5 text-sm text-muted-foreground mb-4 space-y-1">
         <li>Use the Service for any illegal or unauthorized purpose</li>
-        <li>Abuse, harass, threaten, or intimidate other users, including within shared groups</li>
+        <li>Abuse, harass, threaten, or intimidate other users</li>
         <li>Use automated scripts, bots, scrapers, or other automated means to access or interact with the Service</li>
         <li>Attempt to reverse engineer, decompile, disassemble, or otherwise derive the source code of any part of the Service</li>
         <li>Interfere with or disrupt the Service, servers, or networks connected to the Service</li>

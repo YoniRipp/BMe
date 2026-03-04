@@ -11,8 +11,6 @@ import { AppProviders } from './Providers';
 const Home = lazy(() => import('./pages/Home').then((m) => ({ default: m.Home })));
 const Body = lazy(() => import('./pages/Body').then((m) => ({ default: m.Body })));
 const Energy = lazy(() => import('./pages/Energy').then((m) => ({ default: m.Energy })));
-const Groups = lazy(() => import('./pages/Groups').then((m) => ({ default: m.Groups })));
-const GroupDetail = lazy(() => import('./pages/GroupDetail').then((m) => ({ default: m.GroupDetail })));
 const Admin = lazy(() => import('./pages/Admin').then((m) => ({ default: m.Admin })));
 const Settings = lazy(() => import('./pages/Settings').then((m) => ({ default: m.Settings })));
 const Insights = lazy(() => import('./pages/Insights').then((m) => ({ default: m.Insights })));
@@ -21,9 +19,6 @@ const Login = lazy(() => import('./pages/Login').then((m) => ({ default: m.Login
 const Signup = lazy(() => import('./pages/Signup').then((m) => ({ default: m.Signup })));
 const AuthCallback = lazy(() =>
   import('./pages/AuthCallback').then((m) => ({ default: m.AuthCallback }))
-);
-const InviteJoin = lazy(() =>
-  import('./pages/InviteJoin').then((m) => ({ default: m.InviteJoin }))
 );
 const ForgotPassword = lazy(() =>
   import('./pages/ForgotPassword').then((m) => ({ default: m.ForgotPassword }))
@@ -110,22 +105,6 @@ function ProtectedAppRoutes() {
           }
         />
         <Route
-          path="groups"
-          element={
-            <Suspense fallback={<LoadingSpinner text="Loading groups page..." />}>
-              <Groups />
-            </Suspense>
-          }
-        />
-        <Route
-          path="groups/:id"
-          element={
-            <Suspense fallback={<LoadingSpinner text="Loading group..." />}>
-              <GroupDetail />
-            </Suspense>
-          }
-        />
-        <Route
           path="insights"
           element={
             <LocalErrorBoundary label="Insights">
@@ -199,14 +178,6 @@ export function AppRoutes() {
           element={
             <Suspense fallback={<LoadingSpinner text="Loading..." />}>
               <AuthCallback />
-            </Suspense>
-          }
-        />
-        <Route
-          path="/invite/join"
-          element={
-            <Suspense fallback={<LoadingSpinner text="Loading..." />}>
-              <InviteJoin />
             </Suspense>
           }
         />

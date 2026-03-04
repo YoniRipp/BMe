@@ -26,10 +26,6 @@ vi.mock('@/features/energy/api', () => ({
 vi.mock('@/features/goals/api', () => ({
   goalsApi: { list: vi.fn().mockResolvedValue([]), add: vi.fn(), update: vi.fn(), delete: vi.fn() },
 }));
-vi.mock('@/core/api/groups', () => ({
-  groupsApi: { list: vi.fn().mockResolvedValue([]), create: vi.fn(), update: vi.fn(), delete: vi.fn(), invite: vi.fn(), cancelInvite: vi.fn(), acceptInvite: vi.fn(), removeMember: vi.fn() },
-}));
-
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
 });

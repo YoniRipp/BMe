@@ -83,7 +83,7 @@ function SearchBox() {
           <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="e.g. coffee purchases, leg day workouts, high calorie meals…"
+            placeholder="e.g. leg day workouts, high calorie meals, morning runs…"
             className="flex-1"
           />
           <Button type="submit" size="sm" disabled={query.trim().length < 3 || isFetching}>
@@ -142,6 +142,7 @@ function TodayRecommendations() {
 
   const recs = [
     { icon: '💪', label: 'Workout', text: data?.workout },
+    { icon: '😴', label: 'Sleep', text: data?.sleep },
     { icon: '🥗', label: 'Nutrition', text: data?.nutrition },
     { icon: '🧠', label: 'Focus', text: data?.focus },
   ].filter((r) => r.text);
