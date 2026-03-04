@@ -6,6 +6,9 @@ import { requireAuth, requireAdmin } from '../middleware/auth.js';
 import { getPool } from '../db/index.js';
 import * as appLog from '../services/appLog.js';
 import * as userActivityLog from '../models/userActivityLog.js';
+import * as adminStatsService from '../services/adminStats.js';
+import { asyncHandler } from '../middleware/errorHandler.js';
+import { sendJson } from '../utils/response.js';
 
 const router = Router();
 
@@ -73,5 +76,10 @@ router.get('/api/admin/users/search', requireAuth, requireAdmin, async (req, res
     next(e);
   }
 });
+
+router.get('/api/admin/stats', requireAuth, requireAdmin, asyncHandler(async (_req, res) => {
+  const stats = await adminStatsService.getAll();
+  sendJson(res, stats);
+}));
 
 export default router;
