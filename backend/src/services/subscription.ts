@@ -1,37 +1,49 @@
 /**
- * Subscription service — Stripe integration for BeMe Pro.
+ * Subscription service — Lemon Squeezy integration for BeMe Pro.
  */
-import Stripe from 'stripe';
 import { config } from '../config/index.js';
 import { getPool } from '../db/pool.js';
 import { logger } from '../lib/logger.js';
 
-function getStripe(): Stripe {
-  if (!config.stripeSecretKey) {
-    throw new Error('Stripe is not configured (missing STRIPE_SECRET_KEY)');
-  }
-  return new Stripe(config.stripeSecretKey);
+const LS_BASE_URL = 'https://api.lemonsqueezy.com';
+
+export interface LemonSqueezyWebhookPayload {
+  meta: {
+    event_name: string;
+    custom_data?: { user_id?: string };
+  };
+  data: {
+    id: string;
+    type: string;
+    attributes: {
+      customer_id: number;
+      status?: string;
+      renews_at?: string;
+      urls?: { customer_portal?: string };
+      [key: string]: unknown;
+    };
+  };
 }
 
-export async function getOrCreateStripeCustomer(userId: string, email: string): Promise<string> {
-  const pool = getPool();
-  const { rows } = await pool.query(
-    'SELECT stripe_customer_id FROM users WHERE id = $1',
-    [userId],
-  );
-  if (rows[0]?.stripe_customer_id) {
-    return rows[0].stripe_customer_id;
+async function lsApi(method: string, path: string, body?: unknown): Promise<any> {
+  if (!config.lemonSqueezyApiKey) {
+    throw new Error('Lemon Squeezy is not configured (missing LEMONSQUEEZY_API_KEY)');
   }
-  const stripe = getStripe();
-  const customer = await stripe.customers.create({
-    email,
-    metadata: { userId },
+  const res = await fetch(`${LS_BASE_URL}${path}`, {
+    method,
+    headers: {
+      'Authorization': `Bearer ${config.lemonSqueezyApiKey}`,
+      'Content-Type': 'application/vnd.api+json',
+      'Accept': 'application/vnd.api+json',
+    },
+    ...(body ? { body: JSON.stringify(body) } : {}),
   });
-  await pool.query(
-    'UPDATE users SET stripe_customer_id = $1 WHERE id = $2',
-    [customer.id, userId],
-  );
-  return customer.id;
+  if (!res.ok) {
+    const text = await res.text();
+    logger.error({ status: res.status, body: text }, 'Lemon Squeezy API error');
+    throw new Error(`Lemon Squeezy API error: ${res.status}`);
+  }
+  return res.json();
 }
 
 export async function createCheckoutSession(
@@ -39,33 +51,49 @@ export async function createCheckoutSession(
   email: string,
   successUrl: string,
   cancelUrl: string,
+  plan: 'monthly' | 'yearly' = 'monthly',
 ): Promise<string> {
-  const stripe = getStripe();
-  const customerId = await getOrCreateStripeCustomer(userId, email);
-  if (!config.stripePriceId) {
-    throw new Error('STRIPE_PRICE_ID is not configured');
+  const variantId = plan === 'yearly'
+    ? config.lemonSqueezyVariantIdYearly
+    : config.lemonSqueezyVariantIdMonthly;
+
+  if (!variantId || !config.lemonSqueezyStoreId) {
+    throw new Error('Lemon Squeezy checkout is not configured');
   }
-  const session = await stripe.checkout.sessions.create({
-    customer: customerId,
-    mode: 'subscription',
-    line_items: [{ price: config.stripePriceId, quantity: 1 }],
-    success_url: successUrl,
-    cancel_url: cancelUrl,
-    metadata: { userId },
+
+  const response = await lsApi('POST', '/v1/checkouts', {
+    data: {
+      type: 'checkouts',
+      attributes: {
+        checkout_data: {
+          email,
+          custom: { user_id: userId },
+        },
+        product_options: {
+          redirect_url: successUrl,
+        },
+      },
+      relationships: {
+        store: { data: { type: 'stores', id: config.lemonSqueezyStoreId } },
+        variant: { data: { type: 'variants', id: variantId } },
+      },
+    },
   });
-  return session.url!;
+
+  return response.data.attributes.url;
 }
 
-export async function createPortalSession(
-  stripeCustomerId: string,
-  returnUrl: string,
-): Promise<string> {
-  const stripe = getStripe();
-  const session = await stripe.billingPortal.sessions.create({
-    customer: stripeCustomerId,
-    return_url: returnUrl,
-  });
-  return session.url;
+export async function getCustomerPortalUrl(userId: string): Promise<string | null> {
+  const pool = getPool();
+  const { rows } = await pool.query(
+    'SELECT subscription_id FROM users WHERE id = $1',
+    [userId],
+  );
+  const subscriptionId = rows[0]?.subscription_id;
+  if (!subscriptionId) return null;
+
+  const response = await lsApi('GET', `/v1/subscriptions/${subscriptionId}`);
+  return response.data.attributes.urls?.customer_portal || null;
 }
 
 export async function getUserSubscription(userId: string) {
@@ -82,7 +110,7 @@ export async function getUserSubscription(userId: string) {
 }
 
 export async function updateSubscriptionStatus(
-  stripeCustomerId: string,
+  lemonSqueezyCustomerId: string,
   status: string,
   subscriptionId: string | null,
   periodEnd: Date | null,
@@ -93,65 +121,74 @@ export async function updateSubscriptionStatus(
      SET subscription_status = $1,
          subscription_id = $2,
          subscription_current_period_end = $3
-     WHERE stripe_customer_id = $4`,
-    [status, subscriptionId, periodEnd, stripeCustomerId],
+     WHERE lemon_squeezy_customer_id = $4`,
+    [status, subscriptionId, periodEnd, lemonSqueezyCustomerId],
   );
 }
 
-export async function handleWebhookEvent(event: Stripe.Event) {
-  switch (event.type) {
-    case 'checkout.session.completed': {
-      const session = event.data.object as Stripe.Checkout.Session;
-      if (session.mode === 'subscription' && session.customer && session.subscription) {
-        const stripe = getStripe();
-        const subscription = await stripe.subscriptions.retrieve(session.subscription as string);
-        await updateSubscriptionStatus(
-          session.customer as string,
-          'pro',
-          subscription.id,
-          new Date(subscription.current_period_end * 1000),
-        );
-        logger.info({ customerId: session.customer, subscriptionId: subscription.id }, 'Subscription activated');
+export async function handleWebhookEvent(payload: LemonSqueezyWebhookPayload) {
+  const eventName = payload.meta.event_name;
+  const customData = payload.meta.custom_data;
+  const attrs = payload.data.attributes;
+  const customerId = String(attrs.customer_id);
+
+  switch (eventName) {
+    case 'subscription_created': {
+      const userId = customData?.user_id;
+      if (!userId) {
+        logger.warn({ eventName, customerId }, 'subscription_created missing user_id in custom_data');
+        break;
       }
+      // Link the Lemon Squeezy customer to the user
+      const pool = getPool();
+      await pool.query(
+        'UPDATE users SET lemon_squeezy_customer_id = $1 WHERE id = $2',
+        [customerId, userId],
+      );
+      await updateSubscriptionStatus(
+        customerId,
+        'pro',
+        String(payload.data.id),
+        attrs.renews_at ? new Date(attrs.renews_at) : null,
+      );
+      logger.info({ userId, subscriptionId: payload.data.id }, 'Subscription created');
       break;
     }
-    case 'customer.subscription.updated': {
-      const subscription = event.data.object as Stripe.Subscription;
-      const status = subscription.status === 'active' ? 'pro'
-        : subscription.status === 'past_due' ? 'past_due'
-        : subscription.status === 'canceled' ? 'canceled'
+    case 'subscription_updated': {
+      const lsStatus = attrs.status;
+      const mappedStatus = lsStatus === 'active' ? 'pro'
+        : lsStatus === 'past_due' ? 'past_due'
+        : lsStatus === 'cancelled' ? 'canceled'
+        : lsStatus === 'paused' ? 'paused'
+        : lsStatus === 'expired' ? 'expired'
         : 'free';
       await updateSubscriptionStatus(
-        subscription.customer as string,
-        status,
-        subscription.id,
-        new Date(subscription.current_period_end * 1000),
+        customerId,
+        mappedStatus,
+        String(payload.data.id),
+        attrs.renews_at ? new Date(attrs.renews_at) : null,
       );
-      logger.info({ customerId: subscription.customer, status }, 'Subscription updated');
+      logger.info({ customerId, status: mappedStatus }, 'Subscription updated');
       break;
     }
-    case 'customer.subscription.deleted': {
-      const subscription = event.data.object as Stripe.Subscription;
+    case 'subscription_payment_failed': {
       await updateSubscriptionStatus(
-        subscription.customer as string,
-        'canceled',
-        subscription.id,
-        new Date(subscription.current_period_end * 1000),
+        customerId,
+        'past_due',
+        String(payload.data.id),
+        null,
       );
-      logger.info({ customerId: subscription.customer }, 'Subscription canceled');
+      logger.warn({ customerId }, 'Subscription payment failed');
       break;
     }
-    case 'invoice.payment_failed': {
-      const invoice = event.data.object as Stripe.Invoice;
-      if (invoice.customer && invoice.subscription) {
-        await updateSubscriptionStatus(
-          invoice.customer as string,
-          'past_due',
-          invoice.subscription as string,
-          null,
-        );
-        logger.warn({ customerId: invoice.customer }, 'Payment failed');
-      }
+    case 'subscription_payment_success': {
+      await updateSubscriptionStatus(
+        customerId,
+        'pro',
+        String(payload.data.id),
+        attrs.renews_at ? new Date(attrs.renews_at) : null,
+      );
+      logger.info({ customerId }, 'Subscription payment succeeded');
       break;
     }
     default:
