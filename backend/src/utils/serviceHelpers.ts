@@ -27,7 +27,7 @@ export function normOneOf(value: unknown, allowedList: readonly string[], option
   const hasError = options.errorMessage;
   const valid = value != null && allowedList.includes(value as string);
   if (valid) return value;
-  if (hasError) throw new ValidationError(options.errorMessage);
+  if (hasError) throw new ValidationError(options.errorMessage ?? 'Invalid value');
   if (hasDefault) return options.default;
   return value;
 }

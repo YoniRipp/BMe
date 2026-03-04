@@ -73,7 +73,7 @@ Call all relevant functions; the user may combine multiple actions in one messag
 
 const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
 function parseDate(d: unknown, todayStr: string) {
-  return d && dateRegex.test(d) ? d : todayStr;
+  return (typeof d === 'string' && dateRegex.test(d)) ? d : todayStr;
 }
 
 /** Build object from args using a spec: { [outputKey]: (value) => transformedValue }. Skips when value is undefined/null or transform returns undefined. */
@@ -115,11 +115,11 @@ function withRawOrCooked(name: unknown) {
   return `${s}, cooked`;
 }
 
-const EDIT_SCHEDULE_SPEC = {
+const EDIT_SCHEDULE_SPEC: Record<string, (v: unknown) => unknown> = {
   itemTitle: trimOrUndefined,
   itemId: trimOrUndefined,
-  startTime: normTime,
-  endTime: normTime,
+  startTime: (v) => normTime(v as string | undefined | null),
+  endTime: (v) => normTime(v as string | undefined | null),
   title: trimOrUndefined,
   category: (v: unknown) => normCat(v, SCHEDULE_CATEGORIES),
 };
@@ -237,7 +237,7 @@ function buildAddWorkout(args: Record<string, unknown>, ctx: { todayStr: string;
   return {
     date: parseDate(args.date, ctx.todayStr),
     title: args.title ? trim(args.title) : 'Workout',
-    type: WORKOUT_TYPES.includes(args.type) ? args.type : 'cardio',
+    type: (typeof args.type === 'string' && WORKOUT_TYPES.includes(args.type)) ? args.type : 'cardio',
     durationMinutes: Number.isFinite(Number(args.durationMinutes)) && Number(args.durationMinutes) > 0 ? Number(args.durationMinutes) : 30,
     exercises,
     notes: args.notes ? trim(args.notes) : undefined,
@@ -259,8 +259,8 @@ function buildAddSchedule(args: Record<string, unknown>, ctx: { todayStr: string
   items = items
     .filter((it: Record<string, unknown>) => it && typeof it.title === 'string' && (it.title as string).trim())
     .map((it: Record<string, unknown>) => {
-      const startTime = normTime(it.startTime) ?? '09:00';
-      const endTime = normTime(it.endTime) ?? '10:00';
+      const startTime = normTime(it.startTime as string | undefined | null) ?? '09:00';
+      const endTime = normTime(it.endTime as string | undefined | null) ?? '10:00';
       const itemDate = dateStr;
       if (tz) {
         const startUtc = localToUtcDateAndTime(itemDate, startTime, tz);
@@ -271,7 +271,7 @@ function buildAddSchedule(args: Record<string, unknown>, ctx: { todayStr: string
             startTime: startUtc.time,
             endTime: endUtc.time,
             category: normCat(it.category, SCHEDULE_CATEGORIES),
-            recurrence: VALID_RECURRENCE.includes(it.recurrence) ? it.recurrence : undefined,
+            recurrence: (typeof it.recurrence === 'string' && VALID_RECURRENCE.includes(it.recurrence)) ? it.recurrence : undefined,
             date: startUtc.date,
           };
         }
@@ -281,7 +281,7 @@ function buildAddSchedule(args: Record<string, unknown>, ctx: { todayStr: string
         startTime,
         endTime,
         category: normCat(it.category, SCHEDULE_CATEGORIES),
-        recurrence: VALID_RECURRENCE.includes(it.recurrence) ? it.recurrence : undefined,
+        recurrence: (typeof it.recurrence === 'string' && VALID_RECURRENCE.includes(it.recurrence)) ? it.recurrence : undefined,
         date: itemDate,
       };
     });
@@ -298,8 +298,8 @@ async function buildAddFood(args: Record<string, unknown>, ctx: { todayStr: stri
     amount: numAmount,
     unit,
     date: parseDate(args.date, ctx.todayStr),
-    startTime: normTime(args.startTime) ?? undefined,
-    endTime: normTime(args.endTime) ?? undefined,
+    startTime: normTime(args.startTime as string | undefined | null) ?? undefined,
+    endTime: normTime(args.endTime as string | undefined | null) ?? undefined,
     portionAmount: numAmount,
     portionUnit: unit,
   };
@@ -373,9 +373,9 @@ function buildDeleteCheckIn(args: Record<string, unknown>) {
 
 function buildAddGoal(args: Record<string, unknown>) {
   return {
-    type: GOAL_TYPES.includes(args.type) ? args.type : 'workouts',
+    type: (typeof args.type === 'string' && GOAL_TYPES.includes(args.type)) ? args.type : 'workouts',
     target: Number.isFinite(Number(args.target)) ? Number(args.target) : 0,
-    period: GOAL_PERIODS.includes(args.period) ? args.period : 'weekly',
+    period: (typeof args.period === 'string' && GOAL_PERIODS.includes(args.period)) ? args.period : 'weekly',
   };
 }
 
@@ -522,7 +522,7 @@ export async function parseTranscript(text: string, lang = 'auto', userId: strin
   try {
     result = await model.generateContent({
       contents: [{ role: 'user', parts: [{ text: `${VOICE_PROMPT}\n\nUser transcript (lang: ${lang}):\n${text}` }] }],
-      tools: VOICE_TOOLS,
+      tools: VOICE_TOOLS as never,
     });
   } catch (e) {
     logger.error({ err: e }, 'Gemini voice parse blocked or error');
@@ -535,7 +535,7 @@ export async function parseTranscript(text: string, lang = 'auto', userId: strin
     return fallbackOrUnknown(text, todayStr, 'empty response', userId);
   }
 
-  const { actions } = await processGeminiResponse(response, ctx);
+  const { actions } = await processGeminiResponse(response as Parameters<typeof processGeminiResponse>[0], ctx);
 
   if (config.voiceExecuteOnServer && userId) {
     const results = await executeActions(actions as { intent: string; [key: string]: unknown }[], userId);
@@ -570,7 +570,7 @@ export async function parseAudio(audioBase64: string, mimeType: string, userId: 
           { text: VOICE_PROMPT },
         ],
       }],
-      tools: VOICE_TOOLS,
+      tools: VOICE_TOOLS as never,
     });
   } catch (e) {
     logger.error({ err: e }, 'Gemini voice parse audio blocked or error');
@@ -584,7 +584,7 @@ export async function parseAudio(audioBase64: string, mimeType: string, userId: 
     return { actions: [{ intent: 'unknown' }] };
   }
 
-  const { actions } = await processGeminiResponse(response, ctx);
+  const { actions } = await processGeminiResponse(response as Parameters<typeof processGeminiResponse>[0], ctx);
 
   if (config.voiceExecuteOnServer && userId) {
     const results = await executeActions(actions as { intent: string; [key: string]: unknown }[], userId);

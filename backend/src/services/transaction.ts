@@ -12,12 +12,12 @@ import { upsertEmbedding, buildEmbeddingText, deleteEmbedding } from './embeddin
 const TYPE_ERROR = 'type must be income or expense';
 
 function normTransactionCategory(value: unknown, body: Record<string, unknown> | undefined) {
-  const type = body?.type;
+  const type = body?.type as 'income' | 'expense' | undefined;
   const allowed =
-    type !== undefined && TRANSACTION_CATEGORIES[type]
+    type === 'income' || type === 'expense'
       ? TRANSACTION_CATEGORIES[type]
       : [...TRANSACTION_CATEGORIES.income, ...TRANSACTION_CATEGORIES.expense];
-  return allowed?.includes(value) ? value : 'Other';
+  return (typeof value === 'string' && allowed.includes(value)) ? value : 'Other';
 }
 
 export async function list(userId: string, query: { limit?: number; offset?: number; month?: string; type?: string } = {}) {
@@ -34,20 +34,20 @@ export async function list(userId: string, query: { limit?: number; offset?: num
 export async function create(userId: string, body: Record<string, unknown>) {
   const { date, type, amount, currency, category, description, isRecurring, groupId } = body ?? {};
   normOneOf(type, ['income', 'expense'], { errorMessage: TYPE_ERROR });
-  const cat = TRANSACTION_CATEGORIES[type]?.includes(category) ? category : 'Other';
+  const cat = (type === 'income' || type === 'expense') && typeof category === 'string' && TRANSACTION_CATEGORIES[type].includes(category) ? category : 'Other';
   const transaction = await transactionModel.create({
     userId,
-    date: parseDate(date),
-    type,
+    date: parseDate(date as string | Date | null | undefined),
+    type: type as 'income' | 'expense',
     amount: validateNonNegative(amount, 'amount'),
-    currency: currency && String(currency).length === 3 ? String(currency).toUpperCase() : 'USD',
-    category: cat,
-    description,
-    isRecurring,
-    groupId,
+    currency: (currency && String(currency).length === 3 ? String(currency).toUpperCase() : 'USD') as string,
+    category: cat as string,
+    description: typeof description === 'string' ? description : undefined,
+    isRecurring: !!isRecurring,
+    groupId: (typeof groupId === 'string' ? groupId : null) ?? null,
   });
   await publishEvent('money.TransactionCreated', transaction, userId);
-  upsertEmbedding(userId, 'transaction', transaction.id, buildEmbeddingText('transaction', transaction));
+  upsertEmbedding(userId, 'transaction', String(transaction.id), buildEmbeddingText('transaction', transaction));
   return transaction;
 }
 
@@ -67,7 +67,7 @@ export async function update(userId: string, id: string, body: Record<string, un
   const updated = await transactionModel.update(id, userId, updates);
   requireFound(updated, 'Transaction');
   await publishEvent('money.TransactionUpdated', updated, userId);
-  upsertEmbedding(userId, 'transaction', updated.id, buildEmbeddingText('transaction', updated));
+  upsertEmbedding(userId, 'transaction', updated.id as string, buildEmbeddingText('transaction', updated));
   return updated;
 }
 

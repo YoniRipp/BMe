@@ -23,13 +23,13 @@ export async function create(userId: string, body: Record<string, unknown>) {
     userId,
     date: parseDate(date),
     title: requireNonEmptyString(title, 'title'),
-    type: validType,
+    type: String(validType),
     durationMinutes: requirePositiveNumber(durationMinutes, 'durationMinutes'),
     exercises,
     notes,
   });
   await publishEvent('body.WorkoutCreated', workout, userId);
-  upsertEmbedding(userId, 'workout', workout.id, buildEmbeddingText('workout', workout));
+  upsertEmbedding(userId, 'workout', String(workout.id), buildEmbeddingText('workout', workout));
   return workout;
 }
 
@@ -46,7 +46,7 @@ export async function update(userId: string, id: string, body: Record<string, un
   const updated = await workoutModel.update(id, userId, updates);
   requireFound(updated, 'Workout');
   await publishEvent('body.WorkoutUpdated', updated, userId);
-  upsertEmbedding(userId, 'workout', updated.id, buildEmbeddingText('workout', updated));
+  upsertEmbedding(userId, 'workout', updated.id as string, buildEmbeddingText('workout', updated));
   return updated;
 }
 

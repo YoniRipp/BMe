@@ -50,7 +50,7 @@ function rowToUser(row: Record<string, any>) {
   };
 }
 
-async function register(req, res) {
+async function register(req: Request, res: Response) {
   try {
     const { email, password, name } = req.body ?? {};
     if (!email || typeof email !== 'string' || !email.trim()) {
@@ -91,7 +91,7 @@ async function register(req, res) {
   }
 }
 
-async function login(req, res) {
+async function login(req: Request, res: Response) {
   try {
     const { email, password } = req.body ?? {};
     if (!email || typeof email !== 'string' || !password) {
@@ -127,12 +127,12 @@ async function login(req, res) {
   }
 }
 
-async function me(req, res) {
+async function me(req: Request, res: Response) {
   try {
     const pool = getPool();
     const result = await pool.query(
       'SELECT id, email, name, role, created_at, subscription_status, subscription_current_period_end FROM users WHERE id = $1',
-      [req.user.id]
+      [req.user!.id]
     );
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'User not found' });
@@ -200,7 +200,7 @@ async function findOrCreateProviderUser(pool: ReturnType<typeof getPool>, { auth
   return { user, token };
 }
 
-async function loginGoogle(req, res) {
+async function loginGoogle(req: Request, res: Response) {
   if (!config.googleClientId) {
     return res.status(503).json({ error: 'Google sign-in is not configured (missing GOOGLE_CLIENT_ID)' });
   }
@@ -252,7 +252,7 @@ async function loginGoogle(req, res) {
   }
 }
 
-async function loginFacebook(req, res) {
+async function loginFacebook(req: Request, res: Response) {
   if (!config.facebookAppId) {
     return res.status(503).json({ error: 'Facebook sign-in is not configured (missing FACEBOOK_APP_ID)' });
   }
@@ -292,7 +292,7 @@ async function loginFacebook(req, res) {
   }
 }
 
-async function loginTwitter(req, res) {
+async function loginTwitter(req: Request, res: Response) {
   if (!config.twitterClientId) {
     return res.status(503).json({ error: 'Twitter sign-in is not configured (missing TWITTER_CLIENT_ID)' });
   }
@@ -336,7 +336,7 @@ function base64UrlEncode(buf: Buffer) {
   return buf.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
-async function twitterRedirect(req, res) {
+async function twitterRedirect(req: Request, res: Response) {
   if (!config.twitterClientId) {
     return res.status(503).send('Twitter sign-in is not configured');
   }
@@ -358,7 +358,7 @@ async function twitterRedirect(req, res) {
   res.redirect(`https://twitter.com/i/oauth2/authorize?${params.toString()}`);
 }
 
-async function twitterCallback(req, res) {
+async function twitterCallback(req: Request, res: Response) {
   const { code, state } = req.query ?? {};
   const raw = state && typeof state === 'string' ? await kvGet(PKCE_PREFIX + state) : null;
   if (state && typeof state === 'string') await kvDelete(PKCE_PREFIX + state);
@@ -431,7 +431,7 @@ async function twitterCallback(req, res) {
 
 const RESET_TOKEN_EXPIRY_MS = 60 * 60 * 1000; // 1 hour
 
-async function forgotPassword(req, res) {
+async function forgotPassword(req: Request, res: Response) {
   try {
     const { email } = req.body ?? {};
     if (!email || typeof email !== 'string' || !email.trim()) {
@@ -470,7 +470,7 @@ async function forgotPassword(req, res) {
   }
 }
 
-async function resetPassword(req, res) {
+async function resetPassword(req: Request, res: Response) {
   try {
     const { token, email, password } = req.body ?? {};
     if (!token || !email || !password) {
@@ -504,7 +504,7 @@ async function resetPassword(req, res) {
   }
 }
 
-async function exchangeCode(req, res) {
+async function exchangeCode(req: Request, res: Response) {
   try {
     const { code } = req.body ?? {};
     if (!code || typeof code !== 'string') {

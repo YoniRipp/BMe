@@ -96,7 +96,7 @@ export async function saveInsight(userId: string, data: Record<string, unknown>)
 /** Check if a cached insight is still fresh (within CACHE_FRESH_HOURS). */
 export function isCacheFresh(row: Record<string, unknown> | null) {
   if (!row?.created_at) return false;
-  const createdAt = new Date(row.created_at);
+  const createdAt = new Date(row.created_at as string | number | Date);
   const cutoff = new Date();
   cutoff.setHours(cutoff.getHours() - CACHE_FRESH_HOURS);
   return createdAt >= cutoff;

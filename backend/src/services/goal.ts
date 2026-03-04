@@ -16,13 +16,13 @@ export async function list(userId: string) {
 
 export async function create(userId: string, body: Record<string, unknown>) {
   const { type, target, period } = body ?? {};
-  normOneOf(type, GOAL_TYPES, { errorMessage: TYPE_ERROR });
-  normOneOf(period, GOAL_PERIODS, { errorMessage: PERIOD_ERROR });
+  const t = normOneOf(type, GOAL_TYPES, { errorMessage: TYPE_ERROR }) as string;
+  const p = normOneOf(period, GOAL_PERIODS, { errorMessage: PERIOD_ERROR }) as string;
   const goal = await goalModel.create({
     userId,
-    type,
+    type: t,
     target: validateNonNegative(target, 'target'),
-    period,
+    period: p,
   });
   await publishEvent('goals.GoalCreated', goal, userId);
   return goal;

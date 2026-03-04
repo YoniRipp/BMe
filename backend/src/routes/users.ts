@@ -20,7 +20,7 @@ function rowToUser(row: Record<string, any>) {
   };
 }
 
-async function listUsers(req, res) {
+async function listUsers(req: Request, res: Response) {
   try {
     const pool = getPool();
     const result = await pool.query(
@@ -33,7 +33,7 @@ async function listUsers(req, res) {
   }
 }
 
-async function createUser(req, res) {
+async function createUser(req: Request, res: Response) {
   try {
     const { email, password, name, role } = req.body ?? {};
     if (!email || typeof email !== 'string' || !email.trim()) {
@@ -69,9 +69,9 @@ async function createUser(req, res) {
   }
 }
 
-async function updateUser(req, res) {
+async function updateUser(req: Request, res: Response) {
   try {
-    const { id } = req.params;
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
     const { name, role, password } = req.body ?? {};
     if (!id) return res.status(400).json({ error: 'id is required' });
     const pool = getPool();
@@ -105,7 +105,7 @@ async function updateUser(req, res) {
   }
 }
 
-async function deleteUser(req, res) {
+async function deleteUser(req: Request, res: Response) {
   try {
     const { id } = req.params;
     if (!id) return res.status(400).json({ error: 'id is required' });
@@ -130,14 +130,15 @@ async function deleteUser(req, res) {
  *   limit  - number of rows (default 50, max 200)
  *   before - ISO timestamp cursor for pagination (exclusive)
  */
-async function getUserActivity(req, res) {
+async function getUserActivity(req: Request, res: Response) {
   try {
     const { userId } = req.params;
     const limit = Math.min(parseInt(String(req.query.limit ?? '50'), 10) || 50, 200);
     const before = req.query.before as string | undefined;
 
     const pool = getPool();
-    const params: (string | number)[] = [userId, limit];
+    const userIdStr = Array.isArray(userId) ? userId[0] : userId;
+    const params: (string | number)[] = [userIdStr, limit];
     let whereClause = 'WHERE user_id = $1';
     if (before) {
       whereClause += ' AND created_at < $3';

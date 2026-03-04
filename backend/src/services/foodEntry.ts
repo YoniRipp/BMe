@@ -33,7 +33,7 @@ export async function create(userId: string, body: Record<string, unknown>) {
     endTime: optionalTime(endTime),
   });
   await publishEvent('energy.FoodEntryCreated', entry, userId);
-  upsertEmbedding(userId, 'food_entry', entry.id, buildEmbeddingText('food_entry', entry));
+  upsertEmbedding(userId, 'food_entry', entry.id as string, buildEmbeddingText('food_entry', entry));
   return entry;
 }
 
@@ -55,7 +55,7 @@ export async function update(userId: string, id: string, body: Record<string, un
   const updated = await foodEntryModel.update(id, userId, updates);
   requireFound(updated, 'Food entry');
   await publishEvent('energy.FoodEntryUpdated', updated, userId);
-  upsertEmbedding(userId, 'food_entry', updated.id, buildEmbeddingText('food_entry', updated));
+  upsertEmbedding(userId, 'food_entry', updated.id as string, buildEmbeddingText('food_entry', updated));
   return updated;
 }
 

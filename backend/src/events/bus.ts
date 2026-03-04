@@ -38,10 +38,8 @@ export function subscribe(eventType: string, handler: (event: EventEnvelope) => 
 export async function publish(event: EventEnvelope) {
   const transport = getTransport();
   if (transport === 'sqs') {
-    const sqs = createSqsTransport({
-      region: config.awsRegion,
-      queueUrl: config.eventQueueUrl,
-    });
+    if (!config.awsRegion || !config.eventQueueUrl) throw new Error('SQS requires AWS_REGION and EVENT_QUEUE_URL');
+    const sqs = createSqsTransport({ region: config.awsRegion, queueUrl: config.eventQueueUrl });
     await sqs.publish(event);
     return;
   }
@@ -91,10 +89,8 @@ export function startEventsWorker() {
   }
   if (transport === 'sqs') {
     if (sqsConsumer) return sqsConsumer;
-    const sqs = createSqsTransport({
-      region: config.awsRegion,
-      queueUrl: config.eventQueueUrl,
-    });
+    if (!config.awsRegion || !config.eventQueueUrl) throw new Error('SQS requires AWS_REGION and EVENT_QUEUE_URL');
+    const sqs = createSqsTransport({ region: config.awsRegion, queueUrl: config.eventQueueUrl });
     sqsConsumer = sqs.startConsumer((event: unknown) => invokeHandlers(event as EventEnvelope));
     return sqsConsumer;
   }

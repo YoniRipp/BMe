@@ -7,7 +7,7 @@ import { config } from '../config/index.js';
 import { getPool } from '../db/pool.js';
 import { logger } from '../lib/logger.js';
 
-const EMBEDDING_MODEL = 'text-embedding-005';
+const EMBEDDING_MODEL = 'text-embedding-004';
 const EMBEDDING_DIM = 768;
 
 function getEmbeddingClient() {

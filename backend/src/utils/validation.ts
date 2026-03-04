@@ -17,8 +17,8 @@ export function normTime(s: string | undefined | null): string | undefined {
  * @param {string} [fieldName='Time']
  * @returns {string}
  */
-export function normTimeRequired(s: string | undefined | null, fieldName = 'Time'): string {
-  const t = normTime(s);
+export function normTimeRequired(s: string | undefined | null | unknown, fieldName = 'Time'): string {
+  const t = normTime(s as string | undefined | null);
   if (t === undefined) {
     throw new ValidationError(`Invalid ${fieldName}; use HH:MM format`);
   }
@@ -31,8 +31,9 @@ export function normTimeRequired(s: string | undefined | null, fieldName = 'Time
  * @param {readonly string[]} list
  * @returns {string}
  */
-export function normCat(cat: string | undefined | null, list: readonly string[]): string {
-  return cat && list.includes(cat) ? cat : 'Other';
+export function normCat(cat: string | undefined | null | unknown, list: readonly string[]): string {
+  const s = cat != null && typeof cat === 'string' ? cat : undefined;
+  return s && list.includes(s) ? s : 'Other';
 }
 
 /**
@@ -40,7 +41,7 @@ export function normCat(cat: string | undefined | null, list: readonly string[])
  * @param {string|Date|undefined} d
  * @returns {string}
  */
-export function parseDate(d: string | Date | undefined | null): string {
+export function parseDate(d: string | Date | undefined | null | unknown): string {
   const str = d == null ? '' : String(d).trim();
   if (/^\d{4}-\d{2}-\d{2}$/.test(str)) {
     const [y, m, d_] = str.split('-').map(Number);
@@ -66,7 +67,7 @@ import { ValidationError } from '../errors.js';
  * @param {string} field
  * @returns {number}
  */
-export function validateNonNegative(n: number | string, field: string): number {
+export function validateNonNegative(n: unknown, field: string): number {
   const num = Number(n);
   if (!Number.isFinite(num) || num < 0) {
     throw new ValidationError(`${field} must be a non-negative number`);

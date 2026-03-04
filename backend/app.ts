@@ -41,16 +41,17 @@ export async function createApp() {
 
   if (config.isRedisConfigured) {
     const client = await getRedisClient();
+    if (!client) throw new Error('Redis client unavailable for rate limiting');
     const redisStoreConfig = {
       sendCommand: (...args: string[]) => client.sendCommand(args) as any,
     };
     apiLimiter = rateLimit({
       ...apiLimiterBase,
-      store: new RedisStore(redisStoreConfig),
+      store: new RedisStore({ ...redisStoreConfig, prefix: 'rl:api:' }),
     });
     authLimiter = rateLimit({
       ...authLimiterBase,
-      store: new RedisStore(redisStoreConfig),
+      store: new RedisStore({ ...redisStoreConfig, prefix: 'rl:auth:' }),
     });
   } else {
     apiLimiter = rateLimit(apiLimiterBase);
@@ -92,6 +93,7 @@ export async function createApp() {
     if (isRedisConfigured()) {
       try {
         const redis = await getRedisClient();
+        if (!redis) return res.status(503).json({ status: 'not ready', reason: 'Redis unavailable' });
         await redis.ping();
       } catch (e) {
         return res.status(503).json({ status: 'not ready', reason: 'Redis unreachable' });

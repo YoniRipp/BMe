@@ -30,12 +30,12 @@ function parseDate(v: unknown): string {
 async function resolveTransaction(userId: string, action: VoiceAction) {
   if (action.transactionId) {
     const { items } = await transactionService.list(userId, { limit: 1, offset: 0 });
-    return items.find((t: { id: string }) => t.id === action.transactionId) ?? null;
+    return items.find((t: Record<string, unknown>) => t.id === action.transactionId) ?? null;
   }
   if (action.description) {
     const { items } = await transactionService.list(userId, { limit: 100 });
     const lower = String(action.description).toLowerCase();
-    return items.find((t: { description?: string }) => t.description?.toLowerCase().includes(lower)) ?? null;
+    return items.find((t: Record<string, unknown>) => (typeof t.description === 'string' && t.description.toLowerCase().includes(lower))) ?? null;
   }
   return null;
 }
@@ -43,11 +43,11 @@ async function resolveTransaction(userId: string, action: VoiceAction) {
 async function resolveScheduleItem(userId: string, action: VoiceAction) {
   const items = await scheduleService.list(userId);
   if (action.itemId) {
-    return items.find((s: { id: string }) => s.id === action.itemId) ?? null;
+    return items.find((s: Record<string, unknown>) => s.id === action.itemId) ?? null;
   }
   if (action.itemTitle) {
     const lower = String(action.itemTitle).toLowerCase();
-    return items.find((s: { title?: string }) => s.title?.toLowerCase().includes(lower)) ?? null;
+    return items.find((s: Record<string, unknown>) => (typeof s.title === 'string' && s.title.toLowerCase().includes(lower))) ?? null;
   }
   return null;
 }
@@ -55,11 +55,11 @@ async function resolveScheduleItem(userId: string, action: VoiceAction) {
 async function resolveWorkout(userId: string, action: VoiceAction) {
   const workouts = await workoutService.list(userId);
   if (action.workoutId) {
-    return workouts.find((w: { id: string }) => w.id === action.workoutId) ?? null;
+    return workouts.find((w: Record<string, unknown>) => w.id === action.workoutId) ?? null;
   }
   if (action.workoutTitle) {
     const lower = String(action.workoutTitle).toLowerCase();
-    return workouts.find((w: { title?: string }) => w.title?.toLowerCase().includes(lower)) ?? null;
+    return workouts.find((w: Record<string, unknown>) => (typeof w.title === 'string' && w.title.toLowerCase().includes(lower))) ?? null;
   }
   return null;
 }
@@ -67,11 +67,11 @@ async function resolveWorkout(userId: string, action: VoiceAction) {
 async function resolveFoodEntry(userId: string, action: VoiceAction) {
   const entries = await foodEntryService.list(userId);
   if (action.entryId) {
-    return entries.find((e: { id: string }) => e.id === action.entryId) ?? null;
+    return entries.find((e: Record<string, unknown>) => e.id === action.entryId) ?? null;
   }
   if (action.foodName) {
     const lower = String(action.foodName).toLowerCase();
-    return entries.find((e: { name?: string }) => e.name?.toLowerCase().includes(lower)) ?? null;
+    return entries.find((e: Record<string, unknown>) => (typeof e.name === 'string' && e.name.toLowerCase().includes(lower))) ?? null;
   }
   return null;
 }
@@ -79,16 +79,16 @@ async function resolveFoodEntry(userId: string, action: VoiceAction) {
 async function resolveCheckIn(userId: string, date: string) {
   const list = await dailyCheckInService.list(userId);
   const dateStr = parseDate(date);
-  return list.find((c: { date: string }) => String(c.date).startsWith(dateStr)) ?? null;
+  return list.find((c: Record<string, unknown>) => String(c.date ?? '').startsWith(dateStr)) ?? null;
 }
 
 async function resolveGoal(userId: string, action: VoiceAction) {
   const goals = await goalService.list(userId);
   if (action.goalId) {
-    return goals.find((g: { id: string }) => g.id === action.goalId) ?? null;
+    return goals.find((g: Record<string, unknown>) => g.id === action.goalId) ?? null;
   }
   if (action.goalType) {
-    return goals.find((g: { type: string }) => g.type === action.goalType) ?? null;
+    return goals.find((g: Record<string, unknown>) => g.type === action.goalType) ?? null;
   }
   return null;
 }
@@ -130,7 +130,7 @@ export async function executeActions(actions: VoiceAction[], userId: string): Pr
             results.push({ intent: 'edit_transaction', success: false, message: 'Transaction not found' });
             break;
           }
-          await transactionService.update(userId, tx.id, {
+          await transactionService.update(userId, tx.id as string, {
             type: action.type as string,
             amount: action.amount != null ? Number(action.amount) : undefined,
             category: action.category as string,
@@ -147,7 +147,7 @@ export async function executeActions(actions: VoiceAction[], userId: string): Pr
             results.push({ intent: 'delete_transaction', success: false, message: 'Transaction not found' });
             break;
           }
-          await transactionService.remove(userId, tx.id);
+          await transactionService.remove(userId, tx.id as string);
           results.push({ intent: 'delete_transaction', success: true });
           break;
         }
@@ -177,7 +177,7 @@ export async function executeActions(actions: VoiceAction[], userId: string): Pr
             results.push({ intent: 'edit_schedule', success: false, message: 'Schedule item not found' });
             break;
           }
-          await scheduleService.update(userId, item.id, {
+          await scheduleService.update(userId, item.id as string, {
             startTime: action.startTime as string,
             endTime: action.endTime as string,
             title: action.title as string,
@@ -193,7 +193,7 @@ export async function executeActions(actions: VoiceAction[], userId: string): Pr
             results.push({ intent: 'delete_schedule', success: false, message: 'Schedule item not found' });
             break;
           }
-          await scheduleService.remove(userId, item.id);
+          await scheduleService.remove(userId, item.id as string);
           results.push({ intent: 'delete_schedule', success: true });
           break;
         }
@@ -216,7 +216,7 @@ export async function executeActions(actions: VoiceAction[], userId: string): Pr
             results.push({ intent: 'edit_workout', success: false, message: 'Workout not found' });
             break;
           }
-          await workoutService.update(userId, w.id, {
+          await workoutService.update(userId, w.id as string, {
             title: action.title as string,
             type: action.type as string,
             durationMinutes: action.durationMinutes != null ? Number(action.durationMinutes) : undefined,
@@ -234,7 +234,7 @@ export async function executeActions(actions: VoiceAction[], userId: string): Pr
             results.push({ intent: 'delete_workout', success: false, message: 'Workout not found' });
             break;
           }
-          await workoutService.remove(userId, w.id);
+          await workoutService.remove(userId, w.id as string);
           results.push({ intent: 'delete_workout', success: true });
           break;
         }
@@ -261,7 +261,7 @@ export async function executeActions(actions: VoiceAction[], userId: string): Pr
             results.push({ intent: 'edit_food_entry', success: false, message: 'Food entry not found' });
             break;
           }
-          await foodEntryService.update(userId, e.id, {
+          await foodEntryService.update(userId, e.id as string, {
             name: action.name as string,
             calories: action.calories != null ? Number(action.calories) : undefined,
             protein: action.protein != null ? Number(action.protein) : undefined,
@@ -279,7 +279,7 @@ export async function executeActions(actions: VoiceAction[], userId: string): Pr
             results.push({ intent: 'delete_food_entry', success: false, message: 'Food entry not found' });
             break;
           }
-          await foodEntryService.remove(userId, e.id);
+          await foodEntryService.remove(userId, e.id as string);
           results.push({ intent: 'delete_food_entry', success: true });
           break;
         }
@@ -289,7 +289,7 @@ export async function executeActions(actions: VoiceAction[], userId: string): Pr
           const existing = await resolveCheckIn(userId, dateStr);
           const hours = Number(action.sleepHours) ?? 0;
           if (existing) {
-            await dailyCheckInService.update(userId, existing.id, { sleepHours: hours });
+            await dailyCheckInService.update(userId, existing.id as string, { sleepHours: hours });
           } else {
             await dailyCheckInService.create(userId, { date: dateStr, sleepHours: hours });
           }
@@ -307,7 +307,7 @@ export async function executeActions(actions: VoiceAction[], userId: string): Pr
             results.push({ intent: 'edit_check_in', success: false, message: 'Check-in not found' });
             break;
           }
-          await dailyCheckInService.update(userId, existing.id, { sleepHours: Number(action.sleepHours) ?? 0 });
+          await dailyCheckInService.update(userId, existing.id as string, { sleepHours: Number(action.sleepHours) ?? 0 });
           results.push({ intent: 'edit_check_in', success: true });
           break;
         }
@@ -322,7 +322,7 @@ export async function executeActions(actions: VoiceAction[], userId: string): Pr
             results.push({ intent: 'delete_check_in', success: false, message: 'Check-in not found' });
             break;
           }
-          await dailyCheckInService.remove(userId, existing.id);
+          await dailyCheckInService.remove(userId, existing.id as string);
           results.push({ intent: 'delete_check_in', success: true });
           break;
         }
@@ -342,7 +342,7 @@ export async function executeActions(actions: VoiceAction[], userId: string): Pr
             results.push({ intent: 'edit_goal', success: false, message: 'Goal not found' });
             break;
           }
-          await goalService.update(userId, g.id, {
+          await goalService.update(userId, g.id as string, {
             target: action.target != null ? Number(action.target) : undefined,
             period: action.period as string,
           });
@@ -356,7 +356,7 @@ export async function executeActions(actions: VoiceAction[], userId: string): Pr
             results.push({ intent: 'delete_goal', success: false, message: 'Goal not found' });
             break;
           }
-          await goalService.remove(userId, g.id);
+          await goalService.remove(userId, g.id as string);
           results.push({ intent: 'delete_goal', success: true });
           break;
         }

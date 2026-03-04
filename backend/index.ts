@@ -7,6 +7,7 @@ import { closePool, ensureDefaultPool } from './src/db/pool.js';
 import { createApp } from './app.js';
 import { closeRedis } from './src/redis/client.js';
 import { closeQueue } from './src/queue/index.js';
+import { Worker } from 'bullmq';
 import { startVoiceWorker } from './src/workers/voice.js';
 import { subscribe, startEventsWorker, closeEventsBus } from './src/events/bus.js';
 import { registerTransactionAnalyticsConsumer } from './src/events/consumers/transactionAnalytics.js';
@@ -41,7 +42,7 @@ async function start() {
     logger.info({ port: config.port, host: config.host || '0.0.0.0' }, 'BMe backend listening');
   });
 
-  let voiceWorker = null;
+  let voiceWorker: Worker | null = null;
   if (config.isRedisConfigured && !config.separateWorkers) {
     voiceWorker = startVoiceWorker();
     logger.info('Voice worker started');

@@ -17,7 +17,7 @@ export async function list(userId: string) {
 
 function normDate(v: unknown) {
   if (v == null || v === '') return null;
-  const d = new Date(v);
+  const d = new Date(v as string | number | Date);
   return isNaN(d.getTime()) ? null : d.toISOString().slice(0, 10);
 }
 
@@ -29,19 +29,19 @@ export async function create(userId: string, body: Record<string, unknown>) {
   const item = await scheduleModel.create({
     userId,
     title: requireNonEmptyString(title, 'title'),
-    startTime: startTime ?? '09:00',
-    endTime: endTime ?? '10:00',
+    startTime: (startTime != null ? String(startTime) : '09:00') as string,
+    endTime: (endTime != null ? String(endTime) : '10:00') as string,
     category: cat,
-    emoji,
-    order,
-    isActive,
-    groupId,
+    emoji: emoji as string | undefined,
+    order: order != null ? Number(order) : undefined,
+    isActive: !!isActive,
+    groupId: (typeof groupId === 'string' ? groupId : null) as string | null | undefined,
     recurrence: rec,
     color: color != null && typeof color === 'string' ? color.trim() || null : null,
     date: dateStr,
   });
   await publishEvent('schedule.ScheduleItemAdded', item, userId);
-  upsertEmbedding(userId, 'schedule', item.id, buildEmbeddingText('schedule', item));
+  upsertEmbedding(userId, 'schedule', item.id as string, buildEmbeddingText('schedule', item));
   return item;
 }
 
@@ -85,7 +85,7 @@ export async function update(userId: string, id: string, body: Record<string, un
   const updated = await scheduleModel.update(id, userId, updates);
   requireFound(updated, 'Schedule item');
   await publishEvent('schedule.ScheduleItemUpdated', updated, userId);
-  upsertEmbedding(userId, 'schedule', updated.id, buildEmbeddingText('schedule', updated));
+  upsertEmbedding(userId, 'schedule', updated.id as string, buildEmbeddingText('schedule', updated));
   return updated;
 }
 

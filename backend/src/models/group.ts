@@ -2,13 +2,14 @@
  * Group model — data access and membership.
  * @module models/group
  */
+import type { Pool } from 'pg';
 import { getPool } from '../db/pool.js';
 import { NotFoundError, ForbiddenError, ConflictError } from '../errors.js';
 type QueryParam = string | number | boolean | null | undefined;
 
-function toISO(val) {
+function toISO(val: unknown): string | undefined {
   if (!val) return undefined;
-  const d = new Date(val);
+  const d = new Date(val as string | number | Date);
   return isNaN(d.getTime()) ? undefined : d.toISOString();
 }
 
@@ -17,7 +18,7 @@ function toISO(val) {
  * @param {string} groupId
  * @returns {Promise<object|null>}
  */
-async function getFullGroup(pool, groupId) {
+async function getFullGroup(pool: Pool, groupId: string) {
   const gResult = await pool.query(
     'SELECT id, name, description, type, created_at FROM groups WHERE id = $1',
     [groupId]
@@ -32,7 +33,7 @@ async function getFullGroup(pool, groupId) {
      WHERE gm.group_id = $1`,
     [groupId]
   );
-  const members = membersResult.rows.map((m) => ({
+  const members = membersResult.rows.map((m: { userId: string; email: string; role: string }) => ({
     userId: m.userId,
     email: m.email,
     role: m.role,
@@ -45,7 +46,7 @@ async function getFullGroup(pool, groupId) {
      WHERE gi.group_id = $1`,
     [groupId]
   );
-  const invitations = invResult.rows.map((i) => ({
+  const invitations = invResult.rows.map((i: { email: string; invitedBy: string; invitedAt: unknown }) => ({
     email: i.email,
     invitedBy: i.invitedBy,
     invitedAt: toISO(i.invitedAt),
@@ -66,7 +67,7 @@ async function getFullGroup(pool, groupId) {
  * @param {string} userId
  * @returns {Promise<object[]>}
  */
-export async function findByUserId(userId) {
+export async function findByUserId(userId: string) {
   const pool = getPool();
   const idResult = await pool.query(
     `SELECT g.id FROM groups g
@@ -97,13 +98,13 @@ export async function findByUserId(userId) {
     [ids]
   );
 
-  const membersByGroup = new Map();
+  const membersByGroup = new Map<string, { userId: string; email: string; role: string }[]>();
   for (const m of membersResult.rows) {
     const list = membersByGroup.get(m.group_id) || [];
     list.push({ userId: m.userId, email: m.email, role: m.role });
     membersByGroup.set(m.group_id, list);
   }
-  const invByGroup = new Map();
+  const invByGroup = new Map<string, { email: string; invitedBy: string; invitedAt: string | undefined }[]>();
   for (const i of invResult.rows) {
     const list = invByGroup.get(i.group_id) || [];
     list.push({ email: i.email, invitedBy: i.invitedBy, invitedAt: toISO(i.invitedAt) });
@@ -129,7 +130,7 @@ export async function findByUserId(userId) {
  * @param {string} userId
  * @returns {Promise<object|null>}
  */
-export async function findById(id, userId) {
+export async function findById(id: string, userId: string) {
   const pool = getPool();
   const memberRow = await pool.query(
     'SELECT 1 FROM group_members WHERE group_id = $1 AND user_id = $2',
@@ -147,7 +148,7 @@ export async function findById(id, userId) {
  * @param {string} params.createdByUserId
  * @returns {Promise<object>}
  */
-export async function create(params) {
+export async function create(params: { name: string; description?: string; type: string; createdByUserId: string }) {
   const pool = getPool();
   const { name, description, type, createdByUserId } = params;
   const result = await pool.query(
@@ -169,7 +170,7 @@ export async function create(params) {
  * @param {string} userId
  * @returns {Promise<boolean>} true if user is admin
  */
-async function isAdmin(pool, id, userId) {
+async function isAdmin(pool: Pool, id: string, userId: string) {
   const r = await pool.query(
     "SELECT 1 FROM group_members WHERE group_id = $1 AND user_id = $2 AND role = 'admin'",
     [id, userId]
@@ -186,7 +187,7 @@ async function isAdmin(pool, id, userId) {
  * @param {string} [updates.type]
  * @returns {Promise<object>}
  */
-export async function update(id, userId, updates) {
+export async function update(id: string, userId: string, updates: { name?: string; description?: string; type?: string }) {
   const pool = getPool();
   const admin = await isAdmin(pool, id, userId);
   if (!admin) throw new ForbiddenError('Only group admins can update the group');
@@ -218,7 +219,7 @@ export async function update(id, userId, updates) {
  * @param {string} id
  * @param {string} userId
  */
-export async function remove(id, userId) {
+export async function remove(id: string, userId: string) {
   const pool = getPool();
   const admin = await isAdmin(pool, id, userId);
   if (!admin) throw new ForbiddenError('Only group admins can delete the group');
@@ -233,7 +234,7 @@ export async function remove(id, userId) {
  * @param {string} email
  * @returns {Promise<object>}
  */
-export async function addInvitation(groupId, userId, email) {
+export async function addInvitation(groupId: string, userId: string, email: string) {
   const pool = getPool();
   const admin = await isAdmin(pool, groupId, userId);
   if (!admin) throw new ForbiddenError('Only group admins can invite');
@@ -263,7 +264,7 @@ export async function addInvitation(groupId, userId, email) {
  * @param {string} email
  * @returns {Promise<object>}
  */
-export async function cancelInvitation(groupId, userId, email) {
+export async function cancelInvitation(groupId: string, userId: string, email: string) {
   const pool = getPool();
   const admin = await isAdmin(pool, groupId, userId);
   if (!admin) throw new ForbiddenError('Only group admins can cancel invitations');
@@ -280,7 +281,7 @@ export async function cancelInvitation(groupId, userId, email) {
  * @param {string} token - group_invitations.id
  * @returns {Promise<{ groupId: string, groupName: string, email: string }|null>}
  */
-export async function findInvitationByToken(token) {
+export async function findInvitationByToken(token: string) {
   if (!token || typeof token !== 'string') return null;
   const pool = getPool();
   const result = await pool.query(
@@ -306,7 +307,7 @@ export async function findInvitationByToken(token) {
  * @param {string} userEmail
  * @returns {Promise<object>} group
  */
-export async function acceptInvitationByToken(token, userId, userEmail) {
+export async function acceptInvitationByToken(token: string, userId: string, userEmail: string) {
   if (!token || typeof token !== 'string') throw new NotFoundError('Invitation not found');
   const pool = getPool();
   const invResult = await pool.query(
@@ -337,7 +338,7 @@ export async function acceptInvitationByToken(token, userId, userEmail) {
  * @param {string} userEmail
  * @returns {Promise<object>}
  */
-export async function acceptInvitation(groupId, userId, userEmail) {
+export async function acceptInvitation(groupId: string, userId: string, userEmail: string) {
   const pool = getPool();
   const emailNorm = (userEmail || '').trim().toLowerCase();
   const inv = await pool.query(
@@ -365,7 +366,7 @@ export async function acceptInvitation(groupId, userId, userEmail) {
  * @param {string} targetUserId
  * @returns {Promise<object>}
  */
-export async function removeMember(groupId, userId, targetUserId) {
+export async function removeMember(groupId: string, userId: string, targetUserId: string) {
   const pool = getPool();
   const isCallerAdmin = await isAdmin(pool, groupId, userId);
   const isSelf = userId === targetUserId;

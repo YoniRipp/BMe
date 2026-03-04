@@ -118,12 +118,12 @@ export async function lookupAndCreateFood(pool: { query: (sql: string, params: u
   if (!parsed.success) return null;
   const data = parsed.data;
 
-  const nameForDb = (data.name || '').replace(/\braw\b/gi, 'uncooked');
+  const nameForDb = String(data.name || '').replace(/\braw\b/gi, 'uncooked');
   const preparation = /\b(uncooked|raw)\b/i.test(data.name || '') ? 'uncooked' : 'cooked';
 
   const existing = await findExistingByName(pool, nameForDb);
   if (existing) {
-    const displayName = (existing.name || '').replace(/\braw\b/gi, 'uncooked');
+    const displayName = String(existing.name || '').replace(/\braw\b/gi, 'uncooked');
     return {
       id: existing.id,
       name: displayName,
@@ -156,7 +156,7 @@ export async function lookupAndCreateFood(pool: { query: (sql: string, params: u
     ]
   );
   const row = insertResult.rows[0];
-  const displayName = (row.name || '').replace(/\braw\b/gi, 'uncooked');
+  const displayName = String(row.name || '').replace(/\braw\b/gi, 'uncooked');
   return {
     id: row.id,
     name: displayName,
