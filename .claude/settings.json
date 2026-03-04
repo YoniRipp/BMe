@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "Bash(npm run dev)",
+      "Bash(npm run build)",
+      "Bash(npm test *)",
+      "Bash(npx tsc --noEmit)",
+      "Bash(npx vitest *)",
+      "Bash(npx playwright test *)",
+      "Bash(git diff *)",
+      "Bash(git log *)",
+      "Bash(git status)"
+    ],
+    "deny": [
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(./backend/.env)",
+      "Read(./backend/.env.*)",
+      "Bash(curl *)",
+      "Bash(git push --force *)"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "command": "npx tsc --noEmit --pretty 2>&1 | head -20"
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "command": "echo $CLAUDE_TOOL_INPUT | grep -q 'push.*--force' && echo 'BLOCK: No force pushing' && exit 1 || exit 0"
+      }
+    ]
+  }
+}
