@@ -94,14 +94,13 @@ export async function getTableSizes() {
   const pool = getPool();
   const result = await pool.query(
     `SELECT
-       relname AS table,
-       pg_total_relation_size(c.oid)::bigint AS "sizeBytes"
-     FROM pg_class c
-     JOIN pg_namespace n ON n.oid = c.relnamespace
-     WHERE c.relkind = 'r'
-       AND n.nspname = 'public'
-       AND c.relname = ANY($1)
-     ORDER BY pg_total_relation_size(c.oid) DESC`,
+       table_name AS table,
+       pg_total_relation_size(quote_ident(table_name))::bigint AS "sizeBytes"
+     FROM information_schema.tables
+     WHERE table_schema = 'public'
+       AND table_type = 'BASE TABLE'
+       AND table_name = ANY($1)
+     ORDER BY 2 DESC`,
     [APP_TABLES]
   );
   return result.rows;
