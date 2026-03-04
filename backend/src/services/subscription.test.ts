@@ -4,8 +4,11 @@ const mockQuery = vi.fn();
 
 vi.mock('../config/index.js', () => ({
   config: {
-    stripeSecretKey: 'sk_test_mock',
-    stripePriceId: 'price_test_mock',
+    lemonSqueezyApiKey: 'test_api_key',
+    lemonSqueezyStoreId: 'store_123',
+    lemonSqueezyVariantIdMonthly: 'variant_monthly',
+    lemonSqueezyVariantIdYearly: 'variant_yearly',
+    lemonSqueezyWebhookSecret: 'webhook_secret',
   },
 }));
 
@@ -19,38 +22,6 @@ vi.mock('../lib/logger.js', () => ({
     warn: vi.fn(),
     error: vi.fn(),
   },
-}));
-
-// Mock Stripe — provide class-like constructor mock
-const mockStripeInstance = {
-  customers: {
-    create: vi.fn().mockResolvedValue({ id: 'cus_mock123' }),
-  },
-  checkout: {
-    sessions: {
-      create: vi.fn().mockResolvedValue({ url: 'https://checkout.stripe.com/mock' }),
-    },
-  },
-  billingPortal: {
-    sessions: {
-      create: vi.fn().mockResolvedValue({ url: 'https://billing.stripe.com/mock' }),
-    },
-  },
-  subscriptions: {
-    retrieve: vi.fn().mockResolvedValue({
-      id: 'sub_mock123',
-      status: 'active',
-      current_period_end: Math.floor(Date.now() / 1000) + 86400 * 30,
-    }),
-  },
-};
-
-function MockStripe() {
-  return mockStripeInstance;
-}
-
-vi.mock('stripe', () => ({
-  default: MockStripe,
 }));
 
 const { getUserSubscription, updateSubscriptionStatus, handleWebhookEvent } =
@@ -99,83 +70,147 @@ describe('subscription service', () => {
   });
 
   describe('updateSubscriptionStatus', () => {
-    it('updates DB with new status', async () => {
+    it('updates DB with new status using lemon_squeezy_customer_id', async () => {
       mockQuery.mockResolvedValue({ rows: [] });
 
-      await updateSubscriptionStatus('cus_123', 'pro', 'sub_123', new Date('2026-04-01'));
+      await updateSubscriptionStatus('ls_cus_123', 'pro', 'sub_123', new Date('2026-04-01'));
 
       expect(mockQuery).toHaveBeenCalledWith(
-        expect.stringContaining('UPDATE users'),
-        ['pro', 'sub_123', expect.any(Date), 'cus_123'],
+        expect.stringContaining('lemon_squeezy_customer_id'),
+        ['pro', 'sub_123', expect.any(Date), 'ls_cus_123'],
       );
     });
   });
 
   describe('handleWebhookEvent', () => {
-    it('activates subscription on checkout.session.completed', async () => {
+    it('activates subscription on subscription_created', async () => {
       mockQuery.mockResolvedValue({ rows: [] });
 
       await handleWebhookEvent({
-        type: 'checkout.session.completed',
+        meta: {
+          event_name: 'subscription_created',
+          custom_data: { user_id: 'user-123' },
+        },
         data: {
-          object: {
-            mode: 'subscription',
-            customer: 'cus_123',
-            subscription: 'sub_123',
+          id: 'sub_456',
+          type: 'subscriptions',
+          attributes: {
+            customer_id: 789,
+            status: 'active',
+            renews_at: '2026-04-01T00:00:00Z',
           },
         },
-      } as any);
+      });
 
+      // First call links customer ID to user
+      expect(mockQuery).toHaveBeenCalledWith(
+        expect.stringContaining('lemon_squeezy_customer_id'),
+        ['789', 'user-123'],
+      );
+      // Second call updates subscription status
       expect(mockQuery).toHaveBeenCalledWith(
         expect.stringContaining('UPDATE users'),
-        expect.arrayContaining(['pro', 'sub_mock123', expect.any(Date), 'cus_123']),
+        expect.arrayContaining(['pro', 'sub_456']),
       );
     });
 
-    it('cancels subscription on customer.subscription.deleted', async () => {
+    it('updates status on subscription_updated', async () => {
       mockQuery.mockResolvedValue({ rows: [] });
 
       await handleWebhookEvent({
-        type: 'customer.subscription.deleted',
+        meta: {
+          event_name: 'subscription_updated',
+        },
         data: {
-          object: {
-            customer: 'cus_123',
-            id: 'sub_123',
-            current_period_end: Math.floor(Date.now() / 1000),
+          id: 'sub_456',
+          type: 'subscriptions',
+          attributes: {
+            customer_id: 789,
+            status: 'cancelled',
+            renews_at: null,
           },
         },
-      } as any);
+      });
 
       expect(mockQuery).toHaveBeenCalledWith(
         expect.stringContaining('UPDATE users'),
-        expect.arrayContaining(['canceled', 'sub_123']),
+        expect.arrayContaining(['canceled', 'sub_456']),
       );
     });
 
-    it('sets past_due on invoice.payment_failed', async () => {
+    it('sets past_due on subscription_payment_failed', async () => {
       mockQuery.mockResolvedValue({ rows: [] });
 
       await handleWebhookEvent({
-        type: 'invoice.payment_failed',
+        meta: {
+          event_name: 'subscription_payment_failed',
+        },
         data: {
-          object: {
-            customer: 'cus_123',
-            subscription: 'sub_123',
+          id: 'sub_456',
+          type: 'subscriptions',
+          attributes: {
+            customer_id: 789,
           },
         },
-      } as any);
+      });
 
       expect(mockQuery).toHaveBeenCalledWith(
         expect.stringContaining('UPDATE users'),
-        expect.arrayContaining(['past_due', 'sub_123']),
+        expect.arrayContaining(['past_due', 'sub_456']),
+      );
+    });
+
+    it('sets pro on subscription_payment_success', async () => {
+      mockQuery.mockResolvedValue({ rows: [] });
+
+      await handleWebhookEvent({
+        meta: {
+          event_name: 'subscription_payment_success',
+        },
+        data: {
+          id: 'sub_456',
+          type: 'subscriptions',
+          attributes: {
+            customer_id: 789,
+            renews_at: '2026-05-01T00:00:00Z',
+          },
+        },
+      });
+
+      expect(mockQuery).toHaveBeenCalledWith(
+        expect.stringContaining('UPDATE users'),
+        expect.arrayContaining(['pro', 'sub_456']),
       );
     });
 
     it('ignores unknown event types', async () => {
       await handleWebhookEvent({
-        type: 'some.unknown.event',
-        data: { object: {} },
-      } as any);
+        meta: { event_name: 'some.unknown.event' },
+        data: {
+          id: '1',
+          type: 'unknown',
+          attributes: { customer_id: 1 },
+        },
+      });
+
+      expect(mockQuery).not.toHaveBeenCalled();
+    });
+
+    it('warns and skips subscription_created when user_id is missing', async () => {
+      await handleWebhookEvent({
+        meta: {
+          event_name: 'subscription_created',
+          custom_data: {},
+        },
+        data: {
+          id: 'sub_456',
+          type: 'subscriptions',
+          attributes: {
+            customer_id: 789,
+            status: 'active',
+          },
+        },
+      });
 
       expect(mockQuery).not.toHaveBeenCalled();
     });

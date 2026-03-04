@@ -9,7 +9,19 @@ export function useSubscription() {
 
   const subscribe = useCallback(async () => {
     try {
-      const { url } = await subscriptionApi.createCheckout();
+      const { url } = await subscriptionApi.createCheckout('monthly');
+      if (!url) throw new Error('No checkout URL returned');
+      window.location.href = url;
+    } catch (e) {
+      toast.error(
+        e instanceof Error ? e.message : 'Could not start checkout. Please try again.'
+      );
+    }
+  }, []);
+
+  const subscribeYearly = useCallback(async () => {
+    try {
+      const { url } = await subscriptionApi.createCheckout('yearly');
       if (!url) throw new Error('No checkout URL returned');
       window.location.href = url;
     } catch (e) {
@@ -35,6 +47,7 @@ export function useSubscription() {
     isPro,
     subscriptionStatus: user?.subscriptionStatus || 'free',
     subscribe,
+    subscribeYearly,
     manage,
   };
 }

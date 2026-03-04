@@ -66,9 +66,9 @@ export async function createApp() {
   logger.info({ corsOrigin: config.corsOrigin, nodeEnv: process.env.NODE_ENV }, 'CORS configured');
   app.use(helmet({ crossOriginOpenerPolicy: false }));
 
-  // Stripe webhook needs raw body for signature verification — mount BEFORE express.json()
-  if (config.stripeSecretKey) {
-    app.use('/api/webhooks/stripe', express.raw({ type: 'application/json' }));
+  // Lemon Squeezy webhook needs raw body for HMAC signature verification — mount BEFORE express.json()
+  if (config.lemonSqueezyApiKey) {
+    app.use('/api/webhooks/lemonsqueezy', express.raw({ type: 'application/json' }));
     app.use(createWebhookRouter());
   }
 

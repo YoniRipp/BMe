@@ -2,15 +2,19 @@ import { CreditCard, ExternalLink } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useSubscription } from '@/hooks/useSubscription';
+import { useNavigate } from 'react-router-dom';
 
 export function SubscriptionSection() {
-  const { isPro, subscriptionStatus, subscribe, manage } = useSubscription();
+  const { isPro, subscriptionStatus, manage } = useSubscription();
+  const navigate = useNavigate();
 
   const statusLabel = {
     free: 'Free',
     pro: 'Pro',
     past_due: 'Pro (payment issue)',
     canceled: 'Canceled',
+    paused: 'Paused',
+    expired: 'Expired',
   }[subscriptionStatus] || 'Free';
 
   return (
@@ -34,14 +38,14 @@ export function SubscriptionSection() {
               <ExternalLink className="ml-1 h-3 w-3" />
             </Button>
           ) : (
-            <Button size="sm" onClick={subscribe}>
+            <Button size="sm" onClick={() => navigate('/pricing')}>
               Upgrade to Pro
             </Button>
           )}
         </div>
         {!isPro && (
           <p className="text-xs text-muted-foreground">
-            Pro includes voice input, AI insights, and AI food lookup for $4.99/month.
+            Pro includes voice input, AI insights, and AI food lookup. Plans start at $7.99/month.
           </p>
         )}
       </CardContent>
