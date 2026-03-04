@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useGoogleLogin } from '@react-oauth/google';
 import { toast } from 'sonner';
 import { useAuth } from '@/context/AuthContext';
+import { subscriptionApi } from '@/core/api/subscription';
 import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
 
@@ -19,7 +20,7 @@ function GoogleIcon() {
   );
 }
 
-export function SocialLoginButtons() {
+export function SocialLoginButtons({ plan }: { plan?: string | null }) {
   const { loginWithProvider } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState<'google' | null>(null);
@@ -30,6 +31,13 @@ export function SocialLoginButtons() {
       setLoading('google');
       try {
         await loginWithProvider('google', tokenResponse.access_token);
+        if (plan === 'monthly' || plan === 'yearly') {
+          const { url } = await subscriptionApi.createCheckout(plan, true);
+          if (url) {
+            window.location.href = url;
+            return;
+          }
+        }
         navigate('/', { replace: true });
       } catch (e) {
         const message = e instanceof Error ? e.message : 'Could not complete Google sign-in. Please try again.';
