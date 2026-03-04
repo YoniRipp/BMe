@@ -1,5 +1,5 @@
 export type UserRole = 'admin' | 'user';
-export type SubscriptionStatus = 'free' | 'pro' | 'past_due' | 'canceled';
+export type SubscriptionStatus = 'free' | 'pro' | 'past_due' | 'canceled' | 'paused' | 'expired';
 
 export interface User {
   id: string;

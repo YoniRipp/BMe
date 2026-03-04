@@ -1,8 +1,8 @@
 /**
- * Subscription routes — Stripe checkout, portal, status, and webhook.
+ * Subscription routes — Lemon Squeezy checkout, portal, status, and webhook.
  */
+import crypto from 'crypto';
 import { Router } from 'express';
-import Stripe from 'stripe';
 import { requireAuth } from '../middleware/auth.js';
 import { config } from '../config/index.js';
 import * as subscriptionService from '../services/subscription.js';
@@ -10,12 +10,13 @@ import { logger } from '../lib/logger.js';
 
 const router = Router();
 
-// Checkout: create a Stripe Checkout Session and return the URL
+// Checkout: create a Lemon Squeezy Checkout and return the URL
 router.post('/api/subscription/checkout', requireAuth, async (req: any, res: any, next: any) => {
   try {
-    if (!config.stripeSecretKey || !config.stripePriceId) {
-      return res.status(503).json({ error: 'Stripe is not configured' });
+    if (!config.lemonSqueezyApiKey) {
+      return res.status(503).json({ error: 'Lemon Squeezy is not configured' });
     }
+    const plan = req.body?.plan === 'yearly' ? 'yearly' : 'monthly';
     const frontendOrigin = config.frontendOrigin || 'http://localhost:5173';
     const successUrl = `${frontendOrigin}/settings?subscription=success`;
     const cancelUrl = `${frontendOrigin}/pricing?subscription=canceled`;
@@ -24,6 +25,7 @@ router.post('/api/subscription/checkout', requireAuth, async (req: any, res: any
       req.user.email,
       successUrl,
       cancelUrl,
+      plan,
     );
     res.json({ url });
   } catch (e) {
@@ -31,18 +33,16 @@ router.post('/api/subscription/checkout', requireAuth, async (req: any, res: any
   }
 });
 
-// Portal: create a Stripe Customer Portal session
+// Portal: get Lemon Squeezy Customer Portal URL
 router.post('/api/subscription/portal', requireAuth, async (req: any, res: any, next: any) => {
   try {
-    if (!config.stripeSecretKey) {
-      return res.status(503).json({ error: 'Stripe is not configured' });
+    if (!config.lemonSqueezyApiKey) {
+      return res.status(503).json({ error: 'Lemon Squeezy is not configured' });
     }
-    const customerId = await subscriptionService.getOrCreateStripeCustomer(
-      req.user.id,
-      req.user.email,
-    );
-    const returnUrl = `${config.frontendOrigin || 'http://localhost:5173'}/settings`;
-    const url = await subscriptionService.createPortalSession(customerId, returnUrl);
+    const url = await subscriptionService.getCustomerPortalUrl(req.user.id);
+    if (!url) {
+      return res.status(404).json({ error: 'No active subscription to manage' });
+    }
     res.json({ url });
   } catch (e) {
     next(e);
@@ -62,33 +62,44 @@ router.get('/api/subscription/status', requireAuth, async (req: any, res: any, n
 export default router;
 
 /**
- * Stripe webhook handler. Must be mounted with express.raw() body parser
+ * Lemon Squeezy webhook handler. Must be mounted with express.raw() body parser
  * BEFORE express.json() in app.ts.
  */
 export function createWebhookRouter() {
   const webhookRouter = Router();
 
-  webhookRouter.post('/api/webhooks/stripe', async (req, res) => {
-    if (!config.stripeSecretKey || !config.stripeWebhookSecret) {
-      return res.status(503).json({ error: 'Stripe webhooks not configured' });
+  webhookRouter.post('/api/webhooks/lemonsqueezy', async (req, res) => {
+    if (!config.lemonSqueezyApiKey || !config.lemonSqueezyWebhookSecret) {
+      return res.status(503).json({ error: 'Lemon Squeezy webhooks not configured' });
     }
 
-    const stripe = new Stripe(config.stripeSecretKey);
-    const sig = req.headers['stripe-signature'] as string;
+    const signature = req.headers['x-signature'] as string;
+    if (!signature) {
+      return res.status(400).json({ error: 'Missing signature' });
+    }
 
-    let event: Stripe.Event;
-    try {
-      event = stripe.webhooks.constructEvent(req.body, sig, config.stripeWebhookSecret);
-    } catch (err) {
-      logger.error({ err }, 'Stripe webhook signature verification failed');
+    const rawBody = req.body as Buffer;
+    const hmac = crypto.createHmac('sha256', config.lemonSqueezyWebhookSecret);
+    const digest = hmac.update(rawBody).digest('hex');
+
+    if (signature.length !== digest.length ||
+        !crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(digest))) {
+      logger.error('Lemon Squeezy webhook signature verification failed');
       return res.status(400).json({ error: 'Invalid signature' });
     }
 
+    let payload;
     try {
-      await subscriptionService.handleWebhookEvent(event);
+      payload = JSON.parse(rawBody.toString());
+    } catch {
+      return res.status(400).json({ error: 'Invalid JSON body' });
+    }
+
+    try {
+      await subscriptionService.handleWebhookEvent(payload);
       res.json({ received: true });
     } catch (err) {
-      logger.error({ err, eventType: event.type }, 'Webhook handler error');
+      logger.error({ err, eventType: payload?.meta?.event_name }, 'Webhook handler error');
       res.status(500).json({ error: 'Webhook handler error' });
     }
   });

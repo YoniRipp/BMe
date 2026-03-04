@@ -5,7 +5,7 @@ const mockQuery = vi.fn();
 
 vi.mock('../config/index.js', () => ({
   config: {
-    stripeSecretKey: 'sk_test_mock',
+    lemonSqueezyApiKey: 'test_api_key',
   },
 }));
 
@@ -28,11 +28,11 @@ describe('requirePro', () => {
       json: vi.fn().mockReturnThis(),
     };
     next = vi.fn();
-    (config as any).stripeSecretKey = 'sk_test_mock';
+    (config as any).lemonSqueezyApiKey = 'test_api_key';
   });
 
-  it('allows all access when Stripe is not configured', async () => {
-    (config as any).stripeSecretKey = undefined;
+  it('allows all access when Lemon Squeezy is not configured', async () => {
+    (config as any).lemonSqueezyApiKey = undefined;
 
     await requirePro(req, res, next);
 

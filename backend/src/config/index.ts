@@ -64,9 +64,11 @@ const configSchema = z.object({
   separateWorkers: z.boolean().optional(),
   voiceExecuteOnServer: z.boolean().optional(),
   skipSchemaInit: z.boolean().optional(),
-  stripeSecretKey: z.string().optional(),
-  stripeWebhookSecret: z.string().optional(),
-  stripePriceId: z.string().optional(),
+  lemonSqueezyApiKey: z.string().optional(),
+  lemonSqueezyStoreId: z.string().optional(),
+  lemonSqueezyWebhookSecret: z.string().optional(),
+  lemonSqueezyVariantIdMonthly: z.string().optional(),
+  lemonSqueezyVariantIdYearly: z.string().optional(),
 });
 
 const PORT = process.env.PORT;
@@ -122,9 +124,11 @@ const rawConfig = {
   separateWorkers: process.env.SEPARATE_WORKERS === 'true' || process.env.SEPARATE_WORKERS === '1',
   voiceExecuteOnServer: process.env.VOICE_EXECUTE_ON_SERVER !== 'false',
   skipSchemaInit: process.env.SKIP_SCHEMA_INIT === 'true' || process.env.SKIP_SCHEMA_INIT === '1' || isProduction,
-  stripeSecretKey: process.env.STRIPE_SECRET_KEY,
-  stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET,
-  stripePriceId: process.env.STRIPE_PRICE_ID,
+  lemonSqueezyApiKey: process.env.LEMONSQUEEZY_API_KEY,
+  lemonSqueezyStoreId: process.env.LEMONSQUEEZY_STORE_ID,
+  lemonSqueezyWebhookSecret: process.env.LEMONSQUEEZY_WEBHOOK_SECRET,
+  lemonSqueezyVariantIdMonthly: process.env.LEMONSQUEEZY_VARIANT_ID_MONTHLY,
+  lemonSqueezyVariantIdYearly: process.env.LEMONSQUEEZY_VARIANT_ID_YEARLY,
 };
 
 const parsed = configSchema.safeParse(rawConfig);
