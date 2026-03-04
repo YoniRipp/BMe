@@ -7,6 +7,7 @@ import { SleepEditModal } from '@/components/energy/SleepEditModal';
 import { GoalModal } from '@/components/goals/GoalModal';
 import { SectionHeader } from '@/components/shared/SectionHeader';
 import { Card, CardContent } from '@/components/ui/card';
+import { VoiceMicHero } from '@/components/voice/VoiceMicHero';
 import { getGreeting } from '@/lib/utils';
 import { format } from 'date-fns';
 import { Goal } from '@/types/goals';
@@ -60,6 +61,9 @@ export function Home() {
         <h1 className="text-2xl font-bold tracking-tight">{greeting}</h1>
         <p className="text-muted-foreground mt-0.5">{todayLabel}</p>
       </div>
+
+      {/* Voice hero — primary input */}
+      <VoiceMicHero />
 
       <div className="space-y-6 sm:space-y-8">
         {/* Progress cards (goals) */}

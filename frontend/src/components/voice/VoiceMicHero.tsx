@@ -117,41 +117,48 @@ export function VoiceMicHero() {
   const state = isListening ? 'listening' : isProcessing ? 'processing' : 'idle';
 
   return (
-    <Card className="overflow-hidden">
-      <CardContent className="flex flex-col items-center gap-3 py-6">
+    <Card className="overflow-hidden bg-gradient-to-br from-card to-primary/5">
+      <CardContent className="flex flex-col items-center gap-4 py-8">
         <button
           onClick={handleMicClick}
           disabled={state === 'processing'}
           className={cn(
-            'relative flex h-20 w-20 items-center justify-center rounded-full transition-all',
-            'bg-primary text-primary-foreground shadow-lg hover:shadow-xl',
-            state === 'listening' && 'animate-pulse ring-4 ring-primary/30',
+            'relative flex h-24 w-24 items-center justify-center rounded-full transition-all',
+            'bg-primary text-primary-foreground shadow-lg hover:shadow-xl hover:scale-105',
+            state === 'listening' && 'animate-pulse ring-4 ring-primary/30 scale-110',
             state === 'processing' && 'opacity-70',
             !isPro && 'bg-muted text-muted-foreground hover:bg-muted/80',
           )}
           aria-label={isPro ? (state === 'listening' ? 'Stop recording' : 'Start voice input') : 'Upgrade to Pro for voice input'}
         >
           {state === 'processing' ? (
-            <Loader2 className="h-8 w-8 animate-spin" />
+            <Loader2 className="h-10 w-10 animate-spin" />
           ) : !isPro ? (
             <div className="relative">
-              <Mic className="h-8 w-8" />
+              <Mic className="h-10 w-10" />
               <Lock className="absolute -bottom-1 -right-1 h-4 w-4 text-amber-500" />
             </div>
           ) : (
-            <Mic className="h-8 w-8" />
+            <Mic className="h-10 w-10" />
           )}
         </button>
 
-        <p className="text-sm text-muted-foreground">
-          {!isPro
-            ? 'Upgrade to Pro to track by voice'
-            : state === 'listening'
-              ? 'Tap to stop and process'
-              : state === 'processing'
-                ? 'Processing...'
-                : 'Tap to start talking'}
-        </p>
+        <div className="text-center">
+          <p className="text-sm font-medium text-foreground">
+            {!isPro
+              ? 'Upgrade to Pro to track by voice'
+              : state === 'listening'
+                ? 'Listening... Tap to stop'
+                : state === 'processing'
+                  ? 'Processing your voice...'
+                  : 'Tap to log by voice'}
+          </p>
+          {isPro && state === 'idle' && !statusText && (
+            <p className="mt-1 text-xs text-muted-foreground">
+              Try: "I had oatmeal for breakfast" or "30 min run"
+            </p>
+          )}
+        </div>
 
         {currentTranscript && state === 'listening' && (
           <p className="max-w-sm text-center text-sm italic text-muted-foreground">
@@ -160,7 +167,7 @@ export function VoiceMicHero() {
         )}
 
         {statusText && state === 'idle' && (
-          <p className="text-sm font-medium text-green-600 dark:text-green-400">
+          <p className="text-sm font-medium text-green-600">
             {statusText}
           </p>
         )}
