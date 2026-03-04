@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Check, Sparkles } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -21,8 +22,18 @@ const PRO_FEATURES = [
   'Priority support',
 ];
 
+const MONTHLY_PRICE = '$7.99';
+const YEARLY_PRICE = '$59.99';
+
+type BillingPeriod = 'monthly' | 'yearly';
+
 export function Pricing() {
-  const { isPro, subscribe } = useSubscription();
+  const { isPro, subscribe, subscribeYearly } = useSubscription();
+  const [period, setPeriod] = useState<BillingPeriod>('monthly');
+
+  const price = period === 'monthly' ? MONTHLY_PRICE : YEARLY_PRICE;
+  const periodLabel = period === 'monthly' ? '/month' : '/year';
+  const handleUpgrade = period === 'monthly' ? subscribe : subscribeYearly;
 
   return (
     <div className="mx-auto max-w-4xl space-y-8 p-6">
@@ -31,6 +42,27 @@ export function Pricing() {
         <p className="mt-2 text-muted-foreground">
           Start free. Upgrade when you want the AI-powered experience.
         </p>
+      </div>
+
+      {/* Billing period toggle */}
+      <div className="flex justify-center">
+        <div className="inline-flex rounded-lg border p-1">
+          <Button
+            variant={period === 'monthly' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => setPeriod('monthly')}
+          >
+            Monthly
+          </Button>
+          <Button
+            variant={period === 'yearly' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => setPeriod('yearly')}
+          >
+            Yearly
+            <span className="ml-1 text-xs opacity-75">Save 37%</span>
+          </Button>
+        </div>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
@@ -66,7 +98,7 @@ export function Pricing() {
             </div>
             <CardDescription>AI-powered life tracking</CardDescription>
             <p className="text-3xl font-bold">
-              $7.99<span className="text-sm font-normal text-muted-foreground">/month</span>
+              {price}<span className="text-sm font-normal text-muted-foreground">{periodLabel}</span>
             </p>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -83,7 +115,7 @@ export function Pricing() {
                 Current Plan
               </Button>
             ) : (
-              <Button className="w-full" onClick={subscribe}>
+              <Button className="w-full" onClick={handleUpgrade}>
                 Upgrade to Pro
               </Button>
             )}
