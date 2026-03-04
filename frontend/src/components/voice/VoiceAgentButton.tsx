@@ -82,8 +82,6 @@ export function VoiceAgentButton({ panelOpen, onTogglePanel }: VoiceAgentButtonP
             if (r.success) succeeded.push(r.message ?? r.intent);
             else failed.push({ action: r.intent, reason: r.message ?? 'Could not complete action. Please try again.' });
           }
-          await queryClient.invalidateQueries({ queryKey: queryKeys.transactions });
-          await queryClient.invalidateQueries({ queryKey: queryKeys.schedule });
           await queryClient.invalidateQueries({ queryKey: queryKeys.workouts });
           await queryClient.invalidateQueries({ queryKey: queryKeys.foodEntries });
           await queryClient.invalidateQueries({ queryKey: queryKeys.checkIns });

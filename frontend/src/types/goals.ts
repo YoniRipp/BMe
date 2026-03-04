@@ -1,4 +1,4 @@
-export type GoalType = 'calories' | 'workouts' | 'savings' | 'sleep';
+export type GoalType = 'calories' | 'workouts' | 'sleep';
 export type GoalPeriod = 'daily' | 'weekly' | 'monthly' | 'yearly';
 
 export interface Goal {
