@@ -1,4 +1,5 @@
 import { useCallback } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { Mic, Loader2, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -19,6 +20,7 @@ interface VoiceAgentButtonProps {
 }
 
 export function VoiceAgentButton({ panelOpen, onTogglePanel }: VoiceAgentButtonProps = {}) {
+  const { pathname } = useLocation();
   const { isPro } = useSubscription();
   const queryClient = useQueryClient();
   const { foodEntries, addFoodEntry, updateFoodEntry, deleteFoodEntry, updateCheckIn, addCheckIn, deleteCheckIn, getCheckInByDate } = useEnergy();
@@ -131,6 +133,9 @@ export function VoiceAgentButton({ panelOpen, onTogglePanel }: VoiceAgentButtonP
 
   const state = isListening ? 'listening' : isProcessing ? 'processing' : 'idle';
   const isActive = onTogglePanel != null ? panelOpen : state === 'listening' || state === 'processing';
+
+  // Home page has VoiceMicHero instead of this floating button
+  if (pathname === '/') return null;
 
   return (
     <Button
