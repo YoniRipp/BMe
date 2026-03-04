@@ -236,25 +236,26 @@ export function Landing() {
         aria-label="Main"
         className={`sticky top-0 z-40 transition-all duration-300 ${
           scrolled
-            ? 'border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60'
+            ? 'bg-background/95 backdrop-blur-md shadow-sm border-b border-border/50'
             : 'bg-transparent'
         }`}
       >
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-          <a href="#main-content" className="flex items-center gap-2">
-            <img src="/logo.png" alt="BeMe" className="h-10 w-auto rounded-full object-contain" />
+        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6 lg:px-8">
+          <a href="#main-content" className="flex items-center gap-2.5">
+            <img src="/logo.png" alt="" className="h-9 w-9 rounded-full object-contain" />
+            <span className="text-lg font-bold tracking-tight text-foreground">BeMe</span>
           </a>
-          <div className="hidden items-center gap-6 text-sm text-muted-foreground sm:flex">
-            <a href="#features" className="hover:text-foreground transition-colors">Features</a>
-            <a href="#pricing" className="hover:text-foreground transition-colors">Pricing</a>
-            <a href="#faq" className="hover:text-foreground transition-colors">FAQ</a>
+          <div className="hidden items-center gap-8 text-sm font-medium text-muted-foreground sm:flex">
+            <a href="#features" className="transition-colors hover:text-primary">Features</a>
+            <a href="#pricing" className="transition-colors hover:text-primary">Pricing</a>
+            <a href="#faq" className="transition-colors hover:text-primary">FAQ</a>
           </div>
           <div className="flex items-center gap-2 sm:gap-3">
             <Link to="/login">
-              <Button variant="ghost" size="sm" className="text-xs sm:text-sm">Sign in</Button>
+              <Button variant="ghost" size="sm" className="rounded-full text-xs sm:text-sm">Sign in</Button>
             </Link>
             <Link to="/signup">
-              <Button size="sm" className="gap-1.5">
+              <Button size="sm" className="gap-1.5 rounded-full px-4">
                 Start Free <ArrowRight className="h-3.5 w-3.5" />
               </Button>
             </Link>
