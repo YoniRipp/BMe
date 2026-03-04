@@ -3,12 +3,6 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useAdminStats } from '@/hooks/useAdminStats';
 
-function formatBytes(bytes: number) {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
 export function AdminSystemHealth() {
   const { data, isLoading } = useAdminStats();
 
@@ -20,9 +14,8 @@ export function AdminSystemHealth() {
     );
   }
 
-  const { recentErrors, tableSizes } = data;
+  const { recentErrors } = data;
   const hasErrors = recentErrors.count > 0;
-  const totalDbSize = tableSizes.reduce((sum, t) => sum + t.sizeBytes, 0);
 
   return (
     <Card>
@@ -48,21 +41,6 @@ export function AdminSystemHealth() {
                 Latest: {recentErrors.lastErrorMessage.slice(0, 200)}
               </p>
             )}
-          </div>
-        </div>
-
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <span className="font-medium text-sm">Database Tables</span>
-            <span className="text-sm text-muted-foreground">Total: {formatBytes(totalDbSize)}</span>
-          </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-            {tableSizes.map((t) => (
-              <div key={t.table} className="flex justify-between text-sm bg-muted/50 rounded px-2 py-1">
-                <span className="text-muted-foreground truncate mr-2">{t.table}</span>
-                <span className="font-mono text-xs">{formatBytes(t.sizeBytes)}</span>
-              </div>
-            ))}
           </div>
         </div>
       </CardContent>
