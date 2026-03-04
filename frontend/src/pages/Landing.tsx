@@ -71,7 +71,7 @@ const PRO_FEATURES = [
 
 export function Landing() {
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background scroll-smooth">
       {/* Navigation */}
       <nav className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
@@ -103,11 +103,11 @@ export function Landing() {
               Start Free <ArrowRight className="h-4 w-4" />
             </Button>
           </Link>
-          <Link to="/pricing">
+          <a href="#pricing">
             <Button size="lg" variant="outline">
               View Pricing
             </Button>
-          </Link>
+          </a>
         </div>
       </section>
 
@@ -151,7 +151,7 @@ export function Landing() {
       </section>
 
       {/* Pricing Section */}
-      <section className="mx-auto max-w-4xl px-6 py-16">
+      <section id="pricing" className="mx-auto max-w-4xl px-6 py-16">
         <div className="text-center">
           <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Simple pricing</h2>
           <p className="mt-2 text-muted-foreground">
@@ -224,7 +224,7 @@ export function Landing() {
           <div className="flex gap-4 text-sm text-muted-foreground">
             <Link to="/login" className="hover:text-foreground transition-colors">Sign in</Link>
             <Link to="/signup" className="hover:text-foreground transition-colors">Sign up</Link>
-            <Link to="/pricing" className="hover:text-foreground transition-colors">Pricing</Link>
+            <a href="#pricing" className="hover:text-foreground transition-colors">Pricing</a>
           </div>
         </div>
       </footer>
