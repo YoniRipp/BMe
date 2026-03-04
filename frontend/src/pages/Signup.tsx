@@ -113,7 +113,7 @@ export function Signup() {
                 <span className="bg-card px-2 text-muted-foreground">Or continue with</span>
               </div>
             </div>
-            <SocialLoginButtons />
+            <SocialLoginButtons plan={plan} />
             <p className="text-sm text-muted-foreground">
               Already have an account?{' '}
               <Link to="/login" className="text-primary underline-offset-4 hover:underline">
