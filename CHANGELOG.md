@@ -2,6 +2,18 @@
 
 All notable changes to this project are documented in this file. Releases and notable changes, latest first.
 
+## [19.0] - 2026-03-04
+
+### Removed
+- **Groups feature** — Groups pages, API, and database tables removed (will be rethought in a future iteration)
+- **AI Insights financial references** — Removed budget recommendations and transaction-based insights from the AI pipeline; replaced budget tip with sleep recommendation
+
+### Changed
+- AI Insights now focuses exclusively on wellness: workouts, nutrition, sleep, and general focus
+- Today's Recommendations shows Workout, Sleep, Nutrition, and Focus tips (previously included Budget)
+
+---
+
 ## [18.0] - 2026-03-04
 
 ### Removed

@@ -23,7 +23,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
 /**
  * Authenticated-app providers. Use only inside ProtectedRoutes after auth check.
  *
- * Domain data (goals, workouts, energy, schedule, transactions, groups)
+ * Domain data (goals, workouts, energy)
  * is now managed via direct React Query hooks — no context providers needed.
  * React Query's cache (via QueryClientProvider) shares data across components.
  *

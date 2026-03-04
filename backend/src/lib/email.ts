@@ -38,32 +38,6 @@ export async function sendMail({ to, subject, html }: { to: string; subject: str
   }
 }
 
-/**
- * Send "You've been added to {groupName}" with link to the group.
- */
-export async function sendAddedToGroupEmail(toEmail: string, groupName: string, groupId: string) {
-  const baseUrl = (config.appBaseUrl || '').replace(/\/$/, '');
-  const link = `${baseUrl}/groups/${groupId}`;
-  const subject = `You've been added to ${groupName}`;
-  const html = `
-    <p>You've been added to the group <strong>${escapeHtml(groupName)}</strong>.</p>
-    <p><a href="${escapeHtml(link)}">Open the group</a></p>
-  `;
-  return sendMail({ to: toEmail, subject, html });
-}
-
-/**
- * Send invite email with signup/login link.
- */
-export async function sendGroupInviteEmail(toEmail: string, groupName: string, inviteLink: string) {
-  const subject = `You're invited to join ${groupName}`;
-  const html = `
-    <p>You're invited to join the group <strong>${escapeHtml(groupName)}</strong>.</p>
-    <p>Sign up or log in to join: <a href="${escapeHtml(inviteLink)}">${escapeHtml(inviteLink)}</a></p>
-  `;
-  return sendMail({ to: toEmail, subject, html });
-}
-
 function escapeHtml(s: unknown): string {
   if (typeof s !== 'string') return '';
   return s

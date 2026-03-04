@@ -1,6 +1,6 @@
 # BeMe – Wellness Application
 
-**BeMe** (BMe) is a full-stack wellness app for tracking **body** (workouts), **energy** (food, calories, sleep), **goals**, and **groups**, with an optional **voice agent** powered by Google Gemini. Built with **React**, **TypeScript**, **Vite**, and **Node/Express**; data is stored in **PostgreSQL**; optional **Redis** for rate limiting, caching, async voice processing, and event bus.
+**BeMe** (BMe) is a full-stack wellness app for tracking **body** (workouts), **energy** (food, calories, sleep), and **goals**, with an optional **voice agent** powered by Google Gemini. Built with **React**, **TypeScript**, **Vite**, and **Node/Express**; data is stored in **PostgreSQL**; optional **Redis** for rate limiting, caching, async voice processing, and event bus.
 
 ## Features
 
@@ -19,9 +19,6 @@
 
 ### Goals
 - Goals by type: calories, workouts. Periods: weekly, monthly, yearly
-
-### Groups
-- Create and manage groups (household, event, project); member list and invitations
 
 ### Voice Agent
 - Speak in natural language to add or edit workouts, food, sleep, and goals. Powered by Google Gemini; requires `GEMINI_API_KEY`
@@ -156,7 +153,7 @@ BMe/
 │   │   ├── components/     # Layout, shared, ui, feature-specific
 │   │   ├── context/        # Auth, app, notifications, features
 │   │   ├── core/api/       # API client, auth, feature APIs
-│   │   ├── features/       # body, energy, goals, groups
+│   │   ├── features/       # body, energy, goals
 │   │   ├── hooks/          # useWorkouts, useFoodEntries, etc.
 │   │   ├── lib/            # voiceApi, dateRanges, queryClient, storage
 │   │   ├── pages/          # Home, Body, Energy, Goals, etc.
@@ -348,7 +345,7 @@ From `backend/`: `npm run start:consumer`, `npm run start:body`, `npm run start:
 
 ## Changelog
 
-**Update 18.0** — Removed Money and Schedule features; BeMe is now a wellness-focused app. See [CHANGELOG.md](CHANGELOG.md) for full release history.
+**Update 19.0** — Removed Groups feature; reset AI Insights to wellness-only. See [CHANGELOG.md](CHANGELOG.md) for full release history.
 
 ## License
 

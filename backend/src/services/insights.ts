@@ -1,6 +1,6 @@
 /**
  * AI Insights service — uses Gemini to generate personalized insights and recommendations
- * based on the user's actual data (transactions, workouts, food entries, sleep).
+ * based on the user's actual data (workouts, food entries, sleep).
  */
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { config } from '../config/index.js';
@@ -22,13 +22,7 @@ async function fetchUserContext(userId: string, days = 30) {
   since.setDate(since.getDate() - days);
   const sinceStr = since.toISOString().slice(0, 10);
 
-  const [txResult, workoutResult, foodResult, sleepResult] = await Promise.all([
-    pool.query(
-      `SELECT type, SUM(amount) AS total, category, COUNT(*)::int AS count
-       FROM transactions WHERE user_id = $1 AND date >= $2
-       GROUP BY type, category ORDER BY total DESC`,
-      [userId, sinceStr]
-    ),
+  const [workoutResult, foodResult, sleepResult] = await Promise.all([
     pool.query(
       `SELECT type, COUNT(*)::int AS count, AVG(duration_minutes)::numeric AS avg_duration
        FROM workouts WHERE user_id = $1 AND date >= $2
@@ -49,7 +43,6 @@ async function fetchUserContext(userId: string, days = 30) {
   ]);
 
   return {
-    transactions: txResult.rows,
     workouts: workoutResult.rows,
     food: foodResult.rows[0] ?? {},
     sleep: sleepResult.rows[0] ?? {},
@@ -63,7 +56,7 @@ const CACHE_FRESH_HOURS = 24;
 export async function getLastInsight(userId: string) {
   const pool = getPool();
   const result = await pool.query(
-    `SELECT summary, highlights, suggestions, score, today_workout, today_budget, today_nutrition, today_focus, created_at
+    `SELECT summary, highlights, suggestions, score, today_workout, today_sleep, today_nutrition, today_focus, created_at
      FROM ai_insights
      WHERE user_id = $1
      ORDER BY created_at DESC
@@ -77,7 +70,7 @@ export async function getLastInsight(userId: string) {
 export async function saveInsight(userId: string, data: Record<string, unknown>) {
   const pool = getPool();
   await pool.query(
-    `INSERT INTO ai_insights (user_id, summary, highlights, suggestions, score, today_workout, today_budget, today_nutrition, today_focus)
+    `INSERT INTO ai_insights (user_id, summary, highlights, suggestions, score, today_workout, today_sleep, today_nutrition, today_focus)
      VALUES ($1, $2, $3::jsonb, $4::jsonb, $5, $6, $7, $8, $9)`,
     [
       userId,
@@ -86,7 +79,7 @@ export async function saveInsight(userId: string, data: Record<string, unknown>)
       JSON.stringify(data.suggestions ?? []),
       data.score ?? 0,
       data.today_workout ?? '',
-      data.today_budget ?? '',
+      data.today_sleep ?? '',
       data.today_nutrition ?? '',
       data.today_focus ?? '',
     ]
@@ -119,7 +112,7 @@ export async function getOrGenerateInsights(userId: string) {
       },
       today: {
         workout: cached.today_workout ?? '',
-        budget: cached.today_budget ?? '',
+        sleep: cached.today_sleep ?? '',
         nutrition: cached.today_nutrition ?? '',
         focus: cached.today_focus ?? '',
       },
@@ -133,7 +126,7 @@ export async function getOrGenerateInsights(userId: string) {
     suggestions: result.suggestions ?? [],
     score: result.score ?? 0,
   };
-  const today = result.today ?? { workout: '', budget: '', nutrition: '', focus: '' };
+  const today = result.today ?? { workout: '', sleep: '', nutrition: '', focus: '' };
   return { main, today, cached: false };
 }
 
@@ -150,7 +143,7 @@ export async function refreshInsights(userId: string) {
     suggestions: result.suggestions ?? [],
     score: result.score ?? 0,
   };
-  const today = result.today ?? { workout: '', budget: '', nutrition: '', focus: '' };
+  const today = result.today ?? { workout: '', sleep: '', nutrition: '', focus: '' };
   return { main, today };
 }
 
@@ -164,19 +157,11 @@ export async function generateInsights(userId: string) {
   const ctx = await fetchUserContext(userId, 30);
   const model = getGemini();
 
-  const totalExpenses = ctx.transactions
-    .filter((t: Record<string, unknown>) => t.type === 'expense')
-    .reduce((s: number, t: Record<string, unknown>) => s + Number(t.total), 0);
-  const totalIncome = ctx.transactions
-    .filter((t: Record<string, unknown>) => t.type === 'income')
-    .reduce((s: number, t: Record<string, unknown>) => s + Number(t.total), 0);
   const totalWorkouts = ctx.workouts.reduce((s: number, w: Record<string, unknown>) => s + Number(w.count), 0);
 
-  const prompt = `You are a personal life coach assistant. Analyze this user's last 30 days of data and return a JSON object.
+  const prompt = `You are a personal wellness coach assistant. Analyze this user's last 30 days of data and return a JSON object.
 
 Data summary:
-- Finances: Total income $${totalIncome.toFixed(2)}, Total expenses $${totalExpenses.toFixed(2)}, Net $${(totalIncome - totalExpenses).toFixed(2)}
-- Spending by category: ${ctx.transactions.filter((t: Record<string, unknown>) => t.type === 'expense').map((t: Record<string, unknown>) => `${t.category}: $${Number(t.total as number).toFixed(2)}`).join(', ') || 'no data'}
 - Workouts: ${totalWorkouts} workouts across ${ctx.workouts.map((w: Record<string, unknown>) => `${w.count} ${w.type}`).join(', ') || 'no data'}
 - Nutrition: avg ${Math.round(Number(ctx.food.avg_daily_cal) || 0)} kcal/day over ${ctx.food.days_tracked || 0} tracked days, total protein ${Math.round(Number(ctx.food.total_protein) || 0)}g
 - Sleep: avg ${Number(ctx.sleep.avg_sleep || 0).toFixed(1)} hours/night over ${ctx.sleep.days_logged || 0} logged nights
@@ -186,7 +171,7 @@ Return exactly this JSON structure (no markdown, raw JSON only):
   "summary": "2-3 sentence plain-English summary of this month",
   "highlights": ["3-5 positive bullet points (short, specific, data-driven)"],
   "suggestions": ["3-5 actionable improvement suggestions (short, specific)"],
-  "score": <integer 0-100 representing overall wellness/life management score>
+  "score": <integer 0-100 representing overall wellness score>
 }`;
 
   try {
@@ -199,7 +184,7 @@ Return exactly this JSON structure (no markdown, raw JSON only):
       suggestions: Array.isArray(parsed.suggestions) ? parsed.suggestions.map(String) : [],
       score: Number.isFinite(Number(parsed.score)) ? Math.min(100, Math.max(0, Math.round(Number(parsed.score)))) : 50,
     };
-    let todayRecs = { workout: '', budget: '', nutrition: '', focus: '' };
+    let todayRecs = { workout: '', sleep: '', nutrition: '', focus: '' };
     try {
       todayRecs = await generateTodayRecommendations(userId);
     } catch (recErr) {
@@ -214,7 +199,7 @@ Return exactly this JSON structure (no markdown, raw JSON only):
       highlights: [],
       suggestions: [],
       score: 0,
-      today: { workout: '', budget: '', nutrition: '', focus: '' },
+      today: { workout: '', sleep: '', nutrition: '', focus: '' },
     };
   }
 }
@@ -222,7 +207,7 @@ Return exactly this JSON structure (no markdown, raw JSON only):
 /**
  * Generate personalized recommendations for today.
  * @param {string} userId
- * @returns {Promise<{ workout: string, budget: string, nutrition: string, focus: string }>}
+ * @returns {Promise<{ workout: string, sleep: string, nutrition: string, focus: string }>}
  */
 export async function generateTodayRecommendations(userId: string) {
   const ctx = await fetchUserContext(userId, 14);
@@ -231,25 +216,18 @@ export async function generateTodayRecommendations(userId: string) {
   const recentWorkouts = ctx.workouts.reduce((s: number, w: Record<string, unknown>) => s + Number(w.count), 0);
   const avgSleep = Number(ctx.sleep.avg_sleep || 0).toFixed(1);
   const avgCal = Math.round(Number(ctx.food.avg_daily_cal) || 0);
-  const totalExpenses = ctx.transactions
-    .filter((t: Record<string, unknown>) => t.type === 'expense')
-    .reduce((s: number, t: Record<string, unknown>) => s + Number(t.total), 0);
-  const totalIncome = ctx.transactions
-    .filter((t: Record<string, unknown>) => t.type === 'income')
-    .reduce((s: number, t: Record<string, unknown>) => s + Number(t.total), 0);
 
-  const prompt = `You are a friendly personal assistant. Based on this user's last 14 days, give them personalized recommendations for today.
+  const prompt = `You are a friendly wellness assistant. Based on this user's last 14 days, give them personalized recommendations for today.
 
 Recent data:
 - ${recentWorkouts} workouts in last 14 days (${ctx.workouts.map((w: Record<string, unknown>) => `${w.count} ${w.type}`).join(', ') || 'none'})
 - Average sleep: ${avgSleep} hours/night
 - Average daily calories: ${avgCal} kcal
-- Income: $${totalIncome.toFixed(2)}, Expenses: $${totalExpenses.toFixed(2)} this period
 
 Return exactly this JSON (no markdown, raw JSON):
 {
   "workout": "One specific workout recommendation for today (1-2 sentences)",
-  "budget": "One specific budget/spending tip for today (1-2 sentences)",
+  "sleep": "One specific sleep recommendation for today (1-2 sentences)",
   "nutrition": "One specific nutrition recommendation for today (1-2 sentences)",
   "focus": "One overall focus/mindset tip for today (1-2 sentences)"
 }`;
@@ -260,7 +238,7 @@ Return exactly this JSON (no markdown, raw JSON):
     const parsed = JSON.parse(text);
     return {
       workout: String(parsed.workout ?? ''),
-      budget: String(parsed.budget ?? ''),
+      sleep: String(parsed.sleep ?? ''),
       nutrition: String(parsed.nutrition ?? ''),
       focus: String(parsed.focus ?? ''),
     };
@@ -268,7 +246,7 @@ Return exactly this JSON (no markdown, raw JSON):
     logger.error({ err }, 'AI recommendations generation failed');
     return {
       workout: '',
-      budget: '',
+      sleep: '',
       nutrition: '',
       focus: '',
     };

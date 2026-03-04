@@ -21,14 +21,12 @@ export function DataManagementSection({ onResetClick, onClearClick }: DataManage
       const workouts = (queryClient.getQueryData(queryKeys.workouts) as import('@/types/workout').Workout[]) ?? [];
       const foodEntries = (queryClient.getQueryData(queryKeys.foodEntries) as import('@/types/energy').FoodEntry[]) ?? [];
       const checkIns = (queryClient.getQueryData(queryKeys.checkIns) as import('@/types/energy').DailyCheckIn[]) ?? [];
-      const groups = (queryClient.getQueryData(queryKeys.groups) as import('@/types/group').Group[]) ?? [];
       const dataStr = exportAllData({
         version: '1.0.0',
         exportDate: new Date().toISOString(),
         workouts,
         foodEntries,
         checkIns,
-        groups,
         settings: storage.get(STORAGE_KEYS.SETTINGS) || DEFAULT_SETTINGS,
       });
       downloadFile(dataStr, `beme-backup-${new Date().toISOString().split('T')[0]}.json`, 'application/json');

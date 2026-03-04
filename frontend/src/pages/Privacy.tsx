@@ -43,10 +43,6 @@ export function Privacy() {
           target values and time periods.
         </li>
         <li>
-          <strong>Group data:</strong> Group memberships, invitations, and shared group information
-          for household, event, or project groups you create or join.
-        </li>
-        <li>
           <strong>Voice input:</strong> Text transcripts of voice commands you submit to our voice
           assistant feature. When using audio input, the audio data is processed and discarded; only
           the resulting transcript and parsed intent are retained.

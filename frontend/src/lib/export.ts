@@ -1,15 +1,12 @@
 import { storage, STORAGE_KEYS } from './storage';
 import { Workout } from '@/types/workout';
 import { FoodEntry } from '@/types/energy';
-import { Group } from '@/types/group';
-
 export interface ExportData {
   version: string;
   exportDate: string;
   workouts: Workout[];
   foodEntries: FoodEntry[];
   checkIns: any[];
-  groups: Group[];
   settings?: any;
 }
 
@@ -25,7 +22,6 @@ export function exportAllData(data: ExportData): string {
     workouts: data.workouts ?? [],
     foodEntries: data.foodEntries ?? [],
     checkIns: data.checkIns ?? [],
-    groups: data.groups ?? [],
     settings: data.settings,
   };
   return JSON.stringify(payload, null, 2);
@@ -53,10 +49,6 @@ export function importAllData(jsonString: string): { success: boolean; error?: s
 
     if (data.checkIns && Array.isArray(data.checkIns)) {
       storage.set(STORAGE_KEYS.ENERGY, data.checkIns);
-    }
-
-    if (data.groups && Array.isArray(data.groups)) {
-      storage.set(STORAGE_KEYS.GROUPS, data.groups);
     }
 
     return { success: true };

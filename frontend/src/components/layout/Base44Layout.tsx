@@ -12,7 +12,6 @@ import {
   Sun,
   TrendingUp,
   Settings,
-  Users,
   ShieldCheck,
   LogOut,
   User,
@@ -35,7 +34,6 @@ const ROUTE_TO_TITLE: Record<string, string> = {
   '/goals': 'Goals',
   '/insights': 'Insights',
   '/settings': 'Settings',
-  '/groups': 'Groups',
   '/admin': 'Admin',
 };
 
@@ -46,7 +44,6 @@ const SIDEBAR_NAV_BASE = [
   { name: 'Goals', path: '/goals', icon: Target },
   { name: 'Insights', path: '/insights', icon: TrendingUp },
   { name: 'Settings', path: '/settings', icon: Settings },
-  { name: 'Groups', path: '/groups', icon: Users },
 ];
 
 function getSidebarNav(isAdmin: boolean) {
@@ -58,7 +55,6 @@ function getSidebarNav(isAdmin: boolean) {
 const BOTTOM_NAV_ITEMS = 4;
 
 function getPageTitle(pathname: string): string {
-  if (pathname.startsWith('/groups/') && pathname.length > 8) return 'Groups';
   return ROUTE_TO_TITLE[pathname] ?? (pathname.slice(1) || 'Dashboard');
 }
 

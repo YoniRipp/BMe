@@ -9,7 +9,6 @@ import workoutRouter from './workout.js';
 import foodEntryRouter from './foodEntry.js';
 import dailyCheckInRouter from './dailyCheckIn.js';
 import goalRouter from './goal.js';
-import groupRouter from './group.js';
 import foodSearchRouter from './foodSearch.js';
 import voiceRouter from './voice.js';
 import jobsRouter from './jobs.js';
@@ -31,7 +30,6 @@ if (!config.energyServiceUrl) {
   router.use(dailyCheckInRouter);
 }
 if (!config.goalsServiceUrl) router.use(goalRouter);
-router.use(groupRouter);
 router.use(foodSearchRouter);
 router.use(voiceRouter);
 router.use(jobsRouter);
