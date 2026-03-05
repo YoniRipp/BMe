@@ -50,24 +50,25 @@ async function fetchUserContext(userId: string, days = 30) {
   };
 }
 
-/** Check if user has any data-mutating activity since the given timestamp. */
-async function hasNewActivitySince(userId: string, since: Date): Promise<boolean> {
+/** Get the latest data-mutating activity log ID for a user. Returns null if none. */
+async function getLatestActivityId(userId: string): Promise<string | null> {
   const pool = getPool();
   const result = await pool.query(
-    `SELECT 1 FROM user_activity_log
-     WHERE user_id = $1 AND created_at > $2
+    `SELECT id FROM user_activity_log
+     WHERE user_id = $1
        AND (event_type LIKE 'body.%' OR event_type LIKE 'energy.%' OR event_type LIKE 'goals.%')
+     ORDER BY created_at DESC
      LIMIT 1`,
-    [userId, since]
+    [userId]
   );
-  return result.rows.length > 0;
+  return result.rows[0]?.id ?? null;
 }
 
 /** Get the most recent cached insight for a user. */
 export async function getLastInsight(userId: string) {
   const pool = getPool();
   const result = await pool.query(
-    `SELECT summary, highlights, suggestions, score, today_workout, today_sleep, today_nutrition, today_focus, created_at
+    `SELECT summary, highlights, suggestions, score, today_workout, today_sleep, today_nutrition, today_focus, last_activity_id, created_at
      FROM ai_insights
      WHERE user_id = $1
      ORDER BY created_at DESC
@@ -81,8 +82,8 @@ export async function getLastInsight(userId: string) {
 export async function saveInsight(userId: string, data: Record<string, unknown>) {
   const pool = getPool();
   await pool.query(
-    `INSERT INTO ai_insights (user_id, summary, highlights, suggestions, score, today_workout, today_sleep, today_nutrition, today_focus)
-     VALUES ($1, $2, $3::jsonb, $4::jsonb, $5, $6, $7, $8, $9)`,
+    `INSERT INTO ai_insights (user_id, summary, highlights, suggestions, score, today_workout, today_sleep, today_nutrition, today_focus, last_activity_id)
+     VALUES ($1, $2, $3::jsonb, $4::jsonb, $5, $6, $7, $8, $9, $10)`,
     [
       userId,
       data.summary ?? '',
@@ -93,6 +94,7 @@ export async function saveInsight(userId: string, data: Record<string, unknown>)
       data.today_sleep ?? '',
       data.today_nutrition ?? '',
       data.today_focus ?? '',
+      data.last_activity_id ?? null,
     ]
   );
 }
@@ -110,27 +112,25 @@ export async function getOrGenerateInsights(userId: string) {
   } catch (err) {
     logger.warn({ err }, 'Failed to fetch cached insights, will regenerate');
   }
-  if (cached) {
-    const hasNew = await hasNewActivitySince(userId, new Date(cached.created_at as string | number | Date));
-    if (!hasNew) {
-      return {
-        main: {
-          summary: cached.summary,
-          highlights: cached.highlights ?? [],
-          suggestions: cached.suggestions ?? [],
-          score: Number(cached.score) ?? 0,
-        },
-        today: {
-          workout: cached.today_workout ?? '',
-          sleep: cached.today_sleep ?? '',
-          nutrition: cached.today_nutrition ?? '',
-          focus: cached.today_focus ?? '',
-        },
-        cached: true,
-      };
-    }
+  const latestActivityId = await getLatestActivityId(userId);
+  if (cached && cached.last_activity_id === latestActivityId) {
+    return {
+      main: {
+        summary: cached.summary,
+        highlights: cached.highlights ?? [],
+        suggestions: cached.suggestions ?? [],
+        score: Number(cached.score) ?? 0,
+      },
+      today: {
+        workout: cached.today_workout ?? '',
+        sleep: cached.today_sleep ?? '',
+        nutrition: cached.today_nutrition ?? '',
+        focus: cached.today_focus ?? '',
+      },
+      cached: true,
+    };
   }
-  const result = await generateInsights(userId);
+  const result = await generateInsights(userId, latestActivityId);
   const main = {
     summary: result.summary,
     highlights: result.highlights ?? [],
@@ -147,7 +147,8 @@ export async function getOrGenerateInsights(userId: string) {
  * @returns {Promise<{ main: object, today: object }>}
  */
 export async function refreshInsights(userId: string) {
-  const result = await generateInsights(userId);
+  const latestActivityId = await getLatestActivityId(userId);
+  const result = await generateInsights(userId, latestActivityId);
   const main = {
     summary: result.summary,
     highlights: result.highlights ?? [],
@@ -164,7 +165,7 @@ export async function refreshInsights(userId: string) {
  * @param {string} userId
  * @returns {Promise<{ summary: string, highlights: string[], suggestions: string[], score: number, today?: object }>}
  */
-export async function generateInsights(userId: string) {
+export async function generateInsights(userId: string, latestActivityId?: string | null) {
   const ctx = await fetchUserContext(userId, 30);
   const model = getGemini();
 
@@ -207,6 +208,7 @@ Return exactly this JSON structure (no markdown, raw JSON only):
       today_sleep: todayRecs.sleep,
       today_nutrition: todayRecs.nutrition,
       today_focus: todayRecs.focus,
+      last_activity_id: latestActivityId ?? null,
     });
   } catch (saveErr) {
     logger.warn({ err: saveErr }, 'Failed to cache insights, returning generated result');
