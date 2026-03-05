@@ -93,7 +93,7 @@ export async function executeActions(actions: VoiceAction[], userId: string): Pr
             exercises: Array.isArray(action.exercises) ? action.exercises : [],
             notes: action.notes as string,
           });
-          results.push({ intent: 'add_workout', success: true });
+          results.push({ intent: 'add_workout', success: true, message: `Logged workout: ${(action.title as string) ?? 'Workout'} (${(action.type as string) ?? 'cardio'}, ${Number(action.durationMinutes) || 30} min)` });
           break;
 
         case 'edit_workout': {
@@ -110,7 +110,7 @@ export async function executeActions(actions: VoiceAction[], userId: string): Pr
             date: action.date ? parseDate(action.date) : undefined,
             exercises: Array.isArray(action.exercises) ? action.exercises : undefined,
           });
-          results.push({ intent: 'edit_workout', success: true });
+          results.push({ intent: 'edit_workout', success: true, message: 'Updated workout' });
           break;
         }
 
@@ -121,7 +121,7 @@ export async function executeActions(actions: VoiceAction[], userId: string): Pr
             break;
           }
           await workoutService.remove(userId, w.id as string);
-          results.push({ intent: 'delete_workout', success: true });
+          results.push({ intent: 'delete_workout', success: true, message: 'Deleted workout' });
           break;
         }
 
@@ -138,7 +138,7 @@ export async function executeActions(actions: VoiceAction[], userId: string): Pr
             startTime: action.startTime as string,
             endTime: action.endTime as string,
           });
-          results.push({ intent: 'add_food', success: true });
+          results.push({ intent: 'add_food', success: true, message: `Logged ${(action.name as string) ?? 'food'}${action.calories ? `, ${Number(action.calories)} cal` : ''}` });
           break;
 
         case 'edit_food_entry': {
@@ -155,7 +155,7 @@ export async function executeActions(actions: VoiceAction[], userId: string): Pr
             fats: action.fats != null ? Number(action.fats) : undefined,
             date: action.date ? parseDate(action.date) : undefined,
           });
-          results.push({ intent: 'edit_food_entry', success: true });
+          results.push({ intent: 'edit_food_entry', success: true, message: 'Updated food entry' });
           break;
         }
 
@@ -166,7 +166,7 @@ export async function executeActions(actions: VoiceAction[], userId: string): Pr
             break;
           }
           await foodEntryService.remove(userId, e.id as string);
-          results.push({ intent: 'delete_food_entry', success: true });
+          results.push({ intent: 'delete_food_entry', success: true, message: 'Deleted food entry' });
           break;
         }
 
@@ -179,7 +179,7 @@ export async function executeActions(actions: VoiceAction[], userId: string): Pr
           } else {
             await dailyCheckInService.create(userId, { date: dateStr, sleepHours: hours });
           }
-          results.push({ intent: 'log_sleep', success: true });
+          results.push({ intent: 'log_sleep', success: true, message: `Logged ${hours} hours of sleep` });
           break;
         }
 
@@ -194,7 +194,7 @@ export async function executeActions(actions: VoiceAction[], userId: string): Pr
             break;
           }
           await dailyCheckInService.update(userId, existing.id as string, { sleepHours: Number(action.sleepHours) || 0 });
-          results.push({ intent: 'edit_check_in', success: true });
+          results.push({ intent: 'edit_check_in', success: true, message: 'Updated sleep log' });
           break;
         }
 
@@ -209,7 +209,7 @@ export async function executeActions(actions: VoiceAction[], userId: string): Pr
             break;
           }
           await dailyCheckInService.remove(userId, existing.id as string);
-          results.push({ intent: 'delete_check_in', success: true });
+          results.push({ intent: 'delete_check_in', success: true, message: 'Deleted sleep log' });
           break;
         }
 
@@ -219,7 +219,7 @@ export async function executeActions(actions: VoiceAction[], userId: string): Pr
             target: Number(action.target) || 0,
             period: (action.period as string) ?? 'weekly',
           });
-          results.push({ intent: 'add_goal', success: true });
+          results.push({ intent: 'add_goal', success: true, message: `Added goal: ${Number(action.target) || 0} ${(action.type as string) ?? 'workouts'} ${(action.period as string) ?? 'weekly'}` });
           break;
 
         case 'edit_goal': {
@@ -232,7 +232,7 @@ export async function executeActions(actions: VoiceAction[], userId: string): Pr
             target: action.target != null ? Number(action.target) : undefined,
             period: action.period as string,
           });
-          results.push({ intent: 'edit_goal', success: true });
+          results.push({ intent: 'edit_goal', success: true, message: 'Updated goal target' });
           break;
         }
 
@@ -243,7 +243,7 @@ export async function executeActions(actions: VoiceAction[], userId: string): Pr
             break;
           }
           await goalService.remove(userId, g.id as string);
-          results.push({ intent: 'delete_goal', success: true });
+          results.push({ intent: 'delete_goal', success: true, message: 'Deleted goal' });
           break;
         }
 
