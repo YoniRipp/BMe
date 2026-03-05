@@ -116,7 +116,7 @@ const handleAddWorkout: Handler = async (action, ctx) => {
     exercises,
     notes,
   });
-  return { success: true };
+  return { success: true, message: `Logged workout: ${title} (${type}, ${durationMinutes} min)` };
 };
 
 const handleEditWorkout: Handler = async (action, ctx) => {
@@ -131,7 +131,7 @@ const handleEditWorkout: Handler = async (action, ctx) => {
   if (action.date) updates.date = parseDateOrToday(action.date);
   if (Array.isArray(action.exercises)) updates.exercises = action.exercises;
   if (Object.keys(updates).length > 0) await ctx.updateWorkout(target.id, updates);
-  return { success: true };
+  return { success: true, message: 'Updated workout' };
 };
 
 const handleDeleteWorkout: Handler = async (action, ctx) => {
@@ -139,7 +139,7 @@ const handleDeleteWorkout: Handler = async (action, ctx) => {
   const target = action.workoutId ? ctx.workouts.find((w) => w.id === action.workoutId) : ctx.workouts.find((w) => w.title.toLowerCase().includes((action.workoutTitle ?? '').toLowerCase()));
   if (!target) return { success: false, message: 'Workout not found' };
   await ctx.deleteWorkout(target.id);
-  return { success: true };
+  return { success: true, message: 'Deleted workout' };
 };
 
 const handleAddFood: Handler = async (action, ctx) => {
@@ -161,7 +161,9 @@ const handleAddFood: Handler = async (action, ctx) => {
   };
   try {
     await ctx.addFoodEntry(payload);
-    return { success: true };
+    const name = action.name ?? 'food';
+    const cal = action.calories ? `, ${action.calories} cal` : '';
+    return { success: true, message: `Logged ${name}${cal}` };
   } catch (e) {
     throw e;
   }
@@ -179,7 +181,7 @@ const handleEditFoodEntry: Handler = async (action, ctx) => {
   if (action.fats != null) updates.fats = action.fats;
   if (action.date) updates.date = parseDateOrToday(action.date);
   if (Object.keys(updates).length > 0) await ctx.updateFoodEntry(target.id, updates);
-  return { success: true };
+  return { success: true, message: 'Updated food entry' };
 };
 
 const handleDeleteFoodEntry: Handler = async (action, ctx) => {
@@ -187,7 +189,7 @@ const handleDeleteFoodEntry: Handler = async (action, ctx) => {
   const target = action.entryId ? ctx.foodEntries.find((e) => e.id === action.entryId) : ctx.foodEntries.find((e) => e.name.toLowerCase().includes((action.foodName ?? '').toLowerCase()));
   if (!target) return { success: false, message: 'Food entry not found' };
   await ctx.deleteFoodEntry(target.id);
-  return { success: true };
+  return { success: true, message: 'Deleted food entry' };
 };
 
 const handleLogSleep: Handler = async (action, ctx) => {
@@ -196,7 +198,7 @@ const handleLogSleep: Handler = async (action, ctx) => {
   const existing = ctx.getCheckInByDate(date);
   if (existing) await ctx.updateCheckIn(existing.id, { sleepHours: action.sleepHours });
   else await ctx.addCheckIn({ date, sleepHours: action.sleepHours });
-  return { success: true };
+  return { success: true, message: `Logged ${action.sleepHours} hours of sleep` };
 };
 
 const handleEditCheckIn: Handler = async (action, ctx) => {
@@ -205,7 +207,7 @@ const handleEditCheckIn: Handler = async (action, ctx) => {
   const existing = ctx.getCheckInByDate(parseDateOrToday(action.date));
   if (!existing) return { success: false, message: 'Check-in not found' };
   await ctx.updateCheckIn(existing.id, { sleepHours: action.sleepHours });
-  return { success: true };
+  return { success: true, message: 'Updated sleep log' };
 };
 
 const handleDeleteCheckIn: Handler = async (action, ctx) => {
@@ -214,13 +216,13 @@ const handleDeleteCheckIn: Handler = async (action, ctx) => {
   const existing = ctx.getCheckInByDate(parseDateOrToday(action.date));
   if (!existing) return { success: false, message: 'Check-in not found' };
   await ctx.deleteCheckIn(existing.id);
-  return { success: true };
+  return { success: true, message: 'Deleted sleep log' };
 };
 
 const handleAddGoal: Handler = async (action, ctx) => {
   if (action.intent !== 'add_goal') return { success: false };
   await ctx.addGoal({ type: action.type as 'calories' | 'workouts' | 'sleep', target: action.target, period: action.period as 'daily' | 'weekly' | 'monthly' | 'yearly' });
-  return { success: true };
+  return { success: true, message: `Added goal: ${action.target} ${action.type} ${action.period}` };
 };
 
 const handleEditGoal: Handler = async (action, ctx) => {
@@ -231,7 +233,7 @@ const handleEditGoal: Handler = async (action, ctx) => {
   if (action.target != null) updates.target = action.target;
   if (action.period) updates.period = action.period;
   if (Object.keys(updates).length > 0) await ctx.updateGoal(target.id, updates);
-  return { success: true };
+  return { success: true, message: 'Updated goal target' };
 };
 
 const handleDeleteGoal: Handler = async (action, ctx) => {
@@ -239,7 +241,7 @@ const handleDeleteGoal: Handler = async (action, ctx) => {
   const target = action.goalId ? ctx.goals.find((g) => g.id === action.goalId) : ctx.goals.find((g) => g.type === action.goalType);
   if (!target) return { success: false, message: 'Goal not found' };
   await ctx.deleteGoal(target.id);
-  return { success: true };
+  return { success: true, message: 'Deleted goal' };
 };
 
 const HANDLERS: Partial<Record<VoiceAction['intent'], Handler>> = {
