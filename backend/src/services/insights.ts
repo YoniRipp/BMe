@@ -159,13 +159,12 @@ export async function refreshInsights(userId: string) {
  * @returns {Promise<{ summary: string, highlights: string[], suggestions: string[], score: number, today?: object }>}
  */
 export async function generateInsights(userId: string) {
-  try {
-    const ctx = await fetchUserContext(userId, 30);
-    const model = getGemini();
+  const ctx = await fetchUserContext(userId, 30);
+  const model = getGemini();
 
-    const totalWorkouts = ctx.workouts.reduce((s: number, w: Record<string, unknown>) => s + Number(w.count), 0);
+  const totalWorkouts = ctx.workouts.reduce((s: number, w: Record<string, unknown>) => s + Number(w.count), 0);
 
-    const prompt = `You are a personal wellness coach assistant. Analyze this user's last 30 days of data and return a JSON object.
+  const prompt = `You are a personal wellness coach assistant. Analyze this user's last 30 days of data and return a JSON object.
 
 Data summary:
 - Workouts: ${totalWorkouts} workouts across ${ctx.workouts.map((w: Record<string, unknown>) => `${w.count} ${w.type}`).join(', ') || 'no data'}
@@ -180,33 +179,33 @@ Return exactly this JSON structure (no markdown, raw JSON only):
   "score": <integer 0-100 representing overall wellness score>
 }`;
 
-    const result = await model.generateContent(prompt);
-    const text = result.response.text().trim();
-    const parsed = JSON.parse(text);
-    const mainInsights = {
-      summary: String(parsed.summary ?? ''),
-      highlights: Array.isArray(parsed.highlights) ? parsed.highlights.map(String) : [],
-      suggestions: Array.isArray(parsed.suggestions) ? parsed.suggestions.map(String) : [],
-      score: Number.isFinite(Number(parsed.score)) ? Math.min(100, Math.max(0, Math.round(Number(parsed.score)))) : 50,
-    };
-    let todayRecs = { workout: '', sleep: '', nutrition: '', focus: '' };
-    try {
-      todayRecs = await generateTodayRecommendations(userId);
-    } catch (recErr) {
-      logger.warn({ err: recErr }, 'Today recommendations generation failed, saving main insights only');
-    }
-    await saveInsight(userId, { ...mainInsights, ...todayRecs });
-    return { ...mainInsights, today: todayRecs };
-  } catch (err) {
-    logger.error({ err }, 'AI insights generation failed');
-    return {
-      summary: 'Unable to generate insights at this time.',
-      highlights: [],
-      suggestions: [],
-      score: 0,
-      today: { workout: '', sleep: '', nutrition: '', focus: '' },
-    };
+  const result = await model.generateContent(prompt);
+  const text = result.response.text().trim();
+  const parsed = JSON.parse(text);
+  const mainInsights = {
+    summary: String(parsed.summary ?? ''),
+    highlights: Array.isArray(parsed.highlights) ? parsed.highlights.map(String) : [],
+    suggestions: Array.isArray(parsed.suggestions) ? parsed.suggestions.map(String) : [],
+    score: Number.isFinite(Number(parsed.score)) ? Math.min(100, Math.max(0, Math.round(Number(parsed.score)))) : 50,
+  };
+  let todayRecs = { workout: '', sleep: '', nutrition: '', focus: '' };
+  try {
+    todayRecs = await generateTodayRecommendations(userId);
+  } catch (recErr) {
+    logger.warn({ err: recErr }, 'Today recommendations generation failed, saving main insights only');
   }
+  try {
+    await saveInsight(userId, {
+      ...mainInsights,
+      today_workout: todayRecs.workout,
+      today_sleep: todayRecs.sleep,
+      today_nutrition: todayRecs.nutrition,
+      today_focus: todayRecs.focus,
+    });
+  } catch (saveErr) {
+    logger.warn({ err: saveErr }, 'Failed to cache insights, returning generated result');
+  }
+  return { ...mainInsights, today: todayRecs };
 }
 
 /**
