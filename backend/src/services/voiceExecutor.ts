@@ -8,6 +8,7 @@ import * as dailyCheckInService from './dailyCheckIn.js';
 import * as goalService from './goal.js';
 import { isDbConfigured } from '../db/index.js';
 import { voiceContext } from '../lib/voiceContext.js';
+import type { WorkoutType, GoalType, GoalPeriod } from '../types/domain.js';
 
 export interface ExecuteResult {
   intent: string;
@@ -27,42 +28,46 @@ function parseDate(v: unknown): string {
 }
 
 async function resolveWorkout(userId: string, action: VoiceAction) {
-  const workouts = await workoutService.list(userId);
+  const result = await workoutService.list(userId);
+  const workouts = result.data;
   if (action.workoutId) {
-    return workouts.find((w: Record<string, unknown>) => w.id === action.workoutId) ?? null;
+    return workouts.find((w) => w.id === action.workoutId) ?? null;
   }
   if (action.workoutTitle) {
     const lower = String(action.workoutTitle).toLowerCase();
-    return workouts.find((w: Record<string, unknown>) => (typeof w.title === 'string' && w.title.toLowerCase().includes(lower))) ?? null;
+    return workouts.find((w) => w.title.toLowerCase().includes(lower)) ?? null;
   }
   return null;
 }
 
 async function resolveFoodEntry(userId: string, action: VoiceAction) {
-  const entries = await foodEntryService.list(userId);
+  const result = await foodEntryService.list(userId);
+  const entries = result.data;
   if (action.entryId) {
-    return entries.find((e: Record<string, unknown>) => e.id === action.entryId) ?? null;
+    return entries.find((e) => e.id === action.entryId) ?? null;
   }
   if (action.foodName) {
     const lower = String(action.foodName).toLowerCase();
-    return entries.find((e: Record<string, unknown>) => (typeof e.name === 'string' && e.name.toLowerCase().includes(lower))) ?? null;
+    return entries.find((e) => e.name.toLowerCase().includes(lower)) ?? null;
   }
   return null;
 }
 
 async function resolveCheckIn(userId: string, date: string) {
-  const list = await dailyCheckInService.list(userId);
+  const result = await dailyCheckInService.list(userId);
+  const items = result.data;
   const dateStr = parseDate(date);
-  return list.find((c: Record<string, unknown>) => String(c.date ?? '').startsWith(dateStr)) ?? null;
+  return items.find((c) => String(c.date ?? '').startsWith(dateStr)) ?? null;
 }
 
 async function resolveGoal(userId: string, action: VoiceAction) {
-  const goals = await goalService.list(userId);
+  const result = await goalService.list(userId);
+  const goals = result.data;
   if (action.goalId) {
-    return goals.find((g: Record<string, unknown>) => g.id === action.goalId) ?? null;
+    return goals.find((g) => g.id === action.goalId) ?? null;
   }
   if (action.goalType) {
-    return goals.find((g: Record<string, unknown>) => g.type === action.goalType) ?? null;
+    return goals.find((g) => g.type === action.goalType) ?? null;
   }
   return null;
 }
@@ -90,7 +95,7 @@ export async function executeActions(actions: VoiceAction[], userId: string): Pr
           await workoutService.create(userId, {
             date: parseDate(action.date),
             title: (action.title as string) ?? 'Workout',
-            type: (action.type as string) ?? 'cardio',
+            type: ((action.type as string) ?? 'cardio') as WorkoutType,
             durationMinutes: Number(action.durationMinutes) || 30,
             exercises: Array.isArray(action.exercises) ? action.exercises : [],
             notes: action.notes as string,
@@ -106,7 +111,7 @@ export async function executeActions(actions: VoiceAction[], userId: string): Pr
           }
           await workoutService.update(userId, w.id as string, {
             title: action.title as string,
-            type: action.type as string,
+            type: action.type as WorkoutType | undefined,
             durationMinutes: action.durationMinutes != null ? Number(action.durationMinutes) : undefined,
             notes: action.notes as string,
             date: action.date ? parseDate(action.date) : undefined,
@@ -217,9 +222,9 @@ export async function executeActions(actions: VoiceAction[], userId: string): Pr
 
         case 'add_goal':
           await goalService.create(userId, {
-            type: (action.type as string) ?? 'workouts',
+            type: ((action.type as string) ?? 'workouts') as GoalType,
             target: Number(action.target) || 0,
-            period: (action.period as string) ?? 'weekly',
+            period: ((action.period as string) ?? 'weekly') as GoalPeriod,
           });
           results.push({ intent: 'add_goal', success: true, message: `Added goal: ${Number(action.target) || 0} ${(action.type as string) ?? 'workouts'} ${(action.period as string) ?? 'weekly'}` });
           break;
@@ -232,7 +237,7 @@ export async function executeActions(actions: VoiceAction[], userId: string): Pr
           }
           await goalService.update(userId, g.id as string, {
             target: action.target != null ? Number(action.target) : undefined,
-            period: action.period as string,
+            period: action.period as GoalPeriod | undefined,
           });
           results.push({ intent: 'edit_goal', success: true, message: 'Updated goal target' });
           break;

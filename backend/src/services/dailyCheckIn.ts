@@ -1,46 +1,42 @@
 /**
- * Daily check-in service.
+ * Daily check-in service — business logic with typed interfaces.
+ * Trusts Zod-validated input from route layer.
  */
-import { parseDate, validateNonNegative } from '../utils/validation.js';
-import { requireId, requireFound, buildUpdates } from '../utils/serviceHelpers.js';
+import { NotFoundError, ValidationError } from '../errors.js';
 import * as dailyCheckInModel from '../models/dailyCheckIn.js';
 import { publishEvent } from '../events/publish.js';
+import type { DailyCheckIn, UpdateCheckInInput, PaginationParams } from '../types/domain.js';
+import type { CreateCheckInBody, UpdateCheckInBody } from '../schemas/routeSchemas.js';
 
-function normSleepHours(v: unknown) {
-  if (v == null) return null;
-  return validateNonNegative(v, 'sleepHours');
+export async function list(userId: string, pagination?: PaginationParams) {
+  return dailyCheckInModel.findByUserId(userId, pagination);
 }
 
-export async function list(userId: string) {
-  return dailyCheckInModel.findByUserId(userId);
-}
-
-export async function create(userId: string, body: Record<string, unknown>) {
-  const { date, sleepHours } = body ?? {};
+export async function create(userId: string, body: CreateCheckInBody): Promise<DailyCheckIn> {
   const checkIn = await dailyCheckInModel.create({
     userId,
-    date: parseDate(date),
-    sleepHours: normSleepHours(sleepHours),
+    date: body.date,
+    sleepHours: body.sleepHours,
   });
-  await publishEvent('energy.CheckInCreated', checkIn, userId);
+  await publishEvent('energy.CheckInCreated', checkIn as unknown as Record<string, unknown>, userId);
   return checkIn;
 }
 
-export async function update(userId: string, id: string, body: Record<string, unknown>) {
-  requireId(id);
-  const updates = buildUpdates(body ?? {}, {
-    date: (v: unknown) => v,
-    sleepHours: normSleepHours,
-  });
+export async function update(userId: string, id: string, body: UpdateCheckInBody): Promise<DailyCheckIn> {
+  if (!id) throw new ValidationError('id is required');
+  const updates: UpdateCheckInInput = {};
+  if (body.date !== undefined) updates.date = body.date;
+  if (body.sleepHours !== undefined) updates.sleepHours = body.sleepHours;
+
   const updated = await dailyCheckInModel.update(id, userId, updates);
-  requireFound(updated, 'Daily check-in');
-  await publishEvent('energy.CheckInUpdated', updated, userId);
+  if (!updated) throw new NotFoundError('Daily check-in not found');
+  await publishEvent('energy.CheckInUpdated', updated as unknown as Record<string, unknown>, userId);
   return updated;
 }
 
-export async function remove(userId: string, id: string) {
-  requireId(id);
+export async function remove(userId: string, id: string): Promise<void> {
+  if (!id) throw new ValidationError('id is required');
   const deleted = await dailyCheckInModel.deleteById(id, userId);
-  requireFound(deleted, 'Daily check-in');
+  if (!deleted) throw new NotFoundError('Daily check-in not found');
   await publishEvent('energy.CheckInDeleted', { id }, userId);
 }

@@ -46,7 +46,8 @@ describe('errorHandler', () => {
 
       const res = await request(app).get('/test').expect(500);
 
-      expect(res.body.error).toBe('Something broke');
+      expect(res.body.error.code).toBe('INTERNAL_ERROR');
+      expect(res.body.error.message).toBe('Something broke');
     });
 
     it('passes through when handler succeeds', async () => {
@@ -72,7 +73,8 @@ describe('errorHandler', () => {
 
       const res = await request(app).get('/test').expect(400);
 
-      expect(res.body.error).toBe('Invalid input');
+      expect(res.body.error.code).toBe('VALIDATION_ERROR');
+      expect(res.body.error.message).toBe('Invalid input');
     });
 
     it('NotFoundError maps to 404', async () => {
@@ -84,7 +86,8 @@ describe('errorHandler', () => {
 
       const res = await request(app).get('/test').expect(404);
 
-      expect(res.body.error).toBe('Resource not found');
+      expect(res.body.error.code).toBe('NOT_FOUND');
+      expect(res.body.error.message).toBe('Resource not found');
     });
 
     it('UnauthorizedError maps to 401', async () => {
@@ -96,7 +99,8 @@ describe('errorHandler', () => {
 
       const res = await request(app).get('/test').expect(401);
 
-      expect(res.body.error).toBe('Not authenticated');
+      expect(res.body.error.code).toBe('UNAUTHORIZED');
+      expect(res.body.error.message).toBe('Not authenticated');
     });
 
     it('ConflictError maps to 409', async () => {
@@ -108,7 +112,8 @@ describe('errorHandler', () => {
 
       const res = await request(app).get('/test').expect(409);
 
-      expect(res.body.error).toBe('Already exists');
+      expect(res.body.error.code).toBe('CONFLICT');
+      expect(res.body.error.message).toBe('Already exists');
     });
 
     it('ForbiddenError maps to 403', async () => {
@@ -120,7 +125,8 @@ describe('errorHandler', () => {
 
       const res = await request(app).get('/test').expect(403);
 
-      expect(res.body.error).toBe('Access denied');
+      expect(res.body.error.code).toBe('FORBIDDEN');
+      expect(res.body.error.message).toBe('Access denied');
     });
   });
 
@@ -137,7 +143,8 @@ describe('errorHandler', () => {
 
       const res = await request(app).get('/test').expect(409);
 
-      expect(res.body.error).toBe('Email already registered');
+      expect(res.body.error.code).toBe('CONFLICT');
+      expect(res.body.error.message).toBe('Email already registered');
     });
 
     it('maps to 409 with generic message when constraint does not include email', async () => {
@@ -152,7 +159,8 @@ describe('errorHandler', () => {
 
       const res = await request(app).get('/test').expect(409);
 
-      expect(res.body.error).toBe('A record with this value already exists');
+      expect(res.body.error.code).toBe('CONFLICT');
+      expect(res.body.error.message).toBe('A record with this value already exists');
     });
   });
 

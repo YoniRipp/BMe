@@ -1,59 +1,54 @@
 /**
- * Workout service.
+ * Workout service — business logic with typed interfaces.
+ * Trusts Zod-validated input from route layer.
  */
-import { ValidationError } from '../errors.js';
-import { WORKOUT_TYPES } from '../config/constants.js';
-import { parseDate, requirePositiveNumber } from '../utils/validation.js';
-import { requireNonEmptyString } from '../utils/validation.js';
-import { requireId, requireFound, normOneOf, buildUpdates, trim, identity } from '../utils/serviceHelpers.js';
+import { NotFoundError, ValidationError } from '../errors.js';
 import * as workoutModel from '../models/workout.js';
 import { publishEvent } from '../events/publish.js';
 import { upsertEmbedding, buildEmbeddingText, deleteEmbedding } from './embeddings.js';
+import type { Workout, UpdateWorkoutInput, PaginationParams } from '../types/domain.js';
+import type { CreateWorkoutBody, UpdateWorkoutBody } from '../schemas/routeSchemas.js';
 
-const TYPE_ERROR = 'type must be one of: ' + WORKOUT_TYPES.join(', ');
-
-export async function list(userId: string) {
-  return workoutModel.findByUserId(userId);
+export async function list(userId: string, pagination?: PaginationParams) {
+  return workoutModel.findByUserId(userId, pagination);
 }
 
-export async function create(userId: string, body: Record<string, unknown>) {
-  const { date, title, type, durationMinutes, exercises, notes } = body ?? {};
-  const validType = normOneOf(type, WORKOUT_TYPES, { errorMessage: TYPE_ERROR });
+export async function create(userId: string, body: CreateWorkoutBody): Promise<Workout> {
   const workout = await workoutModel.create({
     userId,
-    date: parseDate(date),
-    title: requireNonEmptyString(title, 'title'),
-    type: String(validType),
-    durationMinutes: requirePositiveNumber(durationMinutes, 'durationMinutes'),
-    exercises,
-    notes,
+    date: body.date,
+    title: body.title,
+    type: body.type,
+    durationMinutes: body.durationMinutes,
+    exercises: body.exercises,
+    notes: body.notes ?? undefined,
   });
-  await publishEvent('body.WorkoutCreated', workout, userId);
-  upsertEmbedding(userId, 'workout', String(workout.id), buildEmbeddingText('workout', workout));
+  await publishEvent('body.WorkoutCreated', workout as unknown as Record<string, unknown>, userId);
+  upsertEmbedding(userId, 'workout', workout.id, buildEmbeddingText('workout', workout as unknown as Record<string, unknown>));
   return workout;
 }
 
-export async function update(userId: string, id: string, body: Record<string, unknown>) {
-  requireId(id);
-  const updates = buildUpdates(body ?? {}, {
-    date: (v: unknown) => parseDate(v),
-    title: trim,
-    type: (v: unknown) => normOneOf(v, WORKOUT_TYPES, { errorMessage: TYPE_ERROR }),
-    durationMinutes: (v: unknown) => requirePositiveNumber(v, 'durationMinutes'),
-    exercises: identity,
-    notes: identity,
-  });
+export async function update(userId: string, id: string, body: UpdateWorkoutBody): Promise<Workout> {
+  if (!id) throw new ValidationError('id is required');
+  const updates: UpdateWorkoutInput = {};
+  if (body.date !== undefined) updates.date = body.date;
+  if (body.title !== undefined) updates.title = body.title;
+  if (body.type !== undefined) updates.type = body.type;
+  if (body.durationMinutes !== undefined) updates.durationMinutes = body.durationMinutes;
+  if (body.exercises !== undefined) updates.exercises = body.exercises;
+  if (body.notes !== undefined) updates.notes = body.notes ?? undefined;
+
   const updated = await workoutModel.update(id, userId, updates);
-  requireFound(updated, 'Workout');
-  await publishEvent('body.WorkoutUpdated', updated, userId);
-  upsertEmbedding(userId, 'workout', updated.id as string, buildEmbeddingText('workout', updated));
+  if (!updated) throw new NotFoundError('Workout not found');
+  await publishEvent('body.WorkoutUpdated', updated as unknown as Record<string, unknown>, userId);
+  upsertEmbedding(userId, 'workout', updated.id, buildEmbeddingText('workout', updated as unknown as Record<string, unknown>));
   return updated;
 }
 
-export async function remove(userId: string, id: string) {
-  requireId(id);
+export async function remove(userId: string, id: string): Promise<void> {
+  if (!id) throw new ValidationError('id is required');
   const deleted = await workoutModel.deleteById(id, userId);
-  requireFound(deleted, 'Workout');
+  if (!deleted) throw new NotFoundError('Workout not found');
   await publishEvent('body.WorkoutDeleted', { id }, userId);
   deleteEmbedding(id, 'workout');
 }

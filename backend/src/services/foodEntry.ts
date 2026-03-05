@@ -1,68 +1,64 @@
 /**
- * Food entry service.
+ * Food entry service — business logic with typed interfaces.
+ * Trusts Zod-validated input from route layer.
  */
-import { parseDate, validateNonNegative, requireNonEmptyString, normTime } from '../utils/validation.js';
-import { requireId, requireFound, buildUpdates } from '../utils/serviceHelpers.js';
+import { NotFoundError, ValidationError } from '../errors.js';
 import * as foodEntryModel from '../models/foodEntry.js';
 import { publishEvent } from '../events/publish.js';
 import { upsertEmbedding, buildEmbeddingText, deleteEmbedding } from './embeddings.js';
+import type { FoodEntry, UpdateFoodEntryInput, PaginationParams } from '../types/domain.js';
+import type { CreateFoodEntryBody, UpdateFoodEntryBody } from '../schemas/routeSchemas.js';
 
-export async function list(userId: string) {
-  return foodEntryModel.findByUserId(userId);
+export async function list(userId: string, pagination?: PaginationParams) {
+  return foodEntryModel.findByUserId(userId, pagination);
 }
 
-function optionalTime(v: unknown) {
-  if (v == null || typeof v !== 'string') return undefined;
-  return normTime(v.trim()) || undefined;
-}
-
-export async function create(userId: string, body: Record<string, unknown>) {
-  const { date, name, calories, protein, carbs, fats, portionAmount, portionUnit, servingType, startTime, endTime } = body ?? {};
+export async function create(userId: string, body: CreateFoodEntryBody): Promise<FoodEntry> {
   const entry = await foodEntryModel.create({
     userId,
-    date: parseDate(date),
-    name: requireNonEmptyString(name, 'name'),
-    calories: validateNonNegative(calories ?? 0, 'calories'),
-    protein: validateNonNegative(protein ?? 0, 'protein'),
-    carbs: validateNonNegative(carbs ?? 0, 'carbs'),
-    fats: validateNonNegative(fats ?? 0, 'fats'),
-    portionAmount: portionAmount != null ? validateNonNegative(portionAmount, 'portionAmount') : undefined,
-    portionUnit: portionUnit != null && typeof portionUnit === 'string' ? portionUnit.trim() || undefined : undefined,
-    servingType: servingType != null && typeof servingType === 'string' ? servingType.trim() || undefined : undefined,
-    startTime: optionalTime(startTime),
-    endTime: optionalTime(endTime),
+    date: body.date,
+    name: body.name,
+    calories: body.calories,
+    protein: body.protein,
+    carbs: body.carbs,
+    fats: body.fats,
+    portionAmount: body.portionAmount ?? undefined,
+    portionUnit: body.portionUnit ?? undefined,
+    servingType: body.servingType ?? undefined,
+    startTime: body.startTime ?? undefined,
+    endTime: body.endTime ?? undefined,
   });
-  await publishEvent('energy.FoodEntryCreated', entry, userId);
-  upsertEmbedding(userId, 'food_entry', entry.id as string, buildEmbeddingText('food_entry', entry));
+  await publishEvent('energy.FoodEntryCreated', entry as unknown as Record<string, unknown>, userId);
+  upsertEmbedding(userId, 'food_entry', entry.id, buildEmbeddingText('food_entry', entry as unknown as Record<string, unknown>));
   return entry;
 }
 
-export async function update(userId: string, id: string, body: Record<string, unknown>) {
-  requireId(id);
-  const updates = buildUpdates(body ?? {}, {
-    date: (v: unknown) => v,
-    name: (v: unknown) => v,
-    calories: (v: unknown) => validateNonNegative(v, 'calories'),
-    protein: (v: unknown) => validateNonNegative(v, 'protein'),
-    carbs: (v: unknown) => validateNonNegative(v, 'carbs'),
-    fats: (v: unknown) => validateNonNegative(v, 'fats'),
-    portionAmount: (v: unknown) => (v != null ? validateNonNegative(v, 'portionAmount') : undefined),
-    portionUnit: (v: unknown) => (v != null && typeof v === 'string' ? v.trim() || undefined : undefined),
-    servingType: (v: unknown) => (v != null && typeof v === 'string' ? v.trim() || undefined : undefined),
-    startTime: (v: unknown) => optionalTime(v),
-    endTime: (v: unknown) => optionalTime(v),
-  });
+export async function update(userId: string, id: string, body: UpdateFoodEntryBody): Promise<FoodEntry> {
+  if (!id) throw new ValidationError('id is required');
+  const updates: UpdateFoodEntryInput = {};
+  if (body.date !== undefined) updates.date = body.date;
+  if (body.name !== undefined) updates.name = body.name;
+  if (body.calories !== undefined) updates.calories = body.calories;
+  if (body.protein !== undefined) updates.protein = body.protein;
+  if (body.carbs !== undefined) updates.carbs = body.carbs;
+  if (body.fats !== undefined) updates.fats = body.fats;
+  if (body.portionAmount !== undefined) updates.portionAmount = body.portionAmount ?? undefined;
+  if (body.portionUnit !== undefined) updates.portionUnit = body.portionUnit ?? undefined;
+  if (body.servingType !== undefined) updates.servingType = body.servingType ?? undefined;
+  if (body.startTime !== undefined) updates.startTime = body.startTime ?? undefined;
+  if (body.endTime !== undefined) updates.endTime = body.endTime ?? undefined;
+
   const updated = await foodEntryModel.update(id, userId, updates);
-  requireFound(updated, 'Food entry');
-  await publishEvent('energy.FoodEntryUpdated', updated, userId);
-  upsertEmbedding(userId, 'food_entry', updated.id as string, buildEmbeddingText('food_entry', updated));
+  if (!updated) throw new NotFoundError('Food entry not found');
+  await publishEvent('energy.FoodEntryUpdated', updated as unknown as Record<string, unknown>, userId);
+  upsertEmbedding(userId, 'food_entry', updated.id, buildEmbeddingText('food_entry', updated as unknown as Record<string, unknown>));
   return updated;
 }
 
-export async function remove(userId: string, id: string) {
-  requireId(id);
+export async function remove(userId: string, id: string): Promise<void> {
+  if (!id) throw new ValidationError('id is required');
   const deleted = await foodEntryModel.deleteById(id, userId);
-  requireFound(deleted, 'Food entry');
+  if (!deleted) throw new NotFoundError('Food entry not found');
   await publishEvent('energy.FoodEntryDeleted', { id }, userId);
   deleteEmbedding(id, 'food_entry');
 }

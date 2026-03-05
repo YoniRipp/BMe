@@ -47,7 +47,9 @@ describe('voice controller', () => {
 
       expect(voiceService.parseTranscript).not.toHaveBeenCalled();
       expect(res.status).toHaveBeenCalledWith(400);
-      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ error: 'Transcript is empty' }));
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+        error: expect.objectContaining({ message: 'Transcript is empty' }),
+      }));
     });
 
     it('returns 502 when service throws', async () => {
@@ -60,8 +62,10 @@ describe('voice controller', () => {
       expect(res.status).toHaveBeenCalledWith(502);
       expect(res.json).toHaveBeenCalledWith(
         expect.objectContaining({
-          error: 'Failed to understand voice',
-          details: 'Gemini API error',
+          error: expect.objectContaining({
+            message: 'Failed to understand voice',
+            details: 'Gemini API error',
+          }),
         })
       );
     });

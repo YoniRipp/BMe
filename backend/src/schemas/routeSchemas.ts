@@ -1,73 +1,116 @@
+/**
+ * Route-level Zod schemas — single source of validation truth.
+ * These are the authoritative validators. Services should NOT re-validate.
+ */
 import { z } from 'zod';
 
-// Workout schemas
+// ─── Shared primitives ─────────────────────────────────────
+const dateString = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be YYYY-MM-DD format').refine((s) => {
+  const [y, m, d] = s.split('-').map(Number);
+  const date = new Date(y, m - 1, d);
+  return date.getFullYear() === y && date.getMonth() === m - 1 && date.getDate() === d;
+}, 'Invalid calendar date');
+
+const timeString = z.string().regex(/^\d{1,2}:\d{2}$/, 'Time must be HH:MM format').optional().nullable();
+
+const workoutType = z.enum(['strength', 'cardio', 'flexibility', 'sports']);
+const goalType = z.enum(['calories', 'workouts', 'sleep']);
+const goalPeriod = z.enum(['daily', 'weekly', 'monthly', 'yearly']);
+
+const exerciseSchema = z.object({
+  name: z.string().min(1).max(200),
+  sets: z.number().int().min(0).max(999),
+  reps: z.number().int().min(0).max(999),
+  repsPerSet: z.array(z.number().int().min(0)).optional(),
+  weight: z.number().min(0).max(9999).optional(),
+  notes: z.string().max(500).optional(),
+});
+
+// ─── Pagination ─────────────────────────────────────────────
+export const paginationSchema = z.object({
+  limit: z.coerce.number().int().min(1).max(200).default(50),
+  offset: z.coerce.number().int().min(0).default(0),
+});
+
+// ─── Workout schemas ────────────────────────────────────────
 export const createWorkoutSchema = z.object({
-  date: z.string(),
-  title: z.string().min(1),
-  type: z.string(),
-  durationMinutes: z.number().nonnegative(),
-  exercises: z.unknown().optional(),
-  notes: z.string().optional().nullable(),
+  date: dateString,
+  title: z.string().min(1).max(200).transform((s) => s.trim()),
+  type: workoutType,
+  durationMinutes: z.number().int().min(1).max(1440),
+  exercises: z.array(exerciseSchema).default([]),
+  notes: z.string().max(2000).optional().nullable(),
 });
 
 export const updateWorkoutSchema = z.object({
-  date: z.string().optional(),
-  title: z.string().min(1).optional(),
-  type: z.string().optional(),
-  durationMinutes: z.number().nonnegative().optional(),
-  exercises: z.unknown().optional(),
-  notes: z.string().optional().nullable(),
-}).strict();
+  date: dateString.optional(),
+  title: z.string().min(1).max(200).transform((s) => s.trim()).optional(),
+  type: workoutType.optional(),
+  durationMinutes: z.number().int().min(1).max(1440).optional(),
+  exercises: z.array(exerciseSchema).optional(),
+  notes: z.string().max(2000).optional().nullable(),
+}).strict().refine((obj) => Object.keys(obj).length > 0, 'At least one field required');
 
-// Food entry schemas
+// ─── Food entry schemas ────────────────────────────────────
 export const createFoodEntrySchema = z.object({
-  date: z.string(),
-  name: z.string().min(1),
-  calories: z.number().nonnegative().optional().default(0),
-  protein: z.number().nonnegative().optional().default(0),
-  carbs: z.number().nonnegative().optional().default(0),
-  fats: z.number().nonnegative().optional().default(0),
-  portionAmount: z.number().nonnegative().optional().nullable(),
-  portionUnit: z.string().optional().nullable(),
-  servingType: z.string().optional().nullable(),
-  startTime: z.string().optional().nullable(),
-  endTime: z.string().optional().nullable(),
+  date: dateString,
+  name: z.string().min(1).max(500).transform((s) => s.trim()),
+  calories: z.number().min(0).max(99999).default(0),
+  protein: z.number().min(0).max(99999).default(0),
+  carbs: z.number().min(0).max(99999).default(0),
+  fats: z.number().min(0).max(99999).default(0),
+  portionAmount: z.number().min(0).max(99999).optional().nullable(),
+  portionUnit: z.string().max(50).optional().nullable(),
+  servingType: z.string().max(50).optional().nullable(),
+  startTime: timeString,
+  endTime: timeString,
 });
 
 export const updateFoodEntrySchema = z.object({
-  date: z.string().optional(),
-  name: z.string().min(1).optional(),
-  calories: z.number().nonnegative().optional(),
-  protein: z.number().nonnegative().optional(),
-  carbs: z.number().nonnegative().optional(),
-  fats: z.number().nonnegative().optional(),
-  portionAmount: z.number().nonnegative().optional().nullable(),
-  portionUnit: z.string().optional().nullable(),
-  servingType: z.string().optional().nullable(),
-  startTime: z.string().optional().nullable(),
-  endTime: z.string().optional().nullable(),
-}).strict();
+  date: dateString.optional(),
+  name: z.string().min(1).max(500).transform((s) => s.trim()).optional(),
+  calories: z.number().min(0).max(99999).optional(),
+  protein: z.number().min(0).max(99999).optional(),
+  carbs: z.number().min(0).max(99999).optional(),
+  fats: z.number().min(0).max(99999).optional(),
+  portionAmount: z.number().min(0).max(99999).optional().nullable(),
+  portionUnit: z.string().max(50).optional().nullable(),
+  servingType: z.string().max(50).optional().nullable(),
+  startTime: timeString,
+  endTime: timeString,
+}).strict().refine((obj) => Object.keys(obj).length > 0, 'At least one field required');
 
-// Daily check-in schemas
+// ─── Daily check-in schemas ────────────────────────────────
 export const createCheckInSchema = z.object({
-  date: z.string(),
-  sleepHours: z.number().nonnegative().optional().nullable(),
+  date: dateString,
+  sleepHours: z.number().min(0).max(24).optional().nullable(),
 });
 
 export const updateCheckInSchema = z.object({
-  date: z.string().optional(),
-  sleepHours: z.number().nonnegative().optional().nullable(),
-}).strict();
+  date: dateString.optional(),
+  sleepHours: z.number().min(0).max(24).optional().nullable(),
+}).strict().refine((obj) => Object.keys(obj).length > 0, 'At least one field required');
 
-// Goal schemas
+// ─── Goal schemas ──────────────────────────────────────────
 export const createGoalSchema = z.object({
-  type: z.string(),
-  target: z.number().nonnegative(),
-  period: z.string(),
+  type: goalType,
+  target: z.number().min(0).max(999999),
+  period: goalPeriod,
 });
 
 export const updateGoalSchema = z.object({
-  type: z.string().optional(),
-  target: z.number().nonnegative().optional(),
-  period: z.string().optional(),
-}).strict();
+  type: goalType.optional(),
+  target: z.number().min(0).max(999999).optional(),
+  period: goalPeriod.optional(),
+}).strict().refine((obj) => Object.keys(obj).length > 0, 'At least one field required');
+
+// ─── Type exports for inference ─────────────────────────────
+export type CreateWorkoutBody = z.infer<typeof createWorkoutSchema>;
+export type UpdateWorkoutBody = z.infer<typeof updateWorkoutSchema>;
+export type CreateFoodEntryBody = z.infer<typeof createFoodEntrySchema>;
+export type UpdateFoodEntryBody = z.infer<typeof updateFoodEntrySchema>;
+export type CreateCheckInBody = z.infer<typeof createCheckInSchema>;
+export type UpdateCheckInBody = z.infer<typeof updateCheckInSchema>;
+export type CreateGoalBody = z.infer<typeof createGoalSchema>;
+export type UpdateGoalBody = z.infer<typeof updateGoalSchema>;
+export type PaginationQuery = z.infer<typeof paginationSchema>;

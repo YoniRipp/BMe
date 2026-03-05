@@ -124,7 +124,7 @@ describe('voiceExecutor', () => {
 
   describe('edit_workout', () => {
     it('returns failure when workout not found', async () => {
-      mockWorkoutList.mockResolvedValue([]);
+      mockWorkoutList.mockResolvedValue({ data: [], total: 0 });
 
       const results = await executeActions(
         [{ intent: 'edit_workout', workoutTitle: 'Unknown', title: 'New Title' }],
@@ -171,7 +171,7 @@ describe('voiceExecutor', () => {
 
   describe('log_sleep', () => {
     it('creates check-in when none exists', async () => {
-      mockDailyCheckInList.mockResolvedValue([]);
+      mockDailyCheckInList.mockResolvedValue({ data: [], total: 0 });
       mockDailyCheckInCreate.mockResolvedValue(undefined);
 
       const results = await executeActions(
@@ -188,7 +188,7 @@ describe('voiceExecutor', () => {
 
     it('updates check-in when one exists for date', async () => {
       const existing = { id: 'c1', date: '2025-02-24', sleepHours: 6 };
-      mockDailyCheckInList.mockResolvedValue([existing]);
+      mockDailyCheckInList.mockResolvedValue({ data: [existing], total: 1 });
       mockDailyCheckInUpdate.mockResolvedValue(undefined);
 
       const results = await executeActions(

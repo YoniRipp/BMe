@@ -1,58 +1,64 @@
 /**
- * Daily check-in model — data access only.
+ * Daily check-in model — typed data access layer.
  */
+import pg from 'pg';
 import { getPool } from '../db/pool.js';
+import { buildUpdateQuery, type UpdateBuilder } from '../db/queryBuilder.js';
+import type { DailyCheckIn, CreateCheckInInput, UpdateCheckInInput, PaginationParams } from '../types/domain.js';
 
-type QueryParam = string | number | boolean | null | undefined;
+const RETURNING = 'id, date, sleep_hours';
 
-function rowToCheckIn(row: Record<string, unknown>) {
+function rowToCheckIn(row: Record<string, unknown>): DailyCheckIn {
   return {
-    id: row.id,
-    date: row.date,
+    id: row.id as string,
+    date: String(row.date),
     sleepHours: row.sleep_hours != null ? Number(row.sleep_hours) : undefined,
   };
 }
 
-export async function findByUserId(userId: string) {
-  const pool = getPool('energy');
-  const result = await pool.query(
-    'SELECT id, date, sleep_hours FROM daily_check_ins WHERE user_id = $1 ORDER BY date DESC, created_at DESC',
-    [userId]
-  );
-  return result.rows.map(rowToCheckIn);
+const UPDATE_SPEC: UpdateBuilder<UpdateCheckInInput> = {
+  columns: {
+    date: { column: 'date', cast: '::date' },
+    sleepHours: { column: 'sleep_hours' },
+  },
+};
+
+export async function findByUserId(userId: string, pagination?: PaginationParams, client?: pg.Pool | pg.PoolClient): Promise<{ data: DailyCheckIn[]; total: number }> {
+  const db = client ?? getPool('energy');
+  const countResult = await db.query('SELECT COUNT(*)::int AS total FROM daily_check_ins WHERE user_id = $1', [userId]);
+  const total = countResult.rows[0].total;
+
+  let sql = 'SELECT ' + RETURNING + ' FROM daily_check_ins WHERE user_id = $1 ORDER BY date DESC, created_at DESC';
+  const params: unknown[] = [userId];
+
+  if (pagination) {
+    sql += ' LIMIT $2 OFFSET $3';
+    params.push(pagination.limit, pagination.offset);
+  }
+
+  const result = await db.query(sql, params);
+  return { data: result.rows.map(rowToCheckIn), total };
 }
 
-export async function create(params: Record<string, unknown>) {
-  const pool = getPool('energy');
-  const { userId, date, sleepHours } = params;
-  const d = date ? new Date(date as string) : new Date();
-  const result = await pool.query(
-    `INSERT INTO daily_check_ins (user_id, date, sleep_hours)
-     VALUES ($1, $2, $3)
-     RETURNING id, date, sleep_hours`,
-    [userId, d.toISOString().slice(0, 10), sleepHours]
+export async function create(input: CreateCheckInInput, client?: pg.Pool | pg.PoolClient): Promise<DailyCheckIn> {
+  const db = client ?? getPool('energy');
+  const result = await db.query(
+    `INSERT INTO daily_check_ins (user_id, date, sleep_hours) VALUES ($1, $2, $3) RETURNING ${RETURNING}`,
+    [input.userId, input.date, input.sleepHours ?? null],
   );
   return rowToCheckIn(result.rows[0]);
 }
 
-export async function update(id: string, userId: string, updates: Record<string, unknown>) {
-  const pool = getPool('energy');
-  const entries: string[] = [];
-  const values: QueryParam[] = [];
-  let i = 1;
-  if (updates.date !== undefined) { entries.push(`date = $${i}::date`); values.push(updates.date as QueryParam); i++; }
-  if (updates.sleepHours !== undefined) { entries.push(`sleep_hours = $${i}`); values.push(updates.sleepHours as QueryParam); i++; }
-  if (entries.length === 0) return null;
-  values.push(id, userId);
-  const result = await pool.query(
-    `UPDATE daily_check_ins SET ${entries.join(', ')} WHERE id = $${i} AND user_id = $${i + 1} RETURNING id, date, sleep_hours`,
-    values
-  );
+export async function update(id: string, userId: string, updates: UpdateCheckInInput, client?: pg.Pool | pg.PoolClient): Promise<DailyCheckIn | null> {
+  const db = client ?? getPool('energy');
+  const query = buildUpdateQuery('daily_check_ins', 'id', 'user_id', RETURNING, UPDATE_SPEC, updates, id, userId);
+  if (!query) return null;
+  const result = await db.query(query.sql, query.params);
   return (result.rowCount ?? 0) > 0 ? rowToCheckIn(result.rows[0]) : null;
 }
 
-export async function deleteById(id: string, userId: string) {
-  const pool = getPool('energy');
-  const result = await pool.query('DELETE FROM daily_check_ins WHERE id = $1 AND user_id = $2 RETURNING id', [id, userId]);
+export async function deleteById(id: string, userId: string, client?: pg.Pool | pg.PoolClient): Promise<boolean> {
+  const db = client ?? getPool('energy');
+  const result = await db.query('DELETE FROM daily_check_ins WHERE id = $1 AND user_id = $2 RETURNING id', [id, userId]);
   return (result.rowCount ?? 0) > 0;
 }
