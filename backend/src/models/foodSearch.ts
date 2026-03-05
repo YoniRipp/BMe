@@ -283,20 +283,19 @@ export async function search(q: string, limit = 10) {
     const result = await pool.query(sql, allValues);
     return result.rows.map(rowToResult);
   } catch {
-    // Fallback: no pg_trgm / name_tsv, word-split LIKE only
-    const fbCn = wordSplitLike('lower(COALESCE(common_name, name))', words, 4);
-    const fbNm = wordSplitLike('lower(name)', words, 4 + fbCn.values.length);
-    const fbValues = [query, escapeLike(query) + '%', limit, ...fbCn.values, ...fbNm.values];
+    // Fallback: no pg_trgm / name_tsv / common_name — use only guaranteed columns
+    const fbNm = wordSplitLike('lower(name)', words, 4);
+    const fbValues = [query, escapeLike(query) + '%', limit, ...fbNm.values];
 
     const sql = `
-      SELECT id, name, common_name, calories, protein, carbs, fat, is_liquid, serving_sizes_ml, preparation
+      SELECT id, name, calories, protein, carbs, fat, is_liquid, serving_sizes_ml, preparation
       FROM foods
-      WHERE ${fbCn.sql} OR ${fbNm.sql}
+      WHERE ${fbNm.sql}
       ORDER BY
-        (lower(COALESCE(common_name, name)) = $1) DESC,
-        (lower(COALESCE(common_name, name)) LIKE $2) DESC,
+        (lower(name) = $1) DESC,
+        (lower(name) LIKE $2) DESC,
         (COALESCE(preparation, 'cooked') = 'cooked') DESC,
-        length(COALESCE(common_name, name)) ASC,
+        length(name) ASC,
         name
       LIMIT $3`;
     const result = await pool.query(sql, fbValues);
@@ -342,17 +341,16 @@ export async function getNutritionForFoodName(pool: Pool, foodName: string, amou
       allValues
     );
   } catch {
-    // Fallback without pg_trgm
-    const fbCn = wordSplitLike('lower(COALESCE(common_name, name))', words, 3);
-    const fbNm = wordSplitLike('lower(name)', words, 3 + fbCn.values.length);
+    // Fallback without pg_trgm / common_name — use only guaranteed columns
+    const fbNm = wordSplitLike('lower(name)', words, 3);
 
     result = await pool.query(
-      `SELECT id, name, common_name, calories, protein, carbs, fat, is_liquid, preparation
+      `SELECT id, name, calories, protein, carbs, fat, is_liquid, preparation
        FROM foods
-       WHERE ${fbCn.sql} OR ${fbNm.sql}
-       ORDER BY (COALESCE(preparation, 'cooked') = $1) DESC, length(COALESCE(common_name, name)) ASC
+       WHERE ${fbNm.sql}
+       ORDER BY (COALESCE(preparation, 'cooked') = $1) DESC, length(name) ASC
        LIMIT 1`,
-      [wantPrep, ...fbCn.values, ...fbNm.values]
+      [wantPrep, ...fbNm.values]
     );
   }
 
@@ -378,13 +376,21 @@ export async function getNutritionForFoodName(pool: Pool, foodName: string, amou
 
 /** Look up a food by barcode (indexed). */
 export async function getByBarcode(pool: Pool, barcode: string) {
-  const result = await pool.query(
-    `SELECT id, name, common_name, calories, protein, carbs, fat, is_liquid, serving_sizes_ml, preparation, barcode, image_url
-     FROM foods
-     WHERE barcode = $1
-     LIMIT 1`,
-    [barcode]
-  );
+  let result;
+  try {
+    result = await pool.query(
+      `SELECT id, name, common_name, calories, protein, carbs, fat, is_liquid, serving_sizes_ml, preparation, barcode, image_url
+       FROM foods WHERE barcode = $1 LIMIT 1`,
+      [barcode]
+    );
+  } catch {
+    // Fallback: common_name column may not exist yet
+    result = await pool.query(
+      `SELECT id, name, calories, protein, carbs, fat, is_liquid, serving_sizes_ml, preparation, barcode, image_url
+       FROM foods WHERE barcode = $1 LIMIT 1`,
+      [barcode]
+    );
+  }
   if (result.rows.length === 0) return null;
   return { ...rowToResult(result.rows[0]), barcode: result.rows[0].barcode as string | null, imageUrl: result.rows[0].image_url as string | null };
 }
@@ -405,35 +411,34 @@ export async function cacheFood(pool: Pool, food: {
   preparation?: string;
 }) {
   // For OFF/Gemini foods, the name is already clean — use it as common_name too
-  const result = await pool.query(
-    `INSERT INTO foods (name, common_name, name_he, calories, protein, carbs, fat, is_liquid, barcode, source, off_id, image_url, preparation)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
-     ON CONFLICT (off_id) WHERE off_id IS NOT NULL DO UPDATE SET
-       name = EXCLUDED.name,
-       common_name = EXCLUDED.common_name,
-       calories = EXCLUDED.calories,
-       protein = EXCLUDED.protein,
-       carbs = EXCLUDED.carbs,
-       fat = EXCLUDED.fat,
-       is_liquid = EXCLUDED.is_liquid,
-       image_url = EXCLUDED.image_url
-     RETURNING id, name, common_name, calories, protein, carbs, fat, is_liquid, serving_sizes_ml, preparation, barcode, image_url`,
-    [
-      food.name,
-      food.name,  // common_name = name for OFF/Gemini (already clean)
-      food.name_he ?? null,
-      food.calories,
-      food.protein,
-      food.carbs,
-      food.fat,
-      food.is_liquid,
-      food.barcode ?? null,
-      food.source,
-      food.off_id ?? null,
-      food.image_url ?? null,
-      food.preparation ?? 'cooked',
-    ]
-  );
+  let result;
+  try {
+    result = await pool.query(
+      `INSERT INTO foods (name, common_name, name_he, calories, protein, carbs, fat, is_liquid, barcode, source, off_id, image_url, preparation)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+       ON CONFLICT (off_id) WHERE off_id IS NOT NULL DO UPDATE SET
+         name = EXCLUDED.name,
+         common_name = EXCLUDED.common_name,
+         calories = EXCLUDED.calories, protein = EXCLUDED.protein,
+         carbs = EXCLUDED.carbs, fat = EXCLUDED.fat,
+         is_liquid = EXCLUDED.is_liquid, image_url = EXCLUDED.image_url
+       RETURNING id, name, common_name, calories, protein, carbs, fat, is_liquid, serving_sizes_ml, preparation, barcode, image_url`,
+      [food.name, food.name, food.name_he ?? null, food.calories, food.protein, food.carbs, food.fat,
+       food.is_liquid, food.barcode ?? null, food.source, food.off_id ?? null, food.image_url ?? null, food.preparation ?? 'cooked']
+    );
+  } catch {
+    // Fallback: common_name column may not exist yet
+    result = await pool.query(
+      `INSERT INTO foods (name, name_he, calories, protein, carbs, fat, is_liquid, barcode, source, off_id, image_url, preparation)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+       ON CONFLICT (off_id) WHERE off_id IS NOT NULL DO UPDATE SET
+         name = EXCLUDED.name, calories = EXCLUDED.calories, protein = EXCLUDED.protein,
+         carbs = EXCLUDED.carbs, fat = EXCLUDED.fat, is_liquid = EXCLUDED.is_liquid, image_url = EXCLUDED.image_url
+       RETURNING id, name, calories, protein, carbs, fat, is_liquid, serving_sizes_ml, preparation, barcode, image_url`,
+      [food.name, food.name_he ?? null, food.calories, food.protein, food.carbs, food.fat,
+       food.is_liquid, food.barcode ?? null, food.source, food.off_id ?? null, food.image_url ?? null, food.preparation ?? 'cooked']
+    );
+  }
   const row = result.rows[0];
   return { ...rowToResult(row), barcode: row.barcode as string | null, imageUrl: row.image_url as string | null };
 }
