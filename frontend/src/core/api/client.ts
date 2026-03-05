@@ -74,8 +74,11 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
     throw new Error(err.error ?? 'Session expired');
   }
   if (!res.ok) {
-    const err = (await res.json().catch(() => ({}))) as { error?: string };
-    const msg = err.error ?? res.statusText;
+    const errBody = await res.json().catch(() => ({}));
+    const errField = errBody?.error;
+    const msg = typeof errField === 'string'
+      ? errField
+      : errField?.message ?? res.statusText;
     throw new Error(msg);
   }
   if (res.status === 204) return undefined as T;
