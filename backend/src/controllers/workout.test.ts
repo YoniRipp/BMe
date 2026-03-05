@@ -8,6 +8,14 @@ vi.mock('../config/index.js', () => ({
 }));
 vi.mock('../services/workout.js');
 vi.mock('../middleware/auth.js');
+vi.mock('../schemas/routeSchemas.js', () => ({
+  paginationSchema: {
+    parse: (q: Record<string, unknown> = {}) => ({
+      limit: Number(q?.limit) || 50,
+      offset: Number(q?.offset) || 0,
+    }),
+  },
+}));
 
 describe('workout controller', () => {
   let req;
@@ -36,12 +44,19 @@ describe('workout controller', () => {
           exercises: [{ name: 'Bench', sets: 3, reps: 10 }],
         },
       ];
-      workoutService.list.mockResolvedValue(workouts);
+      workoutService.list.mockResolvedValue({ data: workouts, total: 1 });
 
+      req.query = {};
       await workoutController.list(req, res);
 
-      expect(workoutService.list).toHaveBeenCalledWith('user-1');
-      expect(res.json).toHaveBeenCalledWith(workouts);
+      expect(workoutService.list).toHaveBeenCalledWith('user-1', { limit: 50, offset: 0 });
+      expect(res.json).toHaveBeenCalledWith({
+        data: workouts,
+        total: 1,
+        limit: 50,
+        offset: 0,
+        hasMore: false,
+      });
     });
   });
 

@@ -1,55 +1,67 @@
 /**
- * Goal model — data access only.
+ * Goal model — typed data access layer.
  */
+import pg from 'pg';
 import { getPool } from '../db/pool.js';
+import { buildUpdateQuery, type UpdateBuilder } from '../db/queryBuilder.js';
+import type { Goal, CreateGoalInput, UpdateGoalInput, PaginationParams, GoalType, GoalPeriod } from '../types/domain.js';
 
-type QueryParam = string | number | boolean | null | undefined;
+const RETURNING = 'id, type, target, period, created_at';
 
-function rowToGoal(row: Record<string, unknown>) {
+function rowToGoal(row: Record<string, unknown>): Goal {
   return {
-    id: row.id,
-    type: row.type,
+    id: row.id as string,
+    type: row.type as GoalType,
     target: Number(row.target),
-    period: row.period,
-    createdAt: row.created_at,
+    period: row.period as GoalPeriod,
+    createdAt: row.created_at ? String(row.created_at) : undefined,
   };
 }
 
-export async function findByUserId(userId: string) {
-  const pool = getPool('goals');
-  const result = await pool.query('SELECT id, type, target, period, created_at FROM goals WHERE user_id = $1 ORDER BY created_at ASC', [userId]);
-  return result.rows.map(rowToGoal);
+const UPDATE_SPEC: UpdateBuilder<UpdateGoalInput> = {
+  columns: {
+    type: { column: 'type' },
+    target: { column: 'target' },
+    period: { column: 'period' },
+  },
+};
+
+export async function findByUserId(userId: string, pagination?: PaginationParams, client?: pg.Pool | pg.PoolClient): Promise<{ data: Goal[]; total: number }> {
+  const db = client ?? getPool('goals');
+  const countResult = await db.query('SELECT COUNT(*)::int AS total FROM goals WHERE user_id = $1', [userId]);
+  const total = countResult.rows[0].total;
+
+  let sql = 'SELECT ' + RETURNING + ' FROM goals WHERE user_id = $1 ORDER BY created_at ASC';
+  const params: unknown[] = [userId];
+
+  if (pagination) {
+    sql += ' LIMIT $2 OFFSET $3';
+    params.push(pagination.limit, pagination.offset);
+  }
+
+  const result = await db.query(sql, params);
+  return { data: result.rows.map(rowToGoal), total };
 }
 
-export async function create(params: Record<string, unknown>) {
-  const pool = getPool('goals');
-  const { userId, type, target, period } = params;
-  const result = await pool.query(
-    'INSERT INTO goals (type, target, period, user_id) VALUES ($1, $2, $3, $4) RETURNING id, type, target, period, created_at',
-    [type, target, period, userId]
+export async function create(input: CreateGoalInput, client?: pg.Pool | pg.PoolClient): Promise<Goal> {
+  const db = client ?? getPool('goals');
+  const result = await db.query(
+    `INSERT INTO goals (type, target, period, user_id) VALUES ($1, $2, $3, $4) RETURNING ${RETURNING}`,
+    [input.type, input.target, input.period, input.userId],
   );
   return rowToGoal(result.rows[0]);
 }
 
-export async function update(id: string, userId: string, updates: Record<string, unknown>) {
-  const pool = getPool('goals');
-  const entries: string[] = [];
-  const values: QueryParam[] = [];
-  let i = 1;
-  if (updates.type !== undefined) { entries.push(`type = $${i}`); values.push(updates.type as QueryParam); i++; }
-  if (updates.target !== undefined) { entries.push(`target = $${i}`); values.push(updates.target as QueryParam); i++; }
-  if (updates.period !== undefined) { entries.push(`period = $${i}`); values.push(updates.period as QueryParam); i++; }
-  if (entries.length === 0) return null;
-  values.push(id, userId);
-  const result = await pool.query(
-    `UPDATE goals SET ${entries.join(', ')} WHERE id = $${i} AND user_id = $${i + 1} RETURNING id, type, target, period, created_at`,
-    values
-  );
+export async function update(id: string, userId: string, updates: UpdateGoalInput, client?: pg.Pool | pg.PoolClient): Promise<Goal | null> {
+  const db = client ?? getPool('goals');
+  const query = buildUpdateQuery('goals', 'id', 'user_id', RETURNING, UPDATE_SPEC, updates, id, userId);
+  if (!query) return null;
+  const result = await db.query(query.sql, query.params);
   return (result.rowCount ?? 0) > 0 ? rowToGoal(result.rows[0]) : null;
 }
 
-export async function deleteById(id: string, userId: string) {
-  const pool = getPool('goals');
-  const result = await pool.query('DELETE FROM goals WHERE id = $1 AND user_id = $2 RETURNING id', [id, userId]);
+export async function deleteById(id: string, userId: string, client?: pg.Pool | pg.PoolClient): Promise<boolean> {
+  const db = client ?? getPool('goals');
+  const result = await db.query('DELETE FROM goals WHERE id = $1 AND user_id = $2 RETURNING id', [id, userId]);
   return (result.rowCount ?? 0) > 0;
 }

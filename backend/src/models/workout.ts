@@ -1,67 +1,74 @@
 /**
- * Workout model — data access only.
+ * Workout model — typed data access layer.
  */
+import pg from 'pg';
 import { getPool } from '../db/pool.js';
+import { buildUpdateQuery, type UpdateBuilder } from '../db/queryBuilder.js';
+import type { Workout, CreateWorkoutInput, UpdateWorkoutInput, Exercise, PaginationParams, WorkoutType } from '../types/domain.js';
 
-type QueryParam = string | number | boolean | null | undefined;
+const RETURNING = 'id, date, title, type, duration_minutes, exercises, notes';
 
-function rowToWorkout(row: Record<string, unknown>) {
+function rowToWorkout(row: Record<string, unknown>): Workout {
   return {
-    id: row.id,
-    date: row.date,
-    title: row.title,
-    type: row.type,
-    durationMinutes: row.duration_minutes,
-    exercises: (row.exercises as unknown[]) ?? [],
-    notes: row.notes ?? undefined,
+    id: row.id as string,
+    date: String(row.date),
+    title: row.title as string,
+    type: row.type as WorkoutType,
+    durationMinutes: Number(row.duration_minutes),
+    exercises: (row.exercises as Exercise[]) ?? [],
+    notes: (row.notes as string) ?? undefined,
   };
 }
 
-export async function findByUserId(userId: string) {
-  const pool = getPool('body');
-  const result = await pool.query(
-    'SELECT id, date, title, type, duration_minutes, exercises, notes FROM workouts WHERE user_id = $1 ORDER BY date DESC, created_at DESC',
-    [userId]
-  );
-  return result.rows.map(rowToWorkout);
+const UPDATE_SPEC: UpdateBuilder<UpdateWorkoutInput> = {
+  columns: {
+    date: { column: 'date', cast: '::date' },
+    title: { column: 'title', transform: (v) => String(v).trim() },
+    type: { column: 'type' },
+    durationMinutes: { column: 'duration_minutes' },
+    exercises: { column: 'exercises', cast: '::jsonb', transform: (v) => JSON.stringify(Array.isArray(v) ? v : []) },
+    notes: { column: 'notes' },
+  },
+};
+
+export async function findByUserId(userId: string, pagination?: PaginationParams, client?: pg.Pool | pg.PoolClient): Promise<{ data: Workout[]; total: number }> {
+  const db = client ?? getPool('body');
+  const countResult = await db.query('SELECT COUNT(*)::int AS total FROM workouts WHERE user_id = $1', [userId]);
+  const total = countResult.rows[0].total;
+
+  let sql = 'SELECT ' + RETURNING + ' FROM workouts WHERE user_id = $1 ORDER BY date DESC, created_at DESC';
+  const params: unknown[] = [userId];
+
+  if (pagination) {
+    sql += ' LIMIT $2 OFFSET $3';
+    params.push(pagination.limit, pagination.offset);
+  }
+
+  const result = await db.query(sql, params);
+  return { data: result.rows.map(rowToWorkout), total };
 }
 
-export async function create(params: Record<string, unknown>) {
-  const pool = getPool('body');
-  const { userId, date, title, type, durationMinutes, exercises, notes } = params;
-  const d = date ? new Date(date as string) : new Date();
-  const ex = Array.isArray(exercises) ? exercises : [];
-  const result = await pool.query(
+export async function create(input: CreateWorkoutInput, client?: pg.Pool | pg.PoolClient): Promise<Workout> {
+  const db = client ?? getPool('body');
+  const result = await db.query(
     `INSERT INTO workouts (user_id, date, title, type, duration_minutes, exercises, notes)
      VALUES ($1, $2, $3, $4, $5, $6, $7)
-     RETURNING id, date, title, type, duration_minutes, exercises, notes`,
-    [userId, d.toISOString().slice(0, 10), (title as string).trim(), type, durationMinutes, JSON.stringify(ex), notes ?? null]
+     RETURNING ${RETURNING}`,
+    [input.userId, input.date, input.title.trim(), input.type, input.durationMinutes, JSON.stringify(input.exercises), input.notes ?? null],
   );
   return rowToWorkout(result.rows[0]);
 }
 
-export async function update(id: string, userId: string, updates: Record<string, unknown>) {
-  const pool = getPool('body');
-  const entries: string[] = [];
-  const values: QueryParam[] = [];
-  let i = 1;
-  if (updates.date !== undefined) { entries.push(`date = $${i}::date`); values.push(updates.date as QueryParam); i++; }
-  if (updates.title !== undefined) { entries.push(`title = $${i}`); values.push(typeof updates.title === 'string' ? updates.title.trim() : updates.title as QueryParam); i++; }
-  if (updates.type !== undefined) { entries.push(`type = $${i}`); values.push(updates.type as QueryParam); i++; }
-  if (updates.durationMinutes !== undefined) { entries.push(`duration_minutes = $${i}`); values.push(updates.durationMinutes as QueryParam); i++; }
-  if (updates.exercises !== undefined) { entries.push(`exercises = $${i}::jsonb`); values.push(JSON.stringify(Array.isArray(updates.exercises) ? updates.exercises : [])); i++; }
-  if (updates.notes !== undefined) { entries.push(`notes = $${i}`); values.push((updates.notes ?? null) as QueryParam); i++; }
-  if (entries.length === 0) return null;
-  values.push(id, userId);
-  const result = await pool.query(
-    `UPDATE workouts SET ${entries.join(', ')} WHERE id = $${i} AND user_id = $${i + 1} RETURNING id, date, title, type, duration_minutes, exercises, notes`,
-    values
-  );
+export async function update(id: string, userId: string, updates: UpdateWorkoutInput, client?: pg.Pool | pg.PoolClient): Promise<Workout | null> {
+  const db = client ?? getPool('body');
+  const query = buildUpdateQuery('workouts', 'id', 'user_id', RETURNING, UPDATE_SPEC, updates, id, userId);
+  if (!query) return null;
+  const result = await db.query(query.sql, query.params);
   return (result.rowCount ?? 0) > 0 ? rowToWorkout(result.rows[0]) : null;
 }
 
-export async function deleteById(id: string, userId: string) {
-  const pool = getPool('body');
-  const result = await pool.query('DELETE FROM workouts WHERE id = $1 AND user_id = $2 RETURNING id', [id, userId]);
+export async function deleteById(id: string, userId: string, client?: pg.Pool | pg.PoolClient): Promise<boolean> {
+  const db = client ?? getPool('body');
+  const result = await db.query('DELETE FROM workouts WHERE id = $1 AND user_id = $2 RETURNING id', [id, userId]);
   return (result.rowCount ?? 0) > 0;
 }

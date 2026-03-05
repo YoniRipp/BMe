@@ -1,49 +1,44 @@
 /**
- * Goal service.
+ * Goal service — business logic with typed interfaces.
+ * Trusts Zod-validated input from route layer.
  */
-import { GOAL_TYPES, GOAL_PERIODS } from '../config/constants.js';
-import { validateNonNegative } from '../utils/validation.js';
-import { requireId, requireFound, normOneOf, buildUpdates } from '../utils/serviceHelpers.js';
+import { NotFoundError, ValidationError } from '../errors.js';
 import * as goalModel from '../models/goal.js';
 import { publishEvent } from '../events/publish.js';
+import type { Goal, UpdateGoalInput, PaginationParams } from '../types/domain.js';
+import type { CreateGoalBody, UpdateGoalBody } from '../schemas/routeSchemas.js';
 
-const TYPE_ERROR = 'type must be one of: ' + GOAL_TYPES.join(', ');
-const PERIOD_ERROR = 'period must be one of: ' + GOAL_PERIODS.join(', ');
-
-export async function list(userId: string) {
-  return goalModel.findByUserId(userId);
+export async function list(userId: string, pagination?: PaginationParams) {
+  return goalModel.findByUserId(userId, pagination);
 }
 
-export async function create(userId: string, body: Record<string, unknown>) {
-  const { type, target, period } = body ?? {};
-  const t = normOneOf(type, GOAL_TYPES, { errorMessage: TYPE_ERROR }) as string;
-  const p = normOneOf(period, GOAL_PERIODS, { errorMessage: PERIOD_ERROR }) as string;
+export async function create(userId: string, body: CreateGoalBody): Promise<Goal> {
   const goal = await goalModel.create({
     userId,
-    type: t,
-    target: validateNonNegative(target, 'target'),
-    period: p,
+    type: body.type,
+    target: body.target,
+    period: body.period,
   });
-  await publishEvent('goals.GoalCreated', goal, userId);
+  await publishEvent('goals.GoalCreated', goal as unknown as Record<string, unknown>, userId);
   return goal;
 }
 
-export async function update(userId: string, id: string, body: Record<string, unknown>) {
-  requireId(id);
-  const updates = buildUpdates(body ?? {}, {
-    type: (v: unknown) => normOneOf(v, GOAL_TYPES, { errorMessage: TYPE_ERROR }),
-    period: (v: unknown) => normOneOf(v, GOAL_PERIODS, { errorMessage: PERIOD_ERROR }),
-    target: (v: unknown) => validateNonNegative(v, 'target'),
-  });
+export async function update(userId: string, id: string, body: UpdateGoalBody): Promise<Goal> {
+  if (!id) throw new ValidationError('id is required');
+  const updates: UpdateGoalInput = {};
+  if (body.type !== undefined) updates.type = body.type;
+  if (body.target !== undefined) updates.target = body.target;
+  if (body.period !== undefined) updates.period = body.period;
+
   const updated = await goalModel.update(id, userId, updates);
-  requireFound(updated, 'Goal');
-  await publishEvent('goals.GoalUpdated', updated, userId);
+  if (!updated) throw new NotFoundError('Goal not found');
+  await publishEvent('goals.GoalUpdated', updated as unknown as Record<string, unknown>, userId);
   return updated;
 }
 
-export async function remove(userId: string, id: string) {
-  requireId(id);
+export async function remove(userId: string, id: string): Promise<void> {
+  if (!id) throw new ValidationError('id is required');
   const deleted = await goalModel.deleteById(id, userId);
-  requireFound(deleted, 'Goal');
+  if (!deleted) throw new NotFoundError('Goal not found');
   await publishEvent('goals.GoalDeleted', { id }, userId);
 }

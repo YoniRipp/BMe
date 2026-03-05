@@ -29,7 +29,9 @@ describe('jobs controller', () => {
 
       expect(res.status).toHaveBeenCalledWith(503);
       expect(res.json).toHaveBeenCalledWith({
-        error: 'Job polling not available (Redis not configured)',
+        error: expect.objectContaining({
+          message: 'Job polling not available (Redis not configured)',
+        }),
       });
       expect(getRedisClient).not.toHaveBeenCalled();
     });
@@ -40,7 +42,9 @@ describe('jobs controller', () => {
       await jobsController.getJobStatus(req, res, vi.fn());
 
       expect(res.status).toHaveBeenCalledWith(400);
-      expect(res.json).toHaveBeenCalledWith({ error: 'Invalid jobId' });
+      expect(res.json).toHaveBeenCalledWith({
+        error: expect.objectContaining({ message: 'Invalid jobId' }),
+      });
       expect(getRedisClient).not.toHaveBeenCalled();
     });
 

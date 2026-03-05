@@ -1,4 +1,5 @@
 import { request } from './client';
+import type { PaginatedResponse } from '@/types/api';
 
 export interface ApiGoal {
   id: string;
@@ -9,7 +10,7 @@ export interface ApiGoal {
 }
 
 export const goalsApi = {
-  list: () => request<ApiGoal[]>('/api/goals'),
+  list: () => request<PaginatedResponse<ApiGoal>>('/api/goals'),
   add: (goal: { type: string; target: number; period: string }) =>
     request<ApiGoal>('/api/goals', { method: 'POST', body: goal }),
   update: (id: string, updates: Partial<{ type: string; target: number; period: string }>) =>

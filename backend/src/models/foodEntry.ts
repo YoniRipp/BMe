@@ -1,76 +1,84 @@
 /**
- * Food entry model — data access only.
+ * Food entry model — typed data access layer.
  */
+import pg from 'pg';
 import { getPool } from '../db/pool.js';
+import { buildUpdateQuery, type UpdateBuilder } from '../db/queryBuilder.js';
+import type { FoodEntry, CreateFoodEntryInput, UpdateFoodEntryInput, PaginationParams } from '../types/domain.js';
 
-type QueryParam = string | number | boolean | null | undefined;
+const RETURNING = 'id, date, name, calories, protein, carbs, fats, portion_amount, portion_unit, serving_type, start_time, end_time';
 
-function rowToEntry(row: Record<string, unknown>) {
+function rowToEntry(row: Record<string, unknown>): FoodEntry {
   return {
-    id: row.id,
-    date: row.date,
-    name: row.name,
+    id: row.id as string,
+    date: String(row.date),
+    name: row.name as string,
     calories: Number(row.calories),
     protein: Number(row.protein),
     carbs: Number(row.carbs),
     fats: Number(row.fats),
     portionAmount: row.portion_amount != null ? Number(row.portion_amount) : undefined,
-    portionUnit: row.portion_unit ?? undefined,
-    servingType: row.serving_type ?? undefined,
-    startTime: row.start_time ?? undefined,
-    endTime: row.end_time ?? undefined,
+    portionUnit: (row.portion_unit as string) ?? undefined,
+    servingType: (row.serving_type as string) ?? undefined,
+    startTime: (row.start_time as string) ?? undefined,
+    endTime: (row.end_time as string) ?? undefined,
   };
 }
 
-export async function findByUserId(userId: string) {
-  const pool = getPool('energy');
-  const result = await pool.query(
-    'SELECT id, date, name, calories, protein, carbs, fats, portion_amount, portion_unit, serving_type, start_time, end_time FROM food_entries WHERE user_id = $1 ORDER BY date DESC, created_at DESC',
-    [userId]
-  );
-  return result.rows.map(rowToEntry);
+const UPDATE_SPEC: UpdateBuilder<UpdateFoodEntryInput> = {
+  columns: {
+    date: { column: 'date', cast: '::date' },
+    name: { column: 'name', transform: (v) => String(v).trim() },
+    calories: { column: 'calories' },
+    protein: { column: 'protein' },
+    carbs: { column: 'carbs' },
+    fats: { column: 'fats' },
+    portionAmount: { column: 'portion_amount' },
+    portionUnit: { column: 'portion_unit' },
+    servingType: { column: 'serving_type' },
+    startTime: { column: 'start_time' },
+    endTime: { column: 'end_time' },
+  },
+};
+
+export async function findByUserId(userId: string, pagination?: PaginationParams, client?: pg.Pool | pg.PoolClient): Promise<{ data: FoodEntry[]; total: number }> {
+  const db = client ?? getPool('energy');
+  const countResult = await db.query('SELECT COUNT(*)::int AS total FROM food_entries WHERE user_id = $1', [userId]);
+  const total = countResult.rows[0].total;
+
+  let sql = 'SELECT ' + RETURNING + ' FROM food_entries WHERE user_id = $1 ORDER BY date DESC, created_at DESC';
+  const params: unknown[] = [userId];
+
+  if (pagination) {
+    sql += ' LIMIT $2 OFFSET $3';
+    params.push(pagination.limit, pagination.offset);
+  }
+
+  const result = await db.query(sql, params);
+  return { data: result.rows.map(rowToEntry), total };
 }
 
-export async function create(params: Record<string, unknown>) {
-  const pool = getPool('energy');
-  const { userId, date, name, calories, protein, carbs, fats, portionAmount, portionUnit, servingType, startTime, endTime } = params;
-  const d = date ? new Date(date as string) : new Date();
-  const result = await pool.query(
+export async function create(input: CreateFoodEntryInput, client?: pg.Pool | pg.PoolClient): Promise<FoodEntry> {
+  const db = client ?? getPool('energy');
+  const result = await db.query(
     `INSERT INTO food_entries (user_id, date, name, calories, protein, carbs, fats, portion_amount, portion_unit, serving_type, start_time, end_time)
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-     RETURNING id, date, name, calories, protein, carbs, fats, portion_amount, portion_unit, serving_type, start_time, end_time`,
-    [userId, d.toISOString().slice(0, 10), (name as string).trim(), calories, protein, carbs, fats, portionAmount ?? null, portionUnit ?? null, servingType ?? null, startTime ?? null, endTime ?? null]
+     RETURNING ${RETURNING}`,
+    [input.userId, input.date, input.name.trim(), input.calories, input.protein, input.carbs, input.fats, input.portionAmount ?? null, input.portionUnit ?? null, input.servingType ?? null, input.startTime ?? null, input.endTime ?? null],
   );
   return rowToEntry(result.rows[0]);
 }
 
-export async function update(id: string, userId: string, updates: Record<string, unknown>) {
-  const pool = getPool('energy');
-  const entries: string[] = [];
-  const values: QueryParam[] = [];
-  let i = 1;
-  if (updates.date !== undefined) { entries.push(`date = $${i}::date`); values.push(updates.date as QueryParam); i++; }
-  if (updates.name !== undefined) { entries.push(`name = $${i}`); values.push(typeof updates.name === 'string' ? updates.name.trim() : updates.name as QueryParam); i++; }
-  if (updates.calories !== undefined) { entries.push(`calories = $${i}`); values.push(updates.calories as QueryParam); i++; }
-  if (updates.protein !== undefined) { entries.push(`protein = $${i}`); values.push(updates.protein as QueryParam); i++; }
-  if (updates.carbs !== undefined) { entries.push(`carbs = $${i}`); values.push(updates.carbs as QueryParam); i++; }
-  if (updates.fats !== undefined) { entries.push(`fats = $${i}`); values.push(updates.fats as QueryParam); i++; }
-  if (updates.portionAmount !== undefined) { entries.push(`portion_amount = $${i}`); values.push(updates.portionAmount as QueryParam); i++; }
-  if (updates.portionUnit !== undefined) { entries.push(`portion_unit = $${i}`); values.push(updates.portionUnit as QueryParam); i++; }
-  if (updates.servingType !== undefined) { entries.push(`serving_type = $${i}`); values.push(updates.servingType as QueryParam); i++; }
-  if (updates.startTime !== undefined) { entries.push(`start_time = $${i}`); values.push(updates.startTime as QueryParam); i++; }
-  if (updates.endTime !== undefined) { entries.push(`end_time = $${i}`); values.push(updates.endTime as QueryParam); i++; }
-  if (entries.length === 0) return null;
-  values.push(id, userId);
-  const result = await pool.query(
-    `UPDATE food_entries SET ${entries.join(', ')} WHERE id = $${i} AND user_id = $${i + 1} RETURNING id, date, name, calories, protein, carbs, fats, portion_amount, portion_unit, serving_type, start_time, end_time`,
-    values
-  );
+export async function update(id: string, userId: string, updates: UpdateFoodEntryInput, client?: pg.Pool | pg.PoolClient): Promise<FoodEntry | null> {
+  const db = client ?? getPool('energy');
+  const query = buildUpdateQuery('food_entries', 'id', 'user_id', RETURNING, UPDATE_SPEC, updates, id, userId);
+  if (!query) return null;
+  const result = await db.query(query.sql, query.params);
   return (result.rowCount ?? 0) > 0 ? rowToEntry(result.rows[0]) : null;
 }
 
-export async function deleteById(id: string, userId: string) {
-  const pool = getPool('energy');
-  const result = await pool.query('DELETE FROM food_entries WHERE id = $1 AND user_id = $2 RETURNING id', [id, userId]);
+export async function deleteById(id: string, userId: string, client?: pg.Pool | pg.PoolClient): Promise<boolean> {
+  const db = client ?? getPool('energy');
+  const result = await db.query('DELETE FROM food_entries WHERE id = $1 AND user_id = $2 RETURNING id', [id, userId]);
   return (result.rowCount ?? 0) > 0;
 }

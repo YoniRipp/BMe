@@ -1,4 +1,5 @@
 import { request } from './client';
+import type { PaginatedResponse } from '@/types/api';
 
 export interface ApiWorkout {
   id: string;
@@ -11,7 +12,7 @@ export interface ApiWorkout {
 }
 
 export const workoutsApi = {
-  list: () => request<ApiWorkout[]>('/api/workouts'),
+  list: () => request<PaginatedResponse<ApiWorkout>>('/api/workouts'),
   add: (w: {
     date?: string;
     title: string;

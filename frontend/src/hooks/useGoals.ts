@@ -17,8 +17,8 @@ export function useGoals() {
     queryKey: queryKeys.goals,
     staleTime: 2 * 60 * 1000,
     queryFn: async () => {
-      const list = await goalsApi.list();
-      return list.map(apiGoalToGoal);
+      const result = await goalsApi.list();
+      return result.data.map(apiGoalToGoal);
     },
   });
 

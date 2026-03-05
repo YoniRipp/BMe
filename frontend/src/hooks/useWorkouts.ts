@@ -18,8 +18,8 @@ export function useWorkouts() {
     queryKey: queryKeys.workouts,
     staleTime: 2 * 60 * 1000,
     queryFn: async () => {
-      const list = await workoutsApi.list();
-      return list.map(apiWorkoutToWorkout);
+      const result = await workoutsApi.list();
+      return result.data.map(apiWorkoutToWorkout);
     },
   });
 

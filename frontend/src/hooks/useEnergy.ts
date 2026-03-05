@@ -16,8 +16,8 @@ export function useEnergy() {
     queryKey: queryKeys.checkIns,
     staleTime: 2 * 60 * 1000,
     queryFn: async () => {
-      const list = await dailyCheckInsApi.list();
-      return list.map(apiCheckInToDailyCheckIn);
+      const result = await dailyCheckInsApi.list();
+      return result.data.map(apiCheckInToDailyCheckIn);
     },
   });
 
@@ -25,8 +25,8 @@ export function useEnergy() {
     queryKey: queryKeys.foodEntries,
     staleTime: 2 * 60 * 1000,
     queryFn: async () => {
-      const list = await foodEntriesApi.list();
-      return list.map(apiFoodEntryToFoodEntry);
+      const result = await foodEntriesApi.list();
+      return result.data.map(apiFoodEntryToFoodEntry);
     },
   });
 
