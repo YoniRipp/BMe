@@ -50,7 +50,18 @@ async function fetchUserContext(userId: string, days = 30) {
   };
 }
 
-const CACHE_FRESH_HOURS = 24;
+/** Check if user has any data-mutating activity since the given timestamp. */
+async function hasNewActivitySince(userId: string, since: Date): Promise<boolean> {
+  const pool = getPool();
+  const result = await pool.query(
+    `SELECT 1 FROM user_activity_log
+     WHERE user_id = $1 AND created_at > $2
+       AND (event_type LIKE 'body.%' OR event_type LIKE 'energy.%' OR event_type LIKE 'goals.%')
+     LIMIT 1`,
+    [userId, since]
+  );
+  return result.rows.length > 0;
+}
 
 /** Get the most recent cached insight for a user. */
 export async function getLastInsight(userId: string) {
@@ -86,17 +97,9 @@ export async function saveInsight(userId: string, data: Record<string, unknown>)
   );
 }
 
-/** Check if a cached insight is still fresh (within CACHE_FRESH_HOURS). */
-export function isCacheFresh(row: Record<string, unknown> | null) {
-  if (!row?.created_at) return false;
-  const createdAt = new Date(row.created_at as string | number | Date);
-  const cutoff = new Date();
-  cutoff.setHours(cutoff.getHours() - CACHE_FRESH_HOURS);
-  return createdAt >= cutoff;
-}
-
 /**
- * Get insights from cache if fresh, else generate and save.
+ * Get insights from cache if no new activity, else generate and save.
+ * Only regenerates when the user has logged new data since the last insight.
  * @param {string} userId
  * @returns {Promise<{ main: object, today: object, cached: boolean }>}
  */
@@ -107,22 +110,25 @@ export async function getOrGenerateInsights(userId: string) {
   } catch (err) {
     logger.warn({ err }, 'Failed to fetch cached insights, will regenerate');
   }
-  if (cached && isCacheFresh(cached)) {
-    return {
-      main: {
-        summary: cached.summary,
-        highlights: cached.highlights ?? [],
-        suggestions: cached.suggestions ?? [],
-        score: Number(cached.score) ?? 0,
-      },
-      today: {
-        workout: cached.today_workout ?? '',
-        sleep: cached.today_sleep ?? '',
-        nutrition: cached.today_nutrition ?? '',
-        focus: cached.today_focus ?? '',
-      },
-      cached: true,
-    };
+  if (cached) {
+    const hasNew = await hasNewActivitySince(userId, new Date(cached.created_at as string | number | Date));
+    if (!hasNew) {
+      return {
+        main: {
+          summary: cached.summary,
+          highlights: cached.highlights ?? [],
+          suggestions: cached.suggestions ?? [],
+          score: Number(cached.score) ?? 0,
+        },
+        today: {
+          workout: cached.today_workout ?? '',
+          sleep: cached.today_sleep ?? '',
+          nutrition: cached.today_nutrition ?? '',
+          focus: cached.today_focus ?? '',
+        },
+        cached: true,
+      };
+    }
   }
   const result = await generateInsights(userId);
   const main = {

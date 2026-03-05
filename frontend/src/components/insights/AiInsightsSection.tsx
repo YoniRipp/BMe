@@ -135,7 +135,7 @@ function TodayRecommendations() {
   const { data, isLoading, error } = useQuery({
     queryKey: ['ai-today-recs'],
     queryFn: aiInsightsApi.getTodayRecommendations,
-    staleTime: 30 * 60 * 1000, // 30 min — no need to refetch frequently
+    staleTime: 60 * 60 * 1000, // 1 hour — backend handles freshness via activity check
   });
 
   if (error) return null;
@@ -202,7 +202,7 @@ export function AiInsightsSection() {
   const { data, isLoading, error } = useQuery({
     queryKey: ['ai-insights'],
     queryFn: aiInsightsApi.getInsights,
-    staleTime: 15 * 60 * 1000, // 15 min cache
+    staleTime: 60 * 60 * 1000, // 1 hour — backend handles freshness via activity check
   });
 
   const refreshMutation = useMutation({
