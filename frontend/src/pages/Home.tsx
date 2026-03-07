@@ -38,10 +38,10 @@ export function Home() {
     setEditingGoal(undefined);
   };
 
-  const now = new Date();
   const todayCheckIn = useMemo(
-    () => getCheckInByDate(now),
-    [getCheckInByDate, checkIns, now]
+    () => getCheckInByDate(new Date()),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [getCheckInByDate, checkIns]
   );
 
   const handleSleepSave = (hours: number) => {
@@ -49,7 +49,7 @@ export function Home() {
       updateCheckIn(todayCheckIn.id, { sleepHours: hours });
       toast.success('Sleep updated');
     } else {
-      addCheckIn({ date: now, sleepHours: hours });
+      addCheckIn({ date: new Date(), sleepHours: hours });
       toast.success('Sleep logged');
     }
     setSleepModalOpen(false);

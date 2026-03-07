@@ -7,7 +7,10 @@ import { FoodEntryModal } from '@/components/energy/FoodEntryModal';
 import { ConfirmationDialog } from '@/components/shared/ConfirmationDialog';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Moon, Plus, Trash2, Pencil, UtensilsCrossed } from 'lucide-react';
+import { EmptyStateCard } from '@/components/shared/EmptyStateCard';
+import { AddAnotherCard } from '@/components/shared/AddAnotherCard';
+import { PeriodSelector } from '@/components/shared/PeriodSelector';
+import { Moon, Trash2, Pencil, UtensilsCrossed } from 'lucide-react';
 import { isSameDay, isWithinInterval, format } from 'date-fns';
 import { getPeriodRange, toLocalDateString } from '@/lib/dateRanges';
 
@@ -36,10 +39,10 @@ export function Energy() {
   const [sleepPeriod, setSleepPeriod] = useState<'daily' | 'weekly' | 'monthly' | 'yearly'>('daily');
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
-  const now = new Date();
+  const today = useMemo(() => new Date(), []);
 
   const periodFoodEntries = useMemo(() => {
-    const range = getPeriodRange(caloriePeriod, now);
+    const range = getPeriodRange(caloriePeriod, today);
     const filtered = foodEntries.filter(f =>
       isWithinInterval(new Date(f.date), range)
     );
@@ -80,10 +83,10 @@ export function Energy() {
   // Calculate sleep averages for periods
   const sleepData = useMemo(() => {
     const ranges = {
-      daily: getPeriodRange('daily', now),
-      weekly: getPeriodRange('weekly', now),
-      monthly: getPeriodRange('monthly', now),
-      yearly: getPeriodRange('yearly', now),
+      daily: getPeriodRange('daily', today),
+      weekly: getPeriodRange('weekly', today),
+      monthly: getPeriodRange('monthly', today),
+      yearly: getPeriodRange('yearly', today),
     };
 
     const calculateSleep = (range: { start: Date; end: Date }) => {
@@ -103,14 +106,14 @@ export function Energy() {
       monthly: calculateSleep(ranges.monthly),
       yearly: calculateSleep(ranges.yearly),
     };
-  }, [checkIns, now]);
+  }, [checkIns, today]);
 
   const selectedSleep = sleepData[sleepPeriod];
 
   // Get today's check-in for sleep modal
   const todayCheckIn = useMemo(() => {
-    return checkIns.find(c => isSameDay(new Date(c.date), now));
-  }, [checkIns, now]);
+    return checkIns.find(c => isSameDay(new Date(c.date), today));
+  }, [checkIns, today]);
 
   const recentCheckIns = useMemo(() => {
     return [...checkIns]
@@ -126,7 +129,7 @@ export function Energy() {
       updateCheckIn(todayCheckIn.id, { sleepHours: hours });
     } else {
       addCheckIn({
-        date: now,
+        date: today,
         sleepHours: hours,
       });
     }
@@ -187,33 +190,20 @@ export function Energy() {
         <h3 className="text-lg font-semibold mb-4">Calorie Balance</h3>
 
         {/* Period selector — horizontally scrollable on mobile */}
-        <div className="flex gap-2 mb-4 overflow-x-auto pb-1 -mx-1 px-1 no-scrollbar">
-          {(['daily', 'weekly', 'monthly', 'yearly'] as const).map((period) => {
-            const range = getPeriodRange(period, now);
-            const periodEntries = foodEntries.filter(f =>
-              isWithinInterval(new Date(f.date), range)
-            );
-            const periodCal = periodEntries.reduce((sum, e) => sum + e.calories, 0);
-
-            return (
-              <button
-                key={period}
-                className={`flex-shrink-0 px-3 py-2 rounded-xl border text-left transition-all min-w-[80px] ${
-                  caloriePeriod === period
-                    ? 'border-primary bg-primary/10 shadow-sm'
-                    : 'border-border bg-card hover:bg-muted'
-                }`}
-                onClick={() => setCaloriePeriod(period)}
-              >
-                <p className="text-xs text-muted-foreground capitalize">{period}</p>
-                <p className="text-sm font-semibold">{periodCal} cal</p>
-              </button>
-            );
+        <PeriodSelector
+          options={(['daily', 'weekly', 'monthly', 'yearly'] as const).map((period) => {
+            const range = getPeriodRange(period, today);
+            const periodCal = foodEntries
+              .filter(f => isWithinInterval(new Date(f.date), range))
+              .reduce((sum, e) => sum + e.calories, 0);
+            return { value: period, label: period, summary: `${periodCal} cal` };
           })}
-        </div>
+          selected={caloriePeriod}
+          onChange={setCaloriePeriod}
+        />
         
         <div className="mb-4">
-          <p className="text-3xl font-bold mb-2">{periodTotals.calories} cal</p>
+          <p className="text-2xl sm:text-3xl font-bold mb-2">{periodTotals.calories} cal</p>
           <div className="grid grid-cols-3 gap-4 mt-4">
             <div>
               <p className="text-sm text-muted-foreground">Protein</p>
@@ -233,14 +223,11 @@ export function Energy() {
         {/* Food entries list */}
         <div className="space-y-2">
           {periodFoodEntries.length === 0 ? (
-            <Card 
-              className="p-8 border-2 border-dashed cursor-pointer hover:border-primary transition-colors text-center"
+            <EmptyStateCard
               onClick={handleAddFood}
-            >
-              <Plus className="w-12 h-12 mx-auto mb-3 text-muted-foreground" />
-              <p className="text-lg font-medium mb-1">Add your first food entry</p>
-              <p className="text-sm text-muted-foreground">Tap to log what you ate</p>
-            </Card>
+              title="Add your first food entry"
+              description="Tap to log what you ate"
+            />
           ) : (
             <>
               {periodFoodEntries.map((entry) => {
@@ -290,13 +277,7 @@ export function Energy() {
                 </div>
               );
               })}
-              <Card 
-                className="p-6 border-2 border-dashed cursor-pointer hover:border-primary transition-colors text-center bg-muted/50"
-                onClick={handleAddFood}
-              >
-                <Plus className="w-8 h-8 mx-auto text-primary" />
-                <p className="text-sm font-medium mt-2 text-muted-foreground">Add another food entry</p>
-              </Card>
+              <AddAnotherCard onClick={handleAddFood} label="Add another food entry" />
             </>
           )}
         </div>
@@ -307,30 +288,17 @@ export function Energy() {
         <h3 className="text-lg font-semibold mb-4">Hours Slept</h3>
 
         {/* Period selector — horizontally scrollable on mobile */}
-        <div className="flex gap-2 mb-4 overflow-x-auto pb-1 -mx-1 px-1 no-scrollbar">
-          {(['daily', 'weekly', 'monthly', 'yearly'] as const).map((period) => {
+        <PeriodSelector
+          options={(['daily', 'weekly', 'monthly', 'yearly'] as const).map((period) => {
             const sleep = sleepData[period];
-            return (
-              <button
-                key={period}
-                className={`flex-shrink-0 px-3 py-2 rounded-xl border text-left transition-all min-w-[80px] ${
-                  sleepPeriod === period
-                    ? 'border-primary bg-primary/10 shadow-sm'
-                    : 'border-border bg-card hover:bg-muted'
-                }`}
-                onClick={() => setSleepPeriod(period)}
-              >
-                <p className="text-xs text-muted-foreground capitalize">{period}</p>
-                <p className="text-sm font-semibold">
-                  {sleep.hours > 0 ? `${sleep.hours.toFixed(1)}h` : '—'}
-                </p>
-              </button>
-            );
+            return { value: period, label: period, summary: sleep.hours > 0 ? `${sleep.hours.toFixed(1)}h` : '—' };
           })}
-        </div>
+          selected={sleepPeriod}
+          onChange={setSleepPeriod}
+        />
         
         <div className="mb-4">
-          <p className="text-3xl font-bold">
+          <p className="text-2xl sm:text-3xl font-bold">
             {sleepPeriod === 'daily' 
               ? (selectedSleep.count > 0 ? `${selectedSleep.hours.toFixed(1)}h` : 'Not logged')
               : selectedSleep.count > 0 
@@ -382,19 +350,13 @@ export function Energy() {
           </div>
         )}
 
-        <Card 
-          className="p-6 border-2 border-dashed cursor-pointer hover:border-primary transition-colors text-center bg-muted/50"
-          onClick={openSleepModalForToday}
-        >
-          <Moon className="w-8 h-8 mx-auto text-primary" />
-          <p className="text-sm font-medium mt-2 text-muted-foreground">Log sleep</p>
-        </Card>
+        <AddAnotherCard onClick={openSleepModalForToday} icon={Moon} label="Log sleep" />
       </Card>
       </ContentWithLoading>
 
       {/* Floating Add Food button — visible on mobile */}
       <button
-        className="fixed bottom-20 right-20 z-40 flex items-center gap-2 rounded-full bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground shadow-lg hover:bg-primary/90 active:scale-95 transition-all sm:hidden"
+        className="fixed bottom-20 right-4 z-40 flex items-center gap-2 rounded-full bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground shadow-lg hover:bg-primary/90 active:scale-95 transition-all sm:hidden"
         onClick={handleAddFood}
         aria-label="Add food entry"
       >
