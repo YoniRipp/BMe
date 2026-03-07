@@ -170,6 +170,33 @@ export async function initSchema() {
       );
     `);
 
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS health_sync_state (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        platform text NOT NULL CHECK (platform IN ('apple_health', 'health_connect')),
+        data_type text NOT NULL,
+        last_synced_at timestamptz NOT NULL DEFAULT now(),
+        enabled boolean DEFAULT true,
+        created_at timestamptz DEFAULT now(),
+        UNIQUE (user_id, platform, data_type)
+      );
+    `);
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS health_metrics (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        date date NOT NULL,
+        metric_type text NOT NULL CHECK (metric_type IN ('steps', 'heart_rate_avg', 'heart_rate_resting', 'active_calories', 'total_calories_burned')),
+        value numeric NOT NULL,
+        source text NOT NULL DEFAULT 'manual',
+        external_id text,
+        created_at timestamptz DEFAULT now(),
+        UNIQUE (user_id, date, metric_type, source)
+      );
+    `);
+
     // Indexes
     await client.query('CREATE INDEX IF NOT EXISTS idx_goals_user ON goals(user_id)');
     await client.query('CREATE INDEX IF NOT EXISTS idx_workouts_user_date ON workouts(user_id, date DESC)');
@@ -184,6 +211,8 @@ export async function initSchema() {
     await client.query('CREATE INDEX IF NOT EXISTS idx_foods_common_name_lower ON foods (lower(common_name))');
     await client.query('CREATE INDEX IF NOT EXISTS idx_app_logs_level_created_at ON app_logs (level, created_at DESC)');
     await client.query('CREATE INDEX IF NOT EXISTS idx_user_daily_stats_user_date ON user_daily_stats (user_id, date DESC)');
+    await client.query('CREATE INDEX IF NOT EXISTS idx_health_metrics_user_date ON health_metrics (user_id, date DESC)');
+    await client.query('CREATE INDEX IF NOT EXISTS idx_health_sync_state_user ON health_sync_state (user_id)');
 
     // pgvector (optional, non-fatal)
     try {

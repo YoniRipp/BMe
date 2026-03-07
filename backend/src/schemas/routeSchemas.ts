@@ -104,6 +104,74 @@ export const updateGoalSchema = z.object({
   period: goalPeriod.optional(),
 }).strict().refine((obj) => Object.keys(obj).length > 0, 'At least one field required');
 
+// ─── Health sync schemas ──────────────────────────────────
+const healthPlatform = z.enum(['apple_health', 'health_connect']);
+
+const syncWorkoutItemSchema = z.object({
+  externalId: z.string().min(1).max(500),
+  date: dateString,
+  title: z.string().min(1).max(200).default('Workout'),
+  type: z.string().min(1).max(100),
+  durationMinutes: z.number().int().min(0).max(1440),
+  caloriesBurned: z.number().min(0).optional(),
+  heartRateAvg: z.number().min(0).optional(),
+  exercises: z.array(exerciseSchema).optional(),
+});
+
+const syncSleepItemSchema = z.object({
+  externalId: z.string().min(1).max(500),
+  date: dateString,
+  sleepHours: z.number().min(0).max(24),
+  stages: z.object({
+    deep: z.number().min(0),
+    light: z.number().min(0),
+    rem: z.number().min(0),
+    awake: z.number().min(0),
+  }).optional(),
+});
+
+const syncNutritionItemSchema = z.object({
+  externalId: z.string().min(1).max(500),
+  date: dateString,
+  name: z.string().min(1).max(500),
+  calories: z.number().min(0).max(99999),
+  protein: z.number().min(0).max(99999).optional(),
+  carbs: z.number().min(0).max(99999).optional(),
+  fats: z.number().min(0).max(99999).optional(),
+  mealType: z.string().max(50).optional(),
+});
+
+const syncMetricsItemSchema = z.object({
+  date: dateString,
+  steps: z.number().int().min(0).optional(),
+  activeCalories: z.number().min(0).optional(),
+  heartRateAvg: z.number().min(0).optional(),
+  heartRateResting: z.number().min(0).optional(),
+});
+
+export const healthSyncSchema = z.object({
+  platform: healthPlatform,
+  workouts: z.array(syncWorkoutItemSchema).max(100).optional(),
+  sleep: z.array(syncSleepItemSchema).max(100).optional(),
+  nutrition: z.array(syncNutritionItemSchema).max(500).optional(),
+  metrics: z.array(syncMetricsItemSchema).max(100).optional(),
+  syncedAt: z.string().datetime(),
+});
+
+export const healthSyncStateUpdateSchema = z.object({
+  platform: healthPlatform,
+  dataType: z.string().min(1).max(50),
+  enabled: z.boolean(),
+});
+
+export const healthMetricsQuerySchema = z.object({
+  startDate: dateString.optional(),
+  endDate: dateString.optional(),
+  metricType: z.enum(['steps', 'heart_rate_avg', 'heart_rate_resting', 'active_calories', 'total_calories_burned']).optional(),
+  limit: z.coerce.number().int().min(1).max(200).default(50),
+  offset: z.coerce.number().int().min(0).default(0),
+});
+
 // ─── Type exports for inference ─────────────────────────────
 export type CreateWorkoutBody = z.infer<typeof createWorkoutSchema>;
 export type UpdateWorkoutBody = z.infer<typeof updateWorkoutSchema>;
@@ -114,3 +182,6 @@ export type UpdateCheckInBody = z.infer<typeof updateCheckInSchema>;
 export type CreateGoalBody = z.infer<typeof createGoalSchema>;
 export type UpdateGoalBody = z.infer<typeof updateGoalSchema>;
 export type PaginationQuery = z.infer<typeof paginationSchema>;
+export type HealthSyncBody = z.infer<typeof healthSyncSchema>;
+export type HealthSyncStateUpdateBody = z.infer<typeof healthSyncStateUpdateSchema>;
+export type HealthMetricsQuery = z.infer<typeof healthMetricsQuerySchema>;

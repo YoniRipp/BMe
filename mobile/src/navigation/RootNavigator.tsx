@@ -9,6 +9,7 @@ import { WorkoutFormScreen } from '../screens/WorkoutFormScreen';
 import { FoodEntryFormScreen } from '../screens/FoodEntryFormScreen';
 import { SleepFormScreen } from '../screens/SleepFormScreen';
 import { GoalFormScreen } from '../screens/GoalFormScreen';
+import { HealthSyncScreen } from '../screens/HealthSyncScreen';
 import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
 
 const Stack = createNativeStackNavigator();
@@ -45,6 +46,11 @@ function AppStack() {
         name="GoalForm"
         component={GoalFormScreen}
         options={{ title: 'Goal', presentation: 'modal' }}
+      />
+      <Stack.Screen
+        name="HealthSync"
+        component={HealthSyncScreen}
+        options={{ title: 'Health Sync' }}
       />
     </Stack.Navigator>
   );

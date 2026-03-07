@@ -15,12 +15,14 @@ import { getGreeting } from '@/lib/utils';
 import { Goal } from '@/types/goals';
 import { FoodEntry } from '@/types/energy';
 import { Workout } from '@/types/workout';
-import { Dumbbell, UtensilsCrossed, Moon, Target, Flame } from 'lucide-react';
+import { Dumbbell, UtensilsCrossed, Moon, Target, Flame, Footprints, Heart, Zap } from 'lucide-react';
+import { useHealthMetrics } from '@/hooks/useHealthMetrics';
 import { isSameDay, format } from 'date-fns';
 import { toast } from 'sonner';
 
 export function Home() {
   const { workouts, workoutsLoading, addWorkout } = useWorkouts();
+  const { steps, heartRateAvg, activeCalories } = useHealthMetrics();
   const { checkIns, foodEntries, addCheckIn, updateCheckIn, addFoodEntry, getCheckInByDate, energyLoading } = useEnergy();
   const { addGoal, updateGoal, goalsLoading } = useGoals();
 
@@ -147,6 +149,45 @@ export function Home() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Health Metrics */}
+        {(steps != null || heartRateAvg != null || activeCalories != null) && (
+          <div className="grid grid-cols-3 gap-3">
+            {steps != null && (
+              <div className="flex items-center gap-2 p-3 rounded-xl border bg-card">
+                <div className="p-1.5 rounded-lg bg-emerald-50 text-emerald-600">
+                  <Footprints className="w-4 h-4" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold tabular-nums">{steps.toLocaleString()}</p>
+                  <p className="text-xs text-muted-foreground">steps</p>
+                </div>
+              </div>
+            )}
+            {heartRateAvg != null && (
+              <div className="flex items-center gap-2 p-3 rounded-xl border bg-card">
+                <div className="p-1.5 rounded-lg bg-red-50 text-red-600">
+                  <Heart className="w-4 h-4" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold tabular-nums">{Math.round(heartRateAvg)}</p>
+                  <p className="text-xs text-muted-foreground">avg bpm</p>
+                </div>
+              </div>
+            )}
+            {activeCalories != null && (
+              <div className="flex items-center gap-2 p-3 rounded-xl border bg-card">
+                <div className="p-1.5 rounded-lg bg-amber-50 text-amber-600">
+                  <Zap className="w-4 h-4" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold tabular-nums">{Math.round(activeCalories)}</p>
+                  <p className="text-xs text-muted-foreground">active cal</p>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Quick Actions — 2x2 grid */}
         <div className="grid grid-cols-2 gap-3">

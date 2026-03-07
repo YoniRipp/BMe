@@ -6,7 +6,7 @@ import { getPool } from '../db/pool.js';
 import { buildUpdateQuery, type UpdateBuilder } from '../db/queryBuilder.js';
 import type { Workout, CreateWorkoutInput, UpdateWorkoutInput, Exercise, PaginationParams, WorkoutType } from '../types/domain.js';
 
-const RETURNING = 'id, date, title, type, duration_minutes, exercises, notes';
+const RETURNING = 'id, date, title, type, duration_minutes, exercises, notes, source, external_id';
 
 function rowToWorkout(row: Record<string, unknown>): Workout {
   return {
@@ -17,6 +17,8 @@ function rowToWorkout(row: Record<string, unknown>): Workout {
     durationMinutes: Number(row.duration_minutes),
     exercises: (row.exercises as Exercise[]) ?? [],
     notes: (row.notes as string) ?? undefined,
+    source: (row.source as string) ?? 'manual',
+    externalId: (row.external_id as string) ?? undefined,
   };
 }
 

@@ -6,13 +6,15 @@ import { getPool } from '../db/pool.js';
 import { buildUpdateQuery, type UpdateBuilder } from '../db/queryBuilder.js';
 import type { DailyCheckIn, CreateCheckInInput, UpdateCheckInInput, PaginationParams } from '../types/domain.js';
 
-const RETURNING = 'id, date, sleep_hours';
+const RETURNING = 'id, date, sleep_hours, source, external_id';
 
 function rowToCheckIn(row: Record<string, unknown>): DailyCheckIn {
   return {
     id: row.id as string,
     date: String(row.date),
     sleepHours: row.sleep_hours != null ? Number(row.sleep_hours) : undefined,
+    source: (row.source as string) ?? 'manual',
+    externalId: (row.external_id as string) ?? undefined,
   };
 }
 

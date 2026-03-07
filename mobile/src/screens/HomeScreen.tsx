@@ -10,6 +10,7 @@ import { useEnergy } from '../hooks/useEnergy';
 import { ProgressRing } from '../components/shared/ProgressRing';
 import { LoadingView } from '../components/shared/LoadingView';
 import { getPeriodRange } from '../lib/dateRanges';
+import { useHealthMetrics } from '../hooks/useHealthMetrics';
 
 function getGreeting(): string {
   const hour = new Date().getHours();
@@ -24,6 +25,7 @@ export function HomeScreen() {
   const { goals, goalsLoading } = useGoals();
   const { workouts, workoutsLoading } = useWorkouts();
   const { foodEntries, checkIns, energyLoading } = useEnergy();
+  const { steps, heartRateAvg, activeCalories } = useHealthMetrics();
 
   const loading = goalsLoading || workoutsLoading || energyLoading;
 
@@ -108,6 +110,34 @@ export function HomeScreen() {
         </Card.Content>
       </Card>
 
+      {(steps != null || heartRateAvg != null || activeCalories != null) && (
+        <Card style={styles.metricsCard} mode="outlined">
+          <Card.Content>
+            <Text variant="titleMedium" style={styles.sectionTitle}>Health Metrics</Text>
+            <View style={styles.metricsRow}>
+              {steps != null && (
+                <View style={styles.metricItem}>
+                  <Text variant="titleLarge" style={styles.metricValue}>{steps.toLocaleString()}</Text>
+                  <Text variant="bodySmall" style={styles.metricLabel}>steps</Text>
+                </View>
+              )}
+              {heartRateAvg != null && (
+                <View style={styles.metricItem}>
+                  <Text variant="titleLarge" style={styles.metricValue}>{Math.round(heartRateAvg)}</Text>
+                  <Text variant="bodySmall" style={styles.metricLabel}>avg bpm</Text>
+                </View>
+              )}
+              {activeCalories != null && (
+                <View style={styles.metricItem}>
+                  <Text variant="titleLarge" style={styles.metricValue}>{Math.round(activeCalories)}</Text>
+                  <Text variant="bodySmall" style={styles.metricLabel}>active cal</Text>
+                </View>
+              )}
+            </View>
+          </Card.Content>
+        </Card>
+      )}
+
       <Text variant="titleMedium" style={styles.sectionTitle}>Quick Actions</Text>
       <View style={styles.actionsRow}>
         <Button mode="outlined" icon="dumbbell" onPress={() => navigation.navigate('WorkoutForm')} style={styles.actionButton} compact>
@@ -149,4 +179,9 @@ const styles = StyleSheet.create({
   goalsPrompt: { marginTop: 8 },
   goalsPromptContent: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   goalButton: { backgroundColor: '#3b82f6' },
+  metricsCard: { marginBottom: 20 },
+  metricsRow: { flexDirection: 'row', justifyContent: 'space-around', paddingVertical: 8 },
+  metricItem: { alignItems: 'center' },
+  metricValue: { fontWeight: '700', color: '#111827' },
+  metricLabel: { color: '#6b7280', marginTop: 2 },
 });

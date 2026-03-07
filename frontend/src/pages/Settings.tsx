@@ -10,6 +10,7 @@ import { AppearanceSection } from '@/components/settings/AppearanceSection';
 import { NotificationsSection } from '@/components/settings/NotificationsSection';
 import { DataManagementSection } from '@/components/settings/DataManagementSection';
 import { SubscriptionSection } from '@/components/settings/SubscriptionSection';
+import { HealthSyncSection } from '@/components/settings/HealthSyncSection';
 import { storage } from '@/lib/storage';
 
 export function Settings() {
@@ -40,6 +41,7 @@ export function Settings() {
     <div className="max-w-6xl mx-auto space-y-6">
       <SubscriptionSection />
       <AccountSection />
+      <HealthSyncSection />
       <DateFormatSection />
       <UnitsSection />
       <AppearanceSection />
