@@ -34,8 +34,8 @@ export async function initSchema() {
         subscription_status text DEFAULT 'free',
         subscription_id text,
         subscription_current_period_end timestamptz,
-        login_locked_until timestamptz,
-        login_attempt_count int DEFAULT 0,
+        locked_until timestamptz,
+        failed_login_attempts int DEFAULT 0,
         created_at timestamptz DEFAULT now()
       );
     `);
@@ -114,6 +114,9 @@ export async function initSchema() {
         off_id text,
         name_he text,
         image_url text,
+        default_unit text,
+        unit_weight_grams numeric,
+        search_aliases text[],
         name_tsv tsvector,
         created_at timestamptz DEFAULT now()
       );
