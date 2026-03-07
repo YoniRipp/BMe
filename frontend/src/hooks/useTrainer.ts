@@ -2,11 +2,12 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { trainerApi } from '@/core/api/trainer';
 import { queryKeys } from '@/lib/queryClient';
 
-export function useTrainerClients() {
+export function useTrainerClients(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: queryKeys.trainerClients,
     queryFn: () => trainerApi.listClients(),
     staleTime: 2 * 60 * 1000,
+    enabled: options?.enabled,
   });
 }
 

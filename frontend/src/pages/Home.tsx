@@ -1,7 +1,10 @@
 import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useWorkouts } from '@/hooks/useWorkouts';
 import { useEnergy } from '@/hooks/useEnergy';
 import { useGoals } from '@/hooks/useGoals';
+import { useTrainerClients } from '@/hooks/useTrainer';
+import { useAuth } from '@/context/AuthContext';
 import { DashboardProgressCards } from '@/components/home/DashboardProgressCards';
 import { SleepEditModal } from '@/components/energy/SleepEditModal';
 import { FoodEntryModal } from '@/components/energy/FoodEntryModal';
@@ -15,14 +18,18 @@ import { getGreeting } from '@/lib/utils';
 import { Goal } from '@/types/goals';
 import { FoodEntry } from '@/types/energy';
 import { Workout } from '@/types/workout';
-import { Dumbbell, UtensilsCrossed, Moon, Target, Flame } from 'lucide-react';
+import { Dumbbell, UtensilsCrossed, Moon, Target, Flame, Users } from 'lucide-react';
 import { isSameDay, format } from 'date-fns';
 import { toast } from 'sonner';
 
 export function Home() {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const isTrainer = user?.role === 'trainer';
   const { workouts, workoutsLoading, addWorkout } = useWorkouts();
   const { checkIns, foodEntries, addCheckIn, updateCheckIn, addFoodEntry, getCheckInByDate, energyLoading } = useEnergy();
   const { addGoal, updateGoal, goalsLoading } = useGoals();
+  const { data: trainerClients } = useTrainerClients({ enabled: isTrainer });
 
   const [goalModalOpen, setGoalModalOpen] = useState(false);
   const [editingGoal, setEditingGoal] = useState<Goal | undefined>(undefined);
@@ -148,13 +155,59 @@ export function Home() {
           </CardContent>
         </Card>
 
+        {/* Trainer: Client Summary */}
+        {isTrainer && trainerClients && trainerClients.length > 0 && (
+          <Card className="rounded-2xl overflow-hidden border-primary/20">
+            <CardContent className="p-4 sm:p-5">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-medium text-muted-foreground">Your Clients</h3>
+                <button
+                  type="button"
+                  onClick={() => navigate('/trainer')}
+                  className="text-xs text-primary hover:underline font-medium"
+                >
+                  View all
+                </button>
+              </div>
+              <div className="flex items-center gap-4 mb-3">
+                <div className="p-2 rounded-lg bg-purple-50 text-purple-600">
+                  <Users className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold tabular-nums">{trainerClients.length}</p>
+                  <p className="text-xs text-muted-foreground">active client{trainerClients.length !== 1 ? 's' : ''}</p>
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                {trainerClients.slice(0, 3).map((client) => (
+                  <button
+                    key={client.id}
+                    type="button"
+                    onClick={() => navigate(`/trainer/client/${client.clientId}`)}
+                    className="flex items-center gap-2 w-full text-left py-1.5 px-2 rounded-lg hover:bg-muted/50 transition-colors"
+                  >
+                    <div className="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center text-xs font-medium text-primary">
+                      {(client.clientName || client.clientEmail)?.[0]?.toUpperCase() || '?'}
+                    </div>
+                    <span className="text-sm truncate">{client.clientName || client.clientEmail}</span>
+                  </button>
+                ))}
+                {trainerClients.length > 3 && (
+                  <p className="text-xs text-muted-foreground pl-2">+{trainerClients.length - 3} more</p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Quick Actions — 2x2 grid */}
-        <div className="grid grid-cols-2 gap-3">
+        <div className={`grid gap-3 ${isTrainer ? 'grid-cols-2 sm:grid-cols-3' : 'grid-cols-2'}`}>
           {[
             { label: 'Workout', icon: Dumbbell, color: 'text-blue-600 bg-blue-50', action: () => setWorkoutModalOpen(true) },
             { label: 'Food', icon: UtensilsCrossed, color: 'text-orange-600 bg-orange-50', action: () => setFoodModalOpen(true) },
             { label: 'Sleep', icon: Moon, color: 'text-indigo-600 bg-indigo-50', action: () => setSleepModalOpen(true) },
             { label: 'Goal', icon: Target, color: 'text-green-600 bg-green-50', action: () => { setEditingGoal(undefined); setGoalModalOpen(true); } },
+            ...(isTrainer ? [{ label: 'Clients', icon: Users, color: 'text-purple-600 bg-purple-50', action: () => navigate('/trainer') }] : []),
           ].map((item) => {
             const Icon = item.icon;
             return (

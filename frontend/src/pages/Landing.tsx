@@ -19,6 +19,10 @@ import {
   ChevronDown,
   Mail,
   Clock,
+  Users,
+  ClipboardList,
+  Eye,
+  Send,
 } from 'lucide-react';
 
 /* --- Data --- */
@@ -49,6 +53,11 @@ const FEATURES = [
     title: 'Goal Setting',
     description: 'Set measurable goals for workouts, calories, and more — track your progress over time.',
   },
+  {
+    icon: Users,
+    title: 'Trainer Tools',
+    description: 'Manage clients, track their progress in real-time, and assign workouts — all from one dashboard.',
+  },
 ];
 
 const FREE_FEATURES = [
@@ -66,6 +75,39 @@ const PRO_FEATURES = [
   'AI Food Lookup — instant nutrition data',
   'Daily AI summary & recommendations',
   'Priority support',
+];
+
+const TRAINER_FEATURES = [
+  'Everything in Pro',
+  'Client management dashboard',
+  'Invite clients by email or code',
+  'View client workouts, nutrition & sleep',
+  'Assign workouts and meal plans',
+  'Up to 10 active clients',
+];
+
+const TRAINER_PRO_FEATURES = [
+  'Everything in Trainer',
+  'Up to 50 active clients',
+  'Priority onboarding support',
+];
+
+const TRAINER_HIGHLIGHTS = [
+  {
+    icon: Send,
+    title: 'Invite Clients',
+    description: 'Send email invitations or share a unique code. Clients accept with one tap.',
+  },
+  {
+    icon: Eye,
+    title: 'Real-Time Visibility',
+    description: 'See every workout, meal, sleep log, and goal your clients track — as it happens.',
+  },
+  {
+    icon: ClipboardList,
+    title: 'Program Management',
+    description: 'Assign workouts and nutrition targets directly from your trainer dashboard.',
+  },
 ];
 
 const HOW_IT_WORKS = [
@@ -105,6 +147,11 @@ const TESTIMONIALS = [
     name: 'Priya K.',
     role: 'Freelance Designer',
   },
+  {
+    quote: 'I can see all my clients\' workouts and nutrition in one place. No more spreadsheets or WhatsApp check-ins.',
+    name: 'Coach Dan T.',
+    role: 'Personal Trainer',
+  },
 ];
 
 const STATS = [
@@ -137,6 +184,14 @@ const FAQ = [
   {
     q: 'Does BeMe work offline?',
     a: 'BeMe requires an internet connection. Your data syncs in real-time so it\'s always up to date.',
+  },
+  {
+    q: 'What is BeMe for Trainers?',
+    a: 'BeMe for Trainers lets fitness professionals manage clients, view their workouts, nutrition, and sleep data in real-time, and assign programs — all from one dashboard. Clients use BeMe as usual and their data is shared with their trainer automatically.',
+  },
+  {
+    q: 'How do I invite clients as a trainer?',
+    a: 'You can invite clients by email or generate a shareable invite code. Clients accept the invitation from their Settings page and their data becomes visible in your trainer dashboard.',
   },
 ];
 
@@ -290,6 +345,43 @@ export function Landing() {
         </RevealSection>
       </section>
 
+      {/* Trainer Section */}
+      <section id="trainers" aria-label="For Trainers" className="mx-auto max-w-5xl px-6 py-16">
+        <RevealSection>
+          <div className="text-center">
+            <span className="inline-block rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary mb-4">
+              For Trainers
+            </span>
+            <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
+              Built for fitness professionals
+            </h2>
+            <p className="mx-auto mt-4 max-w-lg text-muted-foreground">
+              Manage your clients, track their progress, and deliver results — without juggling multiple tools.
+            </p>
+          </div>
+          <div className="mt-12 grid gap-6 sm:grid-cols-3">
+            {TRAINER_HIGHLIGHTS.map((item) => (
+              <Card key={item.title} className="transition-shadow hover:shadow-md">
+                <CardContent className="flex flex-col items-center gap-3 p-6 text-center">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+                    <item.icon className="h-6 w-6 text-primary" aria-hidden="true" />
+                  </div>
+                  <h3 className="font-semibold">{item.title}</h3>
+                  <p className="text-sm text-muted-foreground">{item.description}</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+          <div className="mt-8 text-center">
+            <Link to="/signup?plan=trainer">
+              <Button size="lg" className="gap-2">
+                Start as Trainer <ArrowRight className="h-4 w-4" />
+              </Button>
+            </Link>
+          </div>
+        </RevealSection>
+      </section>
+
       {/* How It Works */}
       <section aria-label="How it works" className="mx-auto max-w-4xl px-6 py-16">
         <RevealSection>
@@ -337,7 +429,7 @@ export function Landing() {
             </div>
 
             {/* Testimonials */}
-            <div className="mt-10 grid gap-6 sm:grid-cols-3">
+            <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
               {TESTIMONIALS.map((t) => (
                 <Card key={t.name} className="transition-shadow hover:shadow-md">
                   <CardContent className="p-6 space-y-4">
@@ -448,6 +540,69 @@ export function Landing() {
               <p className="text-center text-xs text-muted-foreground">7-day free trial, cancel anytime</p>
             </CardContent>
           </Card>
+        </div>
+
+        {/* Trainer Pricing */}
+        <div className="mt-12">
+          <div className="text-center mb-6">
+            <span className="inline-block rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
+              For Trainers
+            </span>
+          </div>
+          <div className="grid gap-6 md:grid-cols-2 max-w-3xl mx-auto">
+            {/* Trainer */}
+            <Card className={pricingVisible ? 'animate-reveal' : 'opacity-0'}>
+              <CardContent className="p-6 space-y-4">
+                <div>
+                  <h3 className="text-xl font-bold">Trainer</h3>
+                  <p className="text-sm text-muted-foreground">Manage up to 10 clients</p>
+                  <p className="mt-2 text-3xl font-bold">
+                    $19.99<span className="text-sm font-normal text-muted-foreground">/month</span>
+                  </p>
+                </div>
+                <ul className="space-y-2" role="list">
+                  {TRAINER_FEATURES.map((f) => (
+                    <li key={f} className="flex items-start gap-2 text-sm">
+                      <Users className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+                      {f}
+                    </li>
+                  ))}
+                </ul>
+                <Link to="/signup?plan=trainer" className="block">
+                  <Button className="w-full">Get Started</Button>
+                </Link>
+              </CardContent>
+            </Card>
+
+            {/* Trainer Pro */}
+            <Card className={`border-primary ring-1 ring-primary ${pricingVisible ? 'animate-reveal-delay' : 'opacity-0'}`}>
+              <CardContent className="p-6 space-y-4">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-xl font-bold">Trainer Pro</h3>
+                    <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+                      Most Popular
+                    </span>
+                  </div>
+                  <p className="text-sm text-muted-foreground">Scale your coaching business</p>
+                  <p className="mt-2 text-3xl font-bold">
+                    $39.99<span className="text-sm font-normal text-muted-foreground">/month</span>
+                  </p>
+                </div>
+                <ul className="space-y-2" role="list">
+                  {TRAINER_PRO_FEATURES.map((f) => (
+                    <li key={f} className="flex items-start gap-2 text-sm">
+                      <Users className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+                      {f}
+                    </li>
+                  ))}
+                </ul>
+                <Link to="/signup?plan=trainer_pro" className="block">
+                  <Button className="w-full">Get Started</Button>
+                </Link>
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </section>
 
