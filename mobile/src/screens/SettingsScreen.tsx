@@ -3,9 +3,11 @@ import { ScrollView, StyleSheet } from 'react-native';
 import { List, Button, Divider, Text, Switch, RadioButton, Card } from 'react-native-paper';
 import { useAuth } from '../context/AuthContext';
 import { ConfirmDialog } from '../components/shared/ConfirmDialog';
+import { useNavigation } from '@react-navigation/native';
 
 export function SettingsScreen() {
   const { user, logout } = useAuth();
+  const navigation = useNavigation<any>();
   const [weightUnit, setWeightUnit] = useState<'kg' | 'lbs'>('kg');
   const [notifications, setNotifications] = useState(false);
   const [showClearDialog, setShowClearDialog] = useState(false);
@@ -17,6 +19,19 @@ export function SettingsScreen() {
           <Text variant="titleMedium" style={styles.sectionTitle}>Account</Text>
           <List.Item title="Name" description={user?.name || '--'} left={(props) => <List.Icon {...props} icon="account" />} />
           <List.Item title="Email" description={user?.email || '--'} left={(props) => <List.Icon {...props} icon="email" />} />
+        </Card.Content>
+      </Card>
+
+      <Card style={styles.section} mode="outlined">
+        <Card.Content>
+          <Text variant="titleMedium" style={styles.sectionTitle}>Health Sync</Text>
+          <List.Item
+            title="Health Sync"
+            description="Sync data from Apple Health or Health Connect"
+            left={(props) => <List.Icon {...props} icon="watch" />}
+            right={(props) => <List.Icon {...props} icon="chevron-right" />}
+            onPress={() => navigation.navigate('HealthSync')}
+          />
         </Card.Content>
       </Card>
 

@@ -18,6 +18,7 @@ import insightsRouter from './insights.js';
 import uploadsRouter from './uploads.js';
 import subscriptionRouter from './subscription.js';
 import pushRouter from './push.js';
+import healthSyncRouter from './healthSync.js';
 
 const router = Router();
 
@@ -38,5 +39,6 @@ router.use(jobsRouter);
 router.use(searchRouter);
 router.use(insightsRouter);
 router.use(uploadsRouter);
+router.use(healthSyncRouter);
 
 export default router;

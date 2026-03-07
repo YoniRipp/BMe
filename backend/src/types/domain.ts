@@ -23,6 +23,8 @@ export interface Workout {
   durationMinutes: number;
   exercises: Exercise[];
   notes?: string;
+  source?: string;
+  externalId?: string;
 }
 
 export interface CreateWorkoutInput {
@@ -58,6 +60,8 @@ export interface FoodEntry {
   servingType?: string;
   startTime?: string;
   endTime?: string;
+  source?: string;
+  externalId?: string;
 }
 
 export interface CreateFoodEntryInput {
@@ -94,6 +98,8 @@ export interface DailyCheckIn {
   id: string;
   date: string;
   sleepHours?: number;
+  source?: string;
+  externalId?: string;
 }
 
 export interface CreateCheckInInput {
@@ -144,6 +150,80 @@ export interface PaginatedResult<T> {
   limit: number;
   offset: number;
   hasMore: boolean;
+}
+
+// ─── Health Sync ───────────────────────────────────────────
+export type HealthPlatform = 'apple_health' | 'health_connect';
+export type HealthMetricType = 'steps' | 'heart_rate_avg' | 'heart_rate_resting' | 'active_calories' | 'total_calories_burned';
+
+export interface HealthSyncState {
+  id: string;
+  platform: HealthPlatform;
+  dataType: string;
+  lastSyncedAt: string;
+  enabled: boolean;
+}
+
+export interface HealthMetric {
+  id: string;
+  date: string;
+  metricType: HealthMetricType;
+  value: number;
+  source: string;
+}
+
+export interface SyncWorkoutItem {
+  externalId: string;
+  date: string;
+  title: string;
+  type: string;
+  durationMinutes: number;
+  caloriesBurned?: number;
+  heartRateAvg?: number;
+  exercises?: Exercise[];
+}
+
+export interface SyncSleepItem {
+  externalId: string;
+  date: string;
+  sleepHours: number;
+  stages?: { deep: number; light: number; rem: number; awake: number };
+}
+
+export interface SyncNutritionItem {
+  externalId: string;
+  date: string;
+  name: string;
+  calories: number;
+  protein?: number;
+  carbs?: number;
+  fats?: number;
+  mealType?: string;
+}
+
+export interface SyncMetricsItem {
+  date: string;
+  steps?: number;
+  activeCalories?: number;
+  heartRateAvg?: number;
+  heartRateResting?: number;
+}
+
+export interface HealthSyncPayload {
+  platform: HealthPlatform;
+  workouts?: SyncWorkoutItem[];
+  sleep?: SyncSleepItem[];
+  nutrition?: SyncNutritionItem[];
+  metrics?: SyncMetricsItem[];
+  syncedAt: string;
+}
+
+export interface HealthSyncResult {
+  workoutsCreated: number;
+  workoutsUpdated: number;
+  sleepSynced: number;
+  nutritionSynced: number;
+  metricsSynced: number;
 }
 
 // ─── API Error ──────────────────────────────────────────────
