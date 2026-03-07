@@ -1,25 +1,18 @@
-import { useCallback, useState } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Mic, Lock, Loader2 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
-import { queryKeys } from '@/lib/queryClient';
-import { useEnergy } from '@/hooks/useEnergy';
-import { useWorkouts } from '@/hooks/useWorkouts';
-import { useGoals } from '@/hooks/useGoals';
 import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
-import { executeVoiceAction, type VoiceExecutorContext } from '@/lib/voiceActionExecutor';
+import { useVoiceActions } from '@/hooks/useVoiceActions';
 import { toast } from '@/components/shared/ToastProvider';
 import { useSubscription } from '@/hooks/useSubscription';
 import { cn } from '@/lib/utils';
 
 export function VoiceMicHero() {
   const { isPro, subscribe } = useSubscription();
-  const queryClient = useQueryClient();
   const [statusText, setStatusText] = useState('');
+  const statusTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
 
-  const { foodEntries, addFoodEntry, updateFoodEntry, deleteFoodEntry, updateCheckIn, addCheckIn, deleteCheckIn, getCheckInByDate } = useEnergy();
-  const { workouts, addWorkout, updateWorkout, deleteWorkout } = useWorkouts();
-  const { goals, addGoal, updateGoal, deleteGoal } = useGoals();
+  const { processVoiceResult, showResultToasts } = useVoiceActions();
 
   const {
     isAvailable,
@@ -31,12 +24,9 @@ export function VoiceMicHero() {
     getVoiceResult,
   } = useSpeechRecognition();
 
-  const voiceContext = {
-    foodEntries, addFoodEntry, updateFoodEntry, deleteFoodEntry,
-    addCheckIn, updateCheckIn, deleteCheckIn, getCheckInByDate,
-    workouts, addWorkout, updateWorkout, deleteWorkout,
-    goals, addGoal, updateGoal, deleteGoal,
-  } as VoiceExecutorContext;
+  useEffect(() => {
+    return () => { clearTimeout(statusTimeoutRef.current); };
+  }, []);
 
   const handleMicClick = useCallback(async () => {
     if (!isPro) {
@@ -56,43 +46,12 @@ export function VoiceMicHero() {
           return;
         }
 
-        const succeeded: string[] = [];
-        const failed: { action: string; reason: string }[] = [];
+        const processResult = await processVoiceResult(result);
+        const msg = showResultToasts(processResult);
+        setStatusText(msg || (processResult.failed.length > 0 ? `${processResult.failed.length} failed` : ''));
 
-        if (result.results) {
-          for (const r of result.results) {
-            if (r.success) succeeded.push(r.message ?? r.intent);
-            else failed.push({ action: r.intent, reason: r.message ?? 'Failed' });
-          }
-          await queryClient.invalidateQueries({ queryKey: queryKeys.workouts });
-          await queryClient.invalidateQueries({ queryKey: queryKeys.foodEntries });
-          await queryClient.invalidateQueries({ queryKey: queryKeys.checkIns });
-          await queryClient.invalidateQueries({ queryKey: queryKeys.goals });
-        } else {
-          for (const action of result.actions) {
-            try {
-              const r = await executeVoiceAction(action, voiceContext);
-              if (r.success) succeeded.push(r.message ?? action.intent);
-              else failed.push({ action: action.intent, reason: r.message ?? 'Failed' });
-            } catch (e) {
-              failed.push({ action: action.intent ?? 'unknown', reason: e instanceof Error ? e.message : 'Failed' });
-            }
-          }
-        }
-
-        if (succeeded.length > 0 && failed.length === 0) {
-          const msg = succeeded.length === 1 ? succeeded[0] : `Done: ${succeeded.join(', ')}`;
-          setStatusText(msg);
-          toast.success(msg);
-        } else if (succeeded.length > 0) {
-          toast.success(`Added ${succeeded.length} item(s). ${failed.length} failed.`);
-          setStatusText(`${succeeded.length} added, ${failed.length} failed`);
-        } else if (failed.length > 0) {
-          toast.error('Voice action failed', { description: failed[0].reason });
-          setStatusText('');
-        }
-
-        setTimeout(() => setStatusText(''), 5000);
+        clearTimeout(statusTimeoutRef.current);
+        statusTimeoutRef.current = setTimeout(() => setStatusText(''), 5000);
       } catch (e) {
         setStatusText('');
         toast.error('Voice processing failed', { description: e instanceof Error ? e.message : 'Please try again.' });
@@ -112,7 +71,7 @@ export function VoiceMicHero() {
       setStatusText('');
       toast.error('Could not start recording', { description: e instanceof Error ? e.message : 'Check microphone permissions.' });
     }
-  }, [isPro, subscribe, isListening, isAvailable, startListening, stopListening, getVoiceResult, voiceContext, queryClient]);
+  }, [isPro, subscribe, isListening, isAvailable, startListening, stopListening, getVoiceResult, processVoiceResult, showResultToasts]);
 
   const state = isListening ? 'listening' : isProcessing ? 'processing' : 'idle';
 
