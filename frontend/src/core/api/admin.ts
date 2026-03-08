@@ -87,6 +87,49 @@ export interface AdminStatsResponse {
   recentErrors: AdminRecentErrors;
 }
 
+export interface RouteMetric {
+  route: string;
+  total: number;
+  statusCounts: Record<number, number>;
+  avgMs: number;
+  p50Ms: number;
+  p95Ms: number;
+  p99Ms: number;
+  maxMs: number;
+}
+
+export interface AdminMetricsResponse {
+  uptime: { seconds: number; startedAt: string };
+  http: { routes: RouteMetric[]; totalRequests: number };
+  db: {
+    totalQueries: number;
+    avgMs: number;
+    p50Ms: number;
+    p95Ms: number;
+    p99Ms: number;
+    maxMs: number;
+    errors: number;
+    slowQueries: Array<{ sql: string; durationMs: number; timestamp: number }>;
+  };
+  errors: { total: number; byCode: Record<string, number> };
+  events: { published: number; processed: number; failed: number };
+  system: {
+    memoryMb: { rss: number; heapUsed: number; heapTotal: number; external: number };
+    nodeVersion: string;
+    pid: number;
+    cpuUsage: { user: number; system: number };
+  };
+}
+
+export interface QueueInfo {
+  name: string;
+  waiting: number;
+  active: number;
+  completed: number;
+  failed: number;
+  delayed?: number;
+}
+
 export const adminApi = {
   getLogs: (level: 'action' | 'error') =>
     request<LogsResponse>(`/api/admin/logs?level=${level}`).then((r) => r.logs),
@@ -104,4 +147,8 @@ export const adminApi = {
     request<ApiUserSearchItem[]>(`/api/admin/users/search?q=${encodeURIComponent(q)}&limit=${limit}`),
 
   getStats: () => request<AdminStatsResponse>('/api/admin/stats'),
+
+  getMetrics: () => request<AdminMetricsResponse>('/api/admin/metrics'),
+
+  getQueues: () => request<Record<string, QueueInfo>>('/api/admin/queues'),
 };

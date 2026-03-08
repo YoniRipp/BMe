@@ -17,6 +17,7 @@ const AdminOverview = lazy(() => import('./pages/admin/AdminOverview'));
 const AdminUsersPage = lazy(() => import('./pages/admin/AdminUsersPage'));
 const AdminActivityPage = lazy(() => import('./pages/admin/AdminActivityPage'));
 const AdminSystemPage = lazy(() => import('./pages/admin/AdminSystemPage'));
+const AdminMetricsPage = lazy(() => import('./pages/admin/AdminMetricsPage'));
 const Settings = lazy(() => import('./pages/Settings').then((m) => ({ default: m.Settings })));
 const Insights = lazy(() => import('./pages/Insights').then((m) => ({ default: m.Insights })));
 const Goals = lazy(() => import('./pages/Goals').then((m) => ({ default: m.Goals })));
@@ -208,6 +209,14 @@ function ProtectedAppRoutes() {
             element={
               <Suspense fallback={<LoadingSpinner text="Loading system..." />}>
                 <AdminSystemPage />
+              </Suspense>
+            }
+          />
+          <Route
+            path="metrics"
+            element={
+              <Suspense fallback={<LoadingSpinner text="Loading metrics..." />}>
+                <AdminMetricsPage />
               </Suspense>
             }
           />
