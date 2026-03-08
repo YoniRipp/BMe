@@ -16,6 +16,8 @@ import {
   LogOut,
   User,
   Users,
+  BookOpen,
+  MoreHorizontal,
 } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
@@ -50,15 +52,20 @@ const SIDEBAR_NAV_BASE = [
   { name: 'Settings', path: '/settings', icon: Settings },
 ];
 
+/** MFP-style bottom nav: 4 items split around a center "+" button */
+const BOTTOM_NAV_ITEMS = [
+  { name: 'Dashboard', path: '/', icon: Home },
+  { name: 'Diary', path: '/energy', icon: BookOpen },
+  { name: 'Goals', path: '/goals', icon: Target },
+  { name: 'More', path: '/settings', icon: MoreHorizontal },
+];
+
 function getSidebarNav(isAdmin: boolean, isTrainer: boolean) {
   const nav = [...SIDEBAR_NAV_BASE];
   if (isTrainer) nav.push({ name: 'Trainer', path: '/trainer', icon: Users });
   if (isAdmin) nav.push({ name: 'Admin', path: '/admin', icon: ShieldCheck });
   return nav;
 }
-
-/** Base44-style: first 4 items only (Dashboard, Body, Energy, Goals) */
-const BOTTOM_NAV_ITEMS = 4;
 
 function getPageTitle(pathname: string): string {
   return ROUTE_TO_TITLE[pathname] ?? (pathname.slice(1) || 'Dashboard');
@@ -69,6 +76,7 @@ export function Base44Layout() {
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [quickAddOpen, setQuickAddOpen] = useState(false);
   const { user } = useApp();
   const { logout } = useAuth();
 
@@ -124,14 +132,14 @@ export function Base44Layout() {
                 <Leaf className="w-5 h-5 text-primary-foreground" />
               </div>
               <div>
-                <h1 className="text-xl font-bold tracking-tight text-charcoal">BeMe</h1>
+                <h1 className="text-xl font-bold tracking-tight">BeMe</h1>
                 <p className="text-[10px] uppercase tracking-[0.2em] text-primary font-medium">Life Balance</p>
               </div>
             </Link>
           </div>
 
           <nav className="flex-1 px-3 py-2">
-            <p className="px-3 mb-2 text-[10px] uppercase tracking-[0.15em] text-stone font-semibold">Navigate</p>
+            <p className="px-3 mb-2 text-[10px] uppercase tracking-[0.15em] text-muted-foreground font-semibold">Navigate</p>
             <div className="space-y-0.5">
               {sidebarNav.map((item) => {
                 const isActive = pathname === item.path;
@@ -143,7 +151,7 @@ export function Base44Layout() {
                     className={`group flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200
                       ${isActive
                         ? 'bg-primary/10 text-primary'
-                        : 'text-stone hover:bg-cream-warm/60 hover:text-charcoal'
+                        : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                       }`}
                   >
                     <div
@@ -163,9 +171,9 @@ export function Base44Layout() {
             </div>
           </nav>
 
-          <div className="p-4 mx-3 mb-3 rounded-2xl bg-gradient-to-br from-cream-warm to-mist/50 border border-border">
-            <p className="text-xs font-medium text-stone">Your wellness journey</p>
-            <p className="text-[10px] text-stone/70 mt-0.5">Every step counts</p>
+          <div className="p-4 mx-3 mb-3 rounded-2xl bg-muted border border-border">
+            <p className="text-xs font-medium text-muted-foreground">Your wellness journey</p>
+            <p className="text-[10px] text-muted-foreground/70 mt-0.5">Every step counts</p>
           </div>
         </div>
       </aside>
@@ -174,31 +182,31 @@ export function Base44Layout() {
       <div className="lg:ml-72 min-h-screen">
         <header
           className={`sticky top-0 z-30 transition-all duration-300
-            ${scrolled ? 'bg-card/80 backdrop-blur-xl shadow-sm border-b border-border' : 'bg-transparent'}`}
+            ${scrolled ? 'bg-white/80 backdrop-blur-xl shadow-sm border-b border-border' : 'bg-transparent'}`}
         >
           <div className="flex items-center justify-between px-4 sm:px-6 lg:px-8 py-3 min-h-[4rem]">
             <div className="flex items-center gap-3">
               <button
                 type="button"
                 onClick={() => setSidebarOpen((o) => !o)}
-                className="lg:hidden p-2 rounded-xl hover:bg-cream-warm transition-colors"
+                className="lg:hidden p-2 rounded-xl hover:bg-muted transition-colors"
                 aria-label="Toggle menu"
               >
                 {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
               </button>
-              <h2 className="text-lg font-semibold text-charcoal">{pageTitle}</h2>
+              <h2 className="text-lg font-semibold">{pageTitle}</h2>
             </div>
             <div className="flex items-center gap-2 sm:gap-3">
               <DropdownMenu>
                 <DropdownMenuTrigger
-                  className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl hover:bg-cream-warm transition-colors focus:outline-none focus:ring-2 focus:ring-primary/30 shrink-0"
+                  className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl hover:bg-muted transition-colors focus:outline-none focus:ring-2 focus:ring-primary/30 shrink-0"
                   aria-label="Open user menu"
                 >
                   <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
                     <User className="w-4 h-4 text-primary" />
                   </div>
-                  <span className="hidden sm:inline text-sm font-medium text-charcoal">{user?.name ?? 'Account'}</span>
-                  <ChevronRight className="w-3.5 h-3.5 text-stone rotate-90" />
+                  <span className="hidden sm:inline text-sm font-medium">{user?.name ?? 'Account'}</span>
+                  <ChevronRight className="w-3.5 h-3.5 text-muted-foreground rotate-90" />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="min-w-[10rem]">
                   <DropdownMenuItem asChild>
@@ -210,7 +218,7 @@ export function Base44Layout() {
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
                     onClick={handleSignOut}
-                    className="flex items-center gap-2 cursor-pointer text-stone focus:text-charcoal"
+                    className="flex items-center gap-2 cursor-pointer text-muted-foreground focus:text-foreground"
                   >
                     <LogOut className="h-4 w-4" />
                     Sign out
@@ -227,18 +235,19 @@ export function Base44Layout() {
           </div>
         </header>
 
-        <main className="px-4 sm:px-6 lg:px-8 pb-24 lg:pb-8 pt-2 animate-fade-up">
+        <main className="px-4 sm:px-6 lg:px-8 pb-28 lg:pb-8 pt-2 animate-fade-up">
           <Outlet />
         </main>
       </div>
 
-      {/* Mobile bottom nav */}
+      {/* Mobile bottom nav with center "+" */}
       <BottomNavigation
-        items={sidebarNav.slice(0, BOTTOM_NAV_ITEMS)}
+        items={BOTTOM_NAV_ITEMS}
         currentPath={pathname}
+        onCenterPress={() => setQuickAddOpen(true)}
       />
 
-      <QuickAddMenu />
+      <QuickAddMenu open={quickAddOpen} onOpenChange={setQuickAddOpen} />
       <VoiceAgentButton />
     </div>
   );

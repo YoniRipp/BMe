@@ -171,7 +171,7 @@ export function DashboardProgressCards({
         cardType: 'workouts' as CardType,
         formatValue: (v) => Math.round(v).toString(),
         icon: <Dumbbell className="h-4 w-4 text-blue-600" />,
-        ringColor: 'hsl(var(--primary))',
+        ringColor: '#2563eb',
         goal: workoutsGoal,
       },
       {
@@ -182,7 +182,7 @@ export function DashboardProgressCards({
         cardType: 'calories' as CardType,
         formatValue: (v) => Math.round(v).toLocaleString(),
         icon: <Flame className="h-4 w-4 text-orange-600" />,
-        ringColor: 'hsl(var(--primary))',
+        ringColor: '#22c55e',
         goal: caloriesGoal,
       },
       {
@@ -193,7 +193,7 @@ export function DashboardProgressCards({
         cardType: 'sleep' as CardType,
         formatValue: (v) => (v > 0 ? `${v.toFixed(1)}h` : '0h'),
         icon: <Moon className="h-4 w-4 text-indigo-600" />,
-        ringColor: 'hsl(var(--primary))',
+        ringColor: '#6366f1',
         goal: sleepGoal,
       },
     ];
