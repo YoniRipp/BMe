@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, X, Dumbbell, UtensilsCrossed, Moon } from 'lucide-react';
+import { Dumbbell, UtensilsCrossed, Moon } from 'lucide-react';
 import { WorkoutModal } from '@/components/body/WorkoutModal';
 import { FoodEntryModal } from '@/components/energy/FoodEntryModal';
 import { SleepEditModal } from '@/components/energy/SleepEditModal';
@@ -17,15 +17,19 @@ const MENU_ITEMS = [
 
 type MenuAction = (typeof MENU_ITEMS)[number]['key'];
 
-export function QuickAddMenu() {
-  const [open, setOpen] = useState(false);
+interface QuickAddMenuProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
+export function QuickAddMenu({ open, onOpenChange }: QuickAddMenuProps) {
   const [activeModal, setActiveModal] = useState<MenuAction | null>(null);
 
   const { addWorkout } = useWorkouts();
   const { addFoodEntry, addCheckIn, getCheckInByDate, updateCheckIn } = useEnergy();
 
   const handleSelect = (action: MenuAction) => {
-    setOpen(false);
+    onOpenChange(false);
     setActiveModal(action);
   };
 
@@ -57,48 +61,40 @@ export function QuickAddMenu() {
 
   return (
     <>
-      {/* Backdrop */}
+      {/* Bottom sheet backdrop */}
       {open && (
         <div
-          className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40 lg:hidden"
-          onClick={() => setOpen(false)}
+          className="fixed inset-0 bg-black/30 backdrop-blur-sm z-40"
+          onClick={() => onOpenChange(false)}
           aria-hidden
         />
       )}
 
-      {/* FAB + menu - mobile only, above bottom nav */}
-      <div className="fixed bottom-16 right-4 z-50 lg:hidden flex flex-col items-end gap-2">
-        {/* Expanding menu items */}
-        {open && MENU_ITEMS.map((item, i) => {
-          const Icon = item.icon;
-          return (
-            <button
-              key={item.key}
-              type="button"
-              className="flex items-center gap-2 animate-fade-up"
-              style={{ animationDelay: `${i * 50}ms` }}
-              onClick={() => handleSelect(item.key)}
-            >
-              <span className="text-sm font-medium text-foreground bg-card px-3 py-1.5 rounded-full shadow-md">
-                {item.label}
-              </span>
-              <div className={`w-10 h-10 rounded-full ${item.color} flex items-center justify-center shadow-lg`}>
-                <Icon className="w-5 h-5 text-white" />
-              </div>
-            </button>
-          );
-        })}
-
-        {/* Main FAB button */}
-        <button
-          type="button"
-          className={`w-12 h-12 rounded-full bg-primary flex items-center justify-center shadow-lg hover:bg-primary/90 active:scale-95 transition-all ${open ? 'rotate-45' : ''}`}
-          onClick={() => setOpen((o) => !o)}
-          aria-label={open ? 'Close quick add menu' : 'Open quick add menu'}
-        >
-          {open ? <X className="w-5 h-5 text-primary-foreground" /> : <Plus className="w-5 h-5 text-primary-foreground" />}
-        </button>
-      </div>
+      {/* Bottom sheet menu */}
+      {open && (
+        <div className="fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-2xl shadow-xl animate-fade-up p-6 pb-8">
+          <div className="w-10 h-1 bg-muted rounded-full mx-auto mb-6" />
+          <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-4">Quick Add</p>
+          <div className="grid grid-cols-3 gap-4">
+            {MENU_ITEMS.map((item) => {
+              const Icon = item.icon;
+              return (
+                <button
+                  key={item.key}
+                  type="button"
+                  className="flex flex-col items-center gap-3 py-4 px-2 rounded-2xl bg-muted hover:bg-muted/80 active:scale-[0.97] transition-all"
+                  onClick={() => handleSelect(item.key)}
+                >
+                  <div className={`w-12 h-12 rounded-full ${item.color} flex items-center justify-center`}>
+                    <Icon className="w-6 h-6 text-white" />
+                  </div>
+                  <span className="text-sm font-medium">{item.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Modals */}
       <WorkoutModal
