@@ -24,7 +24,7 @@ import { toast } from 'sonner';
 export function Home() {
   const { workouts, workoutsLoading, addWorkout } = useWorkouts();
   const { checkIns, foodEntries, addCheckIn, updateCheckIn, addFoodEntry, getCheckInByDate, energyLoading } = useEnergy();
-  const { goals, addGoal, updateGoal, goalsLoading } = useGoals();
+  const { addGoal, updateGoal, goalsLoading } = useGoals();
   const { macroGoals, setMacroGoals, calorieGoal } = useMacroGoals();
 
   const [goalModalOpen, setGoalModalOpen] = useState(false);

@@ -1,6 +1,5 @@
 import { useState, useMemo, useCallback } from 'react';
 import { useEnergy } from '@/hooks/useEnergy';
-import { useGoals } from '@/hooks/useGoals';
 import { useMacroGoals } from '@/hooks/useMacroGoals';
 import { FoodEntry, type DailyCheckIn } from '@/types/energy';
 import { ContentWithLoading } from '@/components/shared/ContentWithLoading';
@@ -215,7 +214,6 @@ function MealSection({
 
 export function Energy() {
   const { checkIns, foodEntries, energyLoading, addCheckIn, updateCheckIn, deleteCheckIn, addFoodEntry, updateFoodEntry, deleteFoodEntry } = useEnergy();
-  const { goals } = useGoals();
   const { macroGoals, setMacroGoals, calorieGoal } = useMacroGoals();
   const [sleepModalOpen, setSleepModalOpen] = useState(false);
   const [editingCheckIn, setEditingCheckIn] = useState<DailyCheckIn | undefined>(undefined);
