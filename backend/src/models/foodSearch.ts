@@ -351,7 +351,7 @@ export async function getNutritionForFoodName(pool: Pool, foodName: string, amou
       `SELECT id, name, common_name, calories, protein, carbs, fat, is_liquid, preparation
        FROM foods
        WHERE ${cnLike.sql} OR ${nmLike.sql}
-          OR similarity(lower(COALESCE(common_name, name)), $1) > 0.15
+          OR similarity(lower(COALESCE(common_name, name)), $1) > 0.6
        ORDER BY
          (lower(COALESCE(common_name, name)) = $1) DESC,
          (lower(COALESCE(common_name, name)) LIKE $2) DESC,
