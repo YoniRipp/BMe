@@ -4,7 +4,7 @@
  * Supports configurable time periods and links to AI chat.
  */
 import { useState, useEffect, useRef, type FormEvent } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { Sparkles, TrendingUp, Lightbulb, AlertCircle, Search, X, RefreshCw, MessageCircle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -234,10 +234,12 @@ export function AiInsightsSection() {
   const [periodDays, setPeriodDays] = useState(30);
   const [chatOpen, setChatOpen] = useState(false);
 
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, isFetching, isPlaceholderData, error } = useQuery({
     queryKey: ['ai-insights', periodDays],
     queryFn: () => aiInsightsApi.getInsights(periodDays),
     staleTime: 15 * 60 * 1000, // 15 min cache
+    placeholderData: keepPreviousData, // show previous period data while loading new
+    retry: 1,
   });
 
   const autoRefreshTriggered = useRef(false);
@@ -284,11 +286,11 @@ export function AiInsightsSection() {
           <Button
             variant="outline"
             size="sm"
-            disabled={isLoading || refreshMutation.isPending}
+            disabled={isFetching || refreshMutation.isPending}
             onClick={() => refreshMutation.mutate()}
           >
             <RefreshCw
-              className={cn('w-4 h-4 mr-1.5', (isLoading || refreshMutation.isPending) && 'animate-spin')}
+              className={cn('w-4 h-4 mr-1.5', (isFetching || refreshMutation.isPending) && 'animate-spin')}
             />
             Refresh
           </Button>
@@ -298,7 +300,7 @@ export function AiInsightsSection() {
       {/* Score + Summary card */}
       <Card>
         <CardContent className="pt-6">
-          {isLoading || refreshMutation.isPending ? (
+          {(isLoading && !isPlaceholderData) || refreshMutation.isPending ? (
             <div className="space-y-4">
               <p className="text-sm text-muted-foreground flex items-center gap-1">
                 <Sparkles className="w-4 h-4 text-violet-500 animate-pulse" />
@@ -343,10 +345,15 @@ export function AiInsightsSection() {
               </Button>
             </div>
           ) : data ? (
-            <div className="flex gap-6 items-start flex-wrap">
+            <div className={cn("flex gap-6 items-start flex-wrap transition-opacity", isPlaceholderData && isFetching && "opacity-50")}>
               <ScoreRing score={data.score} />
               <div className="flex-1 min-w-0 space-y-1">
                 <p className="text-sm text-muted-foreground">{data.summary}</p>
+                {isPlaceholderData && isFetching && (
+                  <p className="text-xs text-muted-foreground flex items-center gap-1">
+                    <RefreshCw className="w-3 h-3 animate-spin" /> Loading {periodDays}-day insights…
+                  </p>
+                )}
               </div>
             </div>
           ) : null}
@@ -354,7 +361,7 @@ export function AiInsightsSection() {
       </Card>
 
       {/* Highlights + Suggestions side by side */}
-      {data && !isLoading && !refreshMutation.isPending && (
+      {data && !(isLoading && !isPlaceholderData) && !refreshMutation.isPending && (
         <div className="grid sm:grid-cols-2 gap-4">
           {data.highlights.length > 0 && (
             <Card>

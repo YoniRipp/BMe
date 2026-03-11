@@ -341,15 +341,44 @@ export async function getOrGenerateInsights(userId: string, days = 30) {
       cached: true,
     };
   }
-  const result = await generateInsights(userId, days);
-  const main = {
-    summary: result.summary,
-    highlights: result.highlights ?? [],
-    suggestions: result.suggestions ?? [],
-    score: result.score ?? 0,
-  };
-  const today = result.today ?? { workout: '', sleep: '', nutrition: '', focus: '' };
-  return { main, today, cached: false };
+  try {
+    const result = await generateInsights(userId, days);
+    const main = {
+      summary: result.summary,
+      highlights: result.highlights ?? [],
+      suggestions: result.suggestions ?? [],
+      score: result.score ?? 0,
+    };
+    const today = result.today ?? { workout: '', sleep: '', nutrition: '', focus: '' };
+    return { main, today, cached: false };
+  } catch (err) {
+    logger.warn({ err, days }, 'Insight generation failed, attempting cross-period cache fallback');
+    // Fallback: return the most recent cached insight for ANY period
+    let fallback: Record<string, unknown> | null = null;
+    try {
+      fallback = await getLastInsight(userId);
+    } catch {
+      // ignore
+    }
+    if (fallback) {
+      return {
+        main: {
+          summary: fallback.summary,
+          highlights: fallback.highlights ?? [],
+          suggestions: fallback.suggestions ?? [],
+          score: Number(fallback.score) ?? 0,
+        },
+        today: {
+          workout: fallback.today_workout ?? '',
+          sleep: fallback.today_sleep ?? '',
+          nutrition: fallback.today_nutrition ?? '',
+          focus: fallback.today_focus ?? '',
+        },
+        cached: true,
+      };
+    }
+    throw err;
+  }
 }
 
 /**
@@ -371,6 +400,14 @@ export async function refreshInsights(userId: string, days = 30) {
  * Generate AI-powered insights and today's recommendations for a user.
  * All insights use DAILY AVERAGES and are personalized to user goals.
  */
+/** Strip markdown code fences from Gemini response if present. */
+function stripCodeFences(text: string): string {
+  const fenced = text.match(/```(?:json)?\s*\n?([\s\S]*?)```/);
+  return fenced ? fenced[1].trim() : text;
+}
+
+const GEMINI_TIMEOUT_MS = 25_000;
+
 export async function generateInsights(userId: string, days = 30) {
   const ctx = await fetchUserContext(userId, days);
   const model = getGemini();
@@ -403,34 +440,64 @@ Return exactly this JSON structure (no markdown, raw JSON only):
   "score": <integer 0-100 representing overall wellness score relative to their goals>
 }`;
 
-  const result = await model.generateContent(prompt);
-  const text = result.response.text().trim();
-  const parsed = JSON.parse(text);
+  const result = await Promise.race([
+    model.generateContent(prompt),
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('Gemini request timed out')), GEMINI_TIMEOUT_MS)
+    ),
+  ]);
+  const rawText = result.response.text().trim();
+  const text = stripCodeFences(rawText);
+  let parsed: Record<string, unknown>;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    logger.warn({ rawText: rawText.slice(0, 500) }, 'Failed to parse Gemini JSON response');
+    throw new Error('AI returned an invalid response');
+  }
   const mainInsights = {
     summary: String(parsed.summary ?? ''),
     highlights: Array.isArray(parsed.highlights) ? parsed.highlights.map(String) : [],
     suggestions: Array.isArray(parsed.suggestions) ? parsed.suggestions.map(String) : [],
     score: Number.isFinite(Number(parsed.score)) ? Math.min(100, Math.max(0, Math.round(Number(parsed.score)))) : 50,
   };
-  let todayRecs = { workout: '', sleep: '', nutrition: '', focus: '' };
-  try {
-    todayRecs = await generateTodayRecommendations(userId, ctx);
-  } catch (recErr) {
-    logger.warn({ err: recErr }, 'Today recommendations generation failed, saving main insights only');
-  }
+  // Fire-and-forget: generate today's recommendations in the background
+  // so we don't block the main insights response
+  const todayRecsPromise = generateTodayRecommendations(userId, ctx).catch((recErr) => {
+    logger.warn({ err: recErr }, 'Today recommendations generation failed');
+    return { workout: '', sleep: '', nutrition: '', focus: '' };
+  });
+  // Save main insights immediately (today recs will update the row asynchronously)
   try {
     await saveInsight(userId, {
       ...mainInsights,
-      today_workout: todayRecs.workout,
-      today_sleep: todayRecs.sleep,
-      today_nutrition: todayRecs.nutrition,
-      today_focus: todayRecs.focus,
+      today_workout: '',
+      today_sleep: '',
+      today_nutrition: '',
+      today_focus: '',
       period_days: days,
     });
   } catch (saveErr) {
     logger.warn({ err: saveErr }, 'Failed to cache insights, returning generated result');
   }
-  return { ...mainInsights, today: todayRecs };
+  // Update the saved row with today's recs once they're ready (fire-and-forget)
+  todayRecsPromise.then(async (todayRecs) => {
+    if (todayRecs.workout || todayRecs.sleep || todayRecs.nutrition || todayRecs.focus) {
+      try {
+        await saveInsight(userId, {
+          ...mainInsights,
+          today_workout: todayRecs.workout,
+          today_sleep: todayRecs.sleep,
+          today_nutrition: todayRecs.nutrition,
+          today_focus: todayRecs.focus,
+          period_days: days,
+        });
+      } catch (err) {
+        logger.warn({ err }, 'Failed to update insights with today recs');
+      }
+    }
+  }).catch(() => { /* already logged */ });
+  return { ...mainInsights, today: { workout: '', sleep: '', nutrition: '', focus: '' } };
 }
 
 /**
