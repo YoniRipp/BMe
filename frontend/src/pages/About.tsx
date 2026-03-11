@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { ShieldCheck, Layers, BrainCircuit, ArrowRight } from 'lucide-react';
+import { ShieldCheck, Layers, BrainCircuit, ArrowRight, Users, Code, Palette } from 'lucide-react';
 
 const VALUES = [
   {
@@ -88,16 +88,50 @@ export function About() {
         </div>
       </section>
 
-      {/* Community */}
+      {/* Team */}
       <section className="bg-muted/50 py-16">
-        <div className="mx-auto max-w-3xl px-6">
-          <h2 className="text-2xl font-bold tracking-tight">Open Source & Community</h2>
-          <p className="mt-4 text-muted-foreground leading-relaxed">
-            BeMe is built in the open. We welcome contributions from developers, designers, and
-            anyone passionate about building better tools for personal growth. Check out our
-            contribution guidelines to get started — whether it's a bug fix, a new feature idea,
-            or improving documentation.
-          </p>
+        <div className="mx-auto max-w-5xl px-6">
+          <div className="text-center mb-10">
+            <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Our Team</h2>
+            <p className="mt-2 text-muted-foreground">
+              A small, passionate team building tools for a healthier life.
+            </p>
+          </div>
+          <div className="grid gap-6 sm:grid-cols-3">
+            <Card className="transition-shadow hover:shadow-md">
+              <CardContent className="p-6 space-y-3 text-center">
+                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
+                  <Code className="h-7 w-7 text-primary" aria-hidden="true" />
+                </div>
+                <h3 className="font-semibold">Engineering</h3>
+                <p className="text-sm text-muted-foreground">
+                  Full-stack developers building a fast, reliable platform with AI-powered features and voice integration.
+                </p>
+              </CardContent>
+            </Card>
+            <Card className="transition-shadow hover:shadow-md">
+              <CardContent className="p-6 space-y-3 text-center">
+                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
+                  <Palette className="h-7 w-7 text-primary" aria-hidden="true" />
+                </div>
+                <h3 className="font-semibold">Design</h3>
+                <p className="text-sm text-muted-foreground">
+                  Focused on creating a mobile-first experience that feels as natural as the apps you use every day.
+                </p>
+              </CardContent>
+            </Card>
+            <Card className="transition-shadow hover:shadow-md">
+              <CardContent className="p-6 space-y-3 text-center">
+                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
+                  <Users className="h-7 w-7 text-primary" aria-hidden="true" />
+                </div>
+                <h3 className="font-semibold">Community</h3>
+                <p className="text-sm text-muted-foreground">
+                  We build in the open and welcome contributions — from bug fixes to feature ideas and documentation.
+                </p>
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </section>
 

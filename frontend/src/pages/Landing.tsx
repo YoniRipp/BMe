@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -20,6 +19,10 @@ import {
   ChevronDown,
   Mail,
   Clock,
+  Smartphone,
+  Moon,
+  Utensils,
+  TrendingUp,
 } from 'lucide-react';
 
 /* --- Data --- */
@@ -109,9 +112,9 @@ const TESTIMONIALS = [
 ];
 
 const STATS = [
-  { value: '10K+', label: 'Active users' },
-  { value: '2M+', label: 'Data points tracked' },
-  { value: '4.8', label: 'Average rating' },
+  { value: '5', label: 'Wellness domains' },
+  { value: '1000+', label: 'Foods in database' },
+  { value: '100+', label: 'Exercises available' },
 ];
 
 const FAQ = [
@@ -246,6 +249,53 @@ export function Landing() {
             </Button>
           </a>
         </div>
+      </section>
+
+      {/* App Preview */}
+      <section aria-label="App preview" className="bg-muted/50 py-16">
+        <RevealSection>
+          <div className="mx-auto max-w-5xl px-6">
+            <div className="text-center mb-10">
+              <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
+                See BeMe in action
+              </h2>
+              <p className="mt-2 text-muted-foreground">
+                A single dashboard for your body, energy, and goals.
+              </p>
+            </div>
+            <div className="mx-auto max-w-3xl rounded-2xl border bg-card p-6 shadow-lg">
+              <div className="grid gap-4 sm:grid-cols-3">
+                <div className="flex flex-col items-center gap-3 rounded-xl bg-muted/60 p-5 text-center">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+                    <Dumbbell className="h-6 w-6 text-primary" />
+                  </div>
+                  <h3 className="text-sm font-semibold">Body</h3>
+                  <p className="text-xs text-muted-foreground">Log workouts, track sets & reps, monitor progress</p>
+                </div>
+                <div className="flex flex-col items-center gap-3 rounded-xl bg-muted/60 p-5 text-center">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+                    <Utensils className="h-6 w-6 text-primary" />
+                  </div>
+                  <h3 className="text-sm font-semibold">Energy</h3>
+                  <p className="text-xs text-muted-foreground">Track meals, macros, sleep, and daily energy levels</p>
+                </div>
+                <div className="flex flex-col items-center gap-3 rounded-xl bg-muted/60 p-5 text-center">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+                    <TrendingUp className="h-6 w-6 text-primary" />
+                  </div>
+                  <h3 className="text-sm font-semibold">Goals</h3>
+                  <p className="text-xs text-muted-foreground">Set targets, track habits, see your progress over time</p>
+                </div>
+              </div>
+              <div className="mt-5 flex items-center justify-center gap-3 rounded-lg bg-primary/5 p-4">
+                <Smartphone className="h-5 w-5 text-primary" />
+                <p className="text-sm text-muted-foreground">
+                  Available as a <strong className="text-foreground">web app</strong>, <strong className="text-foreground">iOS</strong>, and <strong className="text-foreground">Android</strong>
+                </p>
+              </div>
+            </div>
+          </div>
+        </RevealSection>
       </section>
 
       {/* Features Grid */}
@@ -525,7 +575,14 @@ export function Landing() {
                 </div>
                 <Button
                   className="w-full"
-                  onClick={() => toast.info('Contact form coming soon! For now, email us at support@beme.app')}
+                  onClick={() => {
+                    const name = (document.getElementById('contact-name') as HTMLInputElement)?.value || '';
+                    const email = (document.getElementById('contact-email') as HTMLInputElement)?.value || '';
+                    const message = (document.getElementById('contact-message') as HTMLTextAreaElement)?.value || '';
+                    const subject = encodeURIComponent(`BeMe Contact: Message from ${name || 'Website Visitor'}`);
+                    const body = encodeURIComponent(`From: ${name}\nEmail: ${email}\n\n${message}`);
+                    window.location.href = `mailto:support@beme.app?subject=${subject}&body=${body}`;
+                  }}
                 >
                   Send Message
                 </Button>
