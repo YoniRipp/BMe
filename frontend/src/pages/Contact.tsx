@@ -21,7 +21,7 @@ export function Contact() {
           <h2 className="text-lg font-semibold text-foreground mb-2">Get in Touch</h2>
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Mail className="h-4 w-4" />
-            <span>support@beme.life</span>
+            <span>support@beme.app</span>
           </div>
         </div>
         <div>
