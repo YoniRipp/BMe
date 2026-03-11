@@ -20,7 +20,6 @@ import {
   Mail,
   Clock,
   Smartphone,
-  Moon,
   Utensils,
   TrendingUp,
 } from 'lucide-react';
