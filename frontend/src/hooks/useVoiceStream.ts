@@ -73,7 +73,6 @@ export function useVoiceStream(): UseVoiceStreamReturn {
 
   const isAvailable = isMediaRecorderSupported() && !!getVoiceStreamUrl('test');
 
-  console.log(TAG, 'hook render — isAvailable:', isAvailable, 'isListening:', isListening, 'isProcessing:', isProcessing);
 
   const startListening = useCallback(async (): Promise<void> => {
     console.log(TAG, 'startListening called — isAvailable:', isAvailable, 'isListeningRef:', isListeningRef.current, 'isStartingRef:', isStartingRef.current);
