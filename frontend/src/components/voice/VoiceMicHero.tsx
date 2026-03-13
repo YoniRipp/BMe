@@ -8,6 +8,7 @@ import { useSubscription } from '@/hooks/useSubscription';
 import { cn } from '@/lib/utils';
 
 const VOICE_USED_KEY = 'beme_voice_used';
+const TAG = '[VoiceMicHero]';
 
 export function VoiceMicHero() {
   const { isPro, subscribe } = useSubscription();
@@ -17,6 +18,7 @@ export function VoiceMicHero() {
   const statusTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
   const busyRef = useRef(false);
   const stoppingRef = useRef(false);
+  const startAbortRef = useRef(false);
 
   const { processVoiceResult, showResultToasts } = useVoiceActions();
 
@@ -51,8 +53,20 @@ export function VoiceMicHero() {
   }, [isListening, isProcessing]);
 
   const handleMicClick = useCallback(async () => {
+    console.log(TAG, 'handleMicClick — isPro:', isPro, 'busyRef:', busyRef.current, 'isListeningRef:', isListeningRef.current, 'isListening:', isListening, 'isAvailable:', isAvailable);
+
     if (!isPro) {
       subscribe();
+      return;
+    }
+
+    // Allow cancelling a pending start
+    if (busyRef.current && !isListeningRef.current) {
+      console.log(TAG, 'CANCELLING pending start');
+      startAbortRef.current = true;
+      setIsStarting(false);
+      busyRef.current = false;
+      toast('Recording cancelled');
       return;
     }
 
@@ -87,32 +101,56 @@ export function VoiceMicHero() {
     }
 
     // Start uses busyRef to prevent double-start
-    if (busyRef.current) return;
+    if (busyRef.current) {
+      console.log(TAG, 'START blocked — busyRef is true');
+      return;
+    }
     busyRef.current = true;
+    console.log(TAG, 'entering START flow');
 
     try {
       if (!isAvailable) {
+        console.warn(TAG, 'voice not available');
         toast.error('Voice not available', { description: 'Microphone access required.' });
         return;
       }
 
       try {
         setIsStarting(true);
+        startAbortRef.current = false;
         if (!hasUsedVoice) {
           setHasUsedVoice(true);
           localStorage.setItem(VOICE_USED_KEY, '1');
         }
-        await startListening();
+        console.log(TAG, 'calling startListening (with 10s timeout)...');
+        await Promise.race([
+          startListening(),
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error('Start timed out. Please try again.')), 10_000)
+          ),
+        ]);
+        if (startAbortRef.current) {
+          console.log(TAG, 'startListening resolved but user already cancelled');
+          return;
+        }
+        console.log(TAG, 'startListening OK — now listening');
         // Sync update ref immediately — closes gap before busyRef resets
         isListeningRef.current = true;
       } catch (e) {
+        if (startAbortRef.current) {
+          console.log(TAG, 'startListening error but user already cancelled');
+          return;
+        }
+        console.error(TAG, 'startListening FAILED:', e);
         setStatusText('');
         toast.error('Could not start recording', { description: e instanceof Error ? e.message : 'Check microphone permissions.' });
       } finally {
         setIsStarting(false);
+        console.log(TAG, 'START flow done — isStarting=false');
       }
     } finally {
       busyRef.current = false;
+      console.log(TAG, 'busyRef released');
     }
   }, [isPro, subscribe, isAvailable, hasUsedVoice, startListening, stopListening, getVoiceResult, processVoiceResult, showResultToasts]);
 
@@ -123,7 +161,7 @@ export function VoiceMicHero() {
       <CardContent className="flex flex-col items-center gap-4 py-8">
         <button
           onClick={handleMicClick}
-          disabled={state === 'processing' || state === 'starting'}
+          disabled={state === 'processing'}
           className={cn(
             'relative flex h-24 w-24 items-center justify-center rounded-full transition-all',
             'bg-primary text-primary-foreground shadow-lg hover:shadow-xl hover:scale-105',
@@ -151,7 +189,7 @@ export function VoiceMicHero() {
             {!isPro
               ? 'Upgrade to Pro to track by voice'
               : state === 'starting'
-                ? 'Starting...'
+                ? 'Starting... Tap to cancel'
                 : state === 'listening'
                   ? 'Listening... Tap to stop'
                   : state === 'processing'
