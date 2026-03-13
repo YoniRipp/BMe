@@ -8,6 +8,7 @@ import { useSubscription } from '@/hooks/useSubscription';
 import { cn } from '@/lib/utils';
 
 const VOICE_USED_KEY = 'beme_voice_used';
+const TAG = '[VoiceMicHero]';
 
 export function VoiceMicHero() {
   const { isPro, subscribe } = useSubscription();
@@ -52,6 +53,8 @@ export function VoiceMicHero() {
   }, [isListening, isProcessing]);
 
   const handleMicClick = useCallback(async () => {
+    console.log(TAG, 'handleMicClick — isPro:', isPro, 'busyRef:', busyRef.current, 'isListeningRef:', isListeningRef.current, 'isListening:', isListening, 'isAvailable:', isAvailable);
+
     if (!isPro) {
       subscribe();
       return;
@@ -59,6 +62,7 @@ export function VoiceMicHero() {
 
     // Allow cancelling a pending start
     if (busyRef.current && !isListeningRef.current) {
+      console.log(TAG, 'CANCELLING pending start');
       startAbortRef.current = true;
       setIsStarting(false);
       busyRef.current = false;
@@ -97,11 +101,16 @@ export function VoiceMicHero() {
     }
 
     // Start uses busyRef to prevent double-start
-    if (busyRef.current) return;
+    if (busyRef.current) {
+      console.log(TAG, 'START blocked — busyRef is true');
+      return;
+    }
     busyRef.current = true;
+    console.log(TAG, 'entering START flow');
 
     try {
       if (!isAvailable) {
+        console.warn(TAG, 'voice not available');
         toast.error('Voice not available', { description: 'Microphone access required.' });
         return;
       }
@@ -113,24 +122,35 @@ export function VoiceMicHero() {
           setHasUsedVoice(true);
           localStorage.setItem(VOICE_USED_KEY, '1');
         }
+        console.log(TAG, 'calling startListening (with 10s timeout)...');
         await Promise.race([
           startListening(),
           new Promise<never>((_, reject) =>
             setTimeout(() => reject(new Error('Start timed out. Please try again.')), 10_000)
           ),
         ]);
-        if (startAbortRef.current) return; // user cancelled during start
+        if (startAbortRef.current) {
+          console.log(TAG, 'startListening resolved but user already cancelled');
+          return;
+        }
+        console.log(TAG, 'startListening OK — now listening');
         // Sync update ref immediately — closes gap before busyRef resets
         isListeningRef.current = true;
       } catch (e) {
-        if (startAbortRef.current) return; // user cancelled during start
+        if (startAbortRef.current) {
+          console.log(TAG, 'startListening error but user already cancelled');
+          return;
+        }
+        console.error(TAG, 'startListening FAILED:', e);
         setStatusText('');
         toast.error('Could not start recording', { description: e instanceof Error ? e.message : 'Check microphone permissions.' });
       } finally {
         setIsStarting(false);
+        console.log(TAG, 'START flow done — isStarting=false');
       }
     } finally {
       busyRef.current = false;
+      console.log(TAG, 'busyRef released');
     }
   }, [isPro, subscribe, isAvailable, hasUsedVoice, startListening, stopListening, getVoiceResult, processVoiceResult, showResultToasts]);
 

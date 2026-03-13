@@ -14,6 +14,8 @@ interface UseVoiceStreamReturn {
   getVoiceResult: () => Promise<VoiceUnderstandResult | null>;
 }
 
+const TAG = '[VoiceStream]';
+
 function isMediaRecorderSupported(): boolean {
   return typeof window !== 'undefined' && !!window.MediaRecorder;
 }
@@ -71,9 +73,15 @@ export function useVoiceStream(): UseVoiceStreamReturn {
 
   const isAvailable = isMediaRecorderSupported() && !!getVoiceStreamUrl('test');
 
+  console.log(TAG, 'hook render — isAvailable:', isAvailable, 'isListening:', isListening, 'isProcessing:', isProcessing);
+
   const startListening = useCallback(async (): Promise<void> => {
+    console.log(TAG, 'startListening called — isAvailable:', isAvailable, 'isListeningRef:', isListeningRef.current, 'isStartingRef:', isStartingRef.current);
     if (!isAvailable) throw new Error('Voice streaming not available');
-    if (isListeningRef.current || isStartingRef.current) return;
+    if (isListeningRef.current || isStartingRef.current) {
+      console.log(TAG, 'startListening SKIPPED (already listening or starting)');
+      return;
+    }
 
     // Tear down any orphaned session from a previous attempt
     cleanup();
@@ -84,28 +92,36 @@ export function useVoiceStream(): UseVoiceStreamReturn {
 
     try {
       const token = getToken();
+      console.log(TAG, 'token:', token ? 'present' : 'MISSING');
       if (!token) throw new Error('Authentication required');
 
       const wsUrl = getVoiceStreamUrl(token);
+      console.log(TAG, 'wsUrl:', wsUrl ? wsUrl.replace(/token=.*/, 'token=***') : 'MISSING');
       if (!wsUrl) throw new Error('Voice streaming not configured');
 
       // Get microphone first
+      console.log(TAG, 'requesting getUserMedia...');
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      console.log(TAG, 'getUserMedia OK — tracks:', stream.getTracks().length);
       streamRef.current = stream;
 
       const mimeType = getPreferredAudioMimeType();
+      console.log(TAG, 'mimeType:', mimeType);
 
       // Open WebSocket
+      console.log(TAG, 'opening WebSocket...');
       const ws = new WebSocket(wsUrl);
       wsRef.current = ws;
 
       await new Promise<void>((resolve, reject) => {
         const timeout = setTimeout(() => {
+          console.error(TAG, 'WebSocket connection TIMEOUT (5s)');
           reject(new Error('WebSocket connection timeout'));
           ws.close();
         }, 5000);
 
         ws.onopen = () => {
+          console.log(TAG, 'WebSocket OPEN — sending start message');
           clearTimeout(timeout);
           ws.send(JSON.stringify({
             type: 'start',
@@ -118,25 +134,32 @@ export function useVoiceStream(): UseVoiceStreamReturn {
         ws.onmessage = (event) => {
           try {
             const msg = JSON.parse(event.data);
+            console.log(TAG, 'setup message:', msg.type, msg.message ?? '');
             if (msg.type === 'ready') {
+              console.log(TAG, 'received READY — resolving setup');
               resolve();
             } else if (msg.type === 'error') {
+              console.error(TAG, 'setup ERROR from server:', msg.message);
               clearTimeout(timeout);
               reject(new Error(msg.message ?? 'Voice streaming failed'));
             }
           } catch { /* ignore parse errors during setup */ }
         };
 
-        ws.onerror = () => {
+        ws.onerror = (ev) => {
+          console.error(TAG, 'WebSocket ERROR during setup', ev);
           clearTimeout(timeout);
           reject(new Error('WebSocket connection failed'));
         };
       });
 
+      console.log(TAG, 'WebSocket setup complete — installing ongoing handlers');
+
       // Set up ongoing message handler (replaces the setup one)
       ws.onmessage = (event) => {
         try {
           const msg = JSON.parse(event.data);
+          console.log(TAG, 'ws message:', msg.type);
 
           if (msg.type === 'transcript') {
             if (isMountedRef.current) setCurrentTranscript(msg.text ?? '');
@@ -144,16 +167,19 @@ export function useVoiceStream(): UseVoiceStreamReturn {
 
           if (msg.type === 'action') {
             const intent = msg.action?.intent;
+            console.log(TAG, 'action intent:', intent);
             if (intent && intent !== 'unknown' && isMountedRef.current) {
               setCurrentTranscript(`Detected: ${intent.replace(/_/g, ' ')}`);
             }
           }
 
           if (msg.type === 'done') {
+            console.log(TAG, 'received DONE — actions:', msg.actions?.length ?? 0);
             let result: ReturnType<typeof parseVoiceResult>;
             try {
               result = parseVoiceResult(msg);
-            } catch {
+            } catch (e) {
+              console.error(TAG, 'parseVoiceResult failed:', e);
               result = { actions: [{ intent: 'unknown', message: 'Failed to parse voice result' }] };
             }
             lastResultRef.current = result;
@@ -168,15 +194,19 @@ export function useVoiceStream(): UseVoiceStreamReturn {
           }
 
           if (msg.type === 'error') {
+            console.error(TAG, 'ws error message:', msg.message);
             if (isMountedRef.current) setIsProcessing(false);
             doneRejectRef.current?.(new Error(msg.message ?? 'Voice processing failed'));
             doneResolveRef.current = null;
             doneRejectRef.current = null;
           }
-        } catch { /* ignore parse errors */ }
+        } catch (e) {
+          console.error(TAG, 'ws onmessage parse error:', e);
+        }
       };
 
-      ws.onerror = () => {
+      ws.onerror = (ev) => {
+        console.error(TAG, 'WebSocket ERROR during streaming', ev);
         doneRejectRef.current?.(new Error('WebSocket error during streaming'));
         cleanup();
         if (isMountedRef.current) {
@@ -185,7 +215,8 @@ export function useVoiceStream(): UseVoiceStreamReturn {
         }
       };
 
-      ws.onclose = () => {
+      ws.onclose = (ev) => {
+        console.log(TAG, 'WebSocket CLOSED — code:', ev.code, 'reason:', ev.reason);
         doneRejectRef.current?.(new Error('Connection closed'));
         doneResolveRef.current = null;
         doneRejectRef.current = null;
@@ -207,17 +238,20 @@ export function useVoiceStream(): UseVoiceStreamReturn {
       };
 
       recorder.onerror = () => {
+        console.error(TAG, 'MediaRecorder ERROR');
         cleanup();
         if (isMountedRef.current) setIsListening(false);
       };
 
       recorder.start(250);
+      console.log(TAG, 'MediaRecorder started — now LISTENING');
       isListeningRef.current = true;
       if (isMountedRef.current) {
         setIsListening(true);
         setCurrentTranscript('Streaming...');
       }
     } catch (err) {
+      console.error(TAG, 'startListening FAILED:', err);
       // If anything fails during setup, clean up all resources
       cleanup();
       if (isMountedRef.current) {
@@ -231,13 +265,16 @@ export function useVoiceStream(): UseVoiceStreamReturn {
   }, [isAvailable, cleanup]);
 
   const stopListening = useCallback(async (): Promise<string> => {
+    console.log(TAG, 'stopListening called');
     // Stop MediaRecorder
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
       mediaRecorderRef.current.stop();
+      console.log(TAG, 'MediaRecorder stopped');
     }
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((t) => t.stop());
       streamRef.current = null;
+      console.log(TAG, 'audio tracks stopped');
     }
     mediaRecorderRef.current = null;
     isListeningRef.current = false;
@@ -249,8 +286,10 @@ export function useVoiceStream(): UseVoiceStreamReturn {
     // Signal end of audio to backend
     const ws = wsRef.current;
     if (ws?.readyState === WebSocket.OPEN) {
+      console.log(TAG, 'sending stop message to backend');
       ws.send(JSON.stringify({ type: 'stop' }));
     } else {
+      console.log(TAG, 'WebSocket not open (readyState:', ws?.readyState, ') — skipping stop message');
       // WebSocket already closed — no point waiting for 'done'
       cleanup();
       if (isMountedRef.current) setIsProcessing(false);
@@ -258,6 +297,7 @@ export function useVoiceStream(): UseVoiceStreamReturn {
     }
 
     // Wait for 'done' message from server
+    console.log(TAG, 'waiting for done message (15s timeout)...');
     return new Promise<string>((resolve, reject) => {
       doneResolveRef.current = resolve;
       doneRejectRef.current = reject;
@@ -265,6 +305,7 @@ export function useVoiceStream(): UseVoiceStreamReturn {
       // Timeout fallback
       setTimeout(() => {
         if (doneResolveRef.current) {
+          console.error(TAG, 'stopListening TIMEOUT (15s) — server never sent done');
           doneRejectRef.current?.(new Error('Voice streaming timed out'));
           doneResolveRef.current = null;
           doneRejectRef.current = null;
