@@ -7,10 +7,12 @@ export interface ChatMessage {
   created_at: string;
 }
 
-export interface AgentResponse {
+export interface ChatResponse {
   text: string;
   actions: Array<{ intent: string; success: boolean; message: string; [key: string]: unknown }>;
 }
+
+export type AgentResponse = ChatResponse;
 
 export const chatApi = {
   sendMessage: (message: string): Promise<ChatResponse> =>

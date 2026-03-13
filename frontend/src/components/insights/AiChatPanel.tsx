@@ -46,7 +46,7 @@ export function AiChatPanel({ open, onOpenChange }: AiChatPanelProps) {
 
       // If the agent executed any actions, refresh affected data
       if (data.actions?.length > 0) {
-        const intents = new Set(data.actions.filter(a => a.success).map(a => a.intent));
+        const intents = new Set(data.actions.filter((a: { success: boolean }) => a.success).map((a: { intent: string }) => a.intent));
         if (intents.has('add_workout') || intents.has('edit_workout') || intents.has('delete_workout')) {
           void queryClient.invalidateQueries({ queryKey: ['workouts'] });
         }
