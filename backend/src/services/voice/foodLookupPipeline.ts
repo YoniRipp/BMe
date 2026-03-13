@@ -7,6 +7,7 @@ import { isDbConfigured, getPool } from '../../db/index.js';
 import { getNutritionForFoodName, unitToGrams } from '../../models/foodSearch.js';
 import { lookupAndCreateFood } from '../foodLookupGemini.js';
 import { logger } from '../../lib/logger.js';
+import { recordFoodLookup } from '../../lib/metrics.js';
 
 export interface NutritionResult {
   name: string;
@@ -35,6 +36,7 @@ export async function lookupNutrition(foodName: string, amount: number, unit: st
   const name = foodName?.trim() || 'Unknown';
 
   if (!isDbConfigured()) {
+    recordFoodLookup('fallback');
     return { name: normalizeRawCooked(name), calories: 0, protein: 0, carbs: 0, fats: 0, source: 'fallback' };
   }
 
@@ -45,6 +47,7 @@ export async function lookupNutrition(foodName: string, amount: number, unit: st
     // Tier 1: Local database
     const dbResult = await getNutritionForFoodName(pool, name, amount, unit, preferUncooked);
     if (dbResult) {
+      recordFoodLookup('db');
       return {
         name: dbResult.name,
         calories: dbResult.calories,
@@ -59,6 +62,7 @@ export async function lookupNutrition(foodName: string, amount: number, unit: st
     if (config.geminiApiKey) {
       const geminiRow = await lookupAndCreateFood(pool, name);
       if (geminiRow) {
+        recordFoodLookup('gemini');
         const grams = unitToGrams(amount, unit);
         const scale = grams / 100;
         const displayName = (geminiRow.name || '').replace(/\braw\b/gi, 'uncooked');
@@ -74,9 +78,11 @@ export async function lookupNutrition(foodName: string, amount: number, unit: st
     }
 
     // Fallback: no nutrition data found
+    recordFoodLookup('fallback');
     return { name: normalizeRawCooked(name), calories: 0, protein: 0, carbs: 0, fats: 0, source: 'fallback' };
   } catch (e) {
     logger.error({ err: e }, 'Food lookup pipeline error');
+    recordFoodLookup('fallback');
     return { name: normalizeRawCooked(name), calories: 0, protein: 0, carbs: 0, fats: 0, source: 'fallback' };
   }
 }

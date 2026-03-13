@@ -9,6 +9,7 @@ import { publishEvent } from '../events/publish.js';
 import { executeActions } from './voiceExecutor.js';
 import { VOICE_TOOLS } from '../../voice/tools.js';
 import { getGeminiModel, processGeminiResponse } from './voice/geminiClient.js';
+import { recordGeminiCall } from '../lib/metrics.js';
 
 // Re-export for voice worker and Live API
 export { HANDLERS } from './voice/actionBuilders.js';
@@ -69,9 +70,12 @@ async function parseWithGemini(
 ) {
   const model = getGeminiModel();
   let result;
+  const geminiStart = Date.now();
   try {
     result = await model.generateContent({ contents: contents as never, tools: VOICE_TOOLS as never });
+    recordGeminiCall(Date.now() - geminiStart, true);
   } catch (e) {
+    recordGeminiCall(Date.now() - geminiStart, false);
     logger.error({ err: e }, 'Gemini voice parse error');
     if (transcriptForFallback) return fallbackOrUnknown(transcriptForFallback, ctx.todayStr, (e as Error)?.message ?? String(e), userId);
     return { actions: [{ intent: 'unknown' }] };
