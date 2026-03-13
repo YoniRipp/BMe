@@ -4,6 +4,7 @@
 import { createClient } from 'redis';
 import { config } from '../config/index.js';
 import { logger } from '../lib/logger.js';
+import { recordRedisReconnect } from '../lib/metrics.js';
 
 type RedisClient = ReturnType<typeof createClient>;
 
@@ -28,6 +29,7 @@ export async function getRedisClient() {
     });
     client.on('reconnecting', () => {
       logger.info('Redis reconnecting');
+      recordRedisReconnect();
       redisConnected = false;
     });
     client.on('ready', () => {

@@ -6,6 +6,7 @@ import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from '@google/ge
 import { z } from 'zod';
 import { config } from '../config/index.js';
 import { logger } from '../lib/logger.js';
+import { recordGeminiCall } from '../lib/metrics.js';
 
 const FOOD_LOOKUP_PROMPT = `You are a nutrition data assistant. Given a food or drink name, return exactly one JSON object (no array, no markdown, no code fence) with nutrition per 100g for solid foods or per 100ml for liquids.
 
@@ -110,12 +111,15 @@ export async function lookupAndCreateFood(pool: { query: (sql: string, params: u
   const prompt = `${FOOD_LOOKUP_PROMPT}\n\nFood or drink name: ${name}`;
 
   let text;
+  const geminiStart = Date.now();
   try {
     const result = await model.generateContent({ contents: [{ role: 'user', parts: [{ text: prompt }] }] });
+    recordGeminiCall(Date.now() - geminiStart, true);
     const response = result.response;
     if (!response || !response.text) return null;
     text = response.text();
   } catch (e: unknown) {
+    recordGeminiCall(Date.now() - geminiStart, false);
     logger.error({ err: e }, 'foodLookupGemini generateContent');
     return null;
   }

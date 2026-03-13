@@ -6,6 +6,7 @@ import { config } from '../config/index.js';
 import { getRedisClient } from '../redis/client.js';
 import * as voiceService from '../services/voice.js';
 import { logger } from '../lib/logger.js';
+import { recordVoiceJob } from '../lib/metrics.js';
 
 export function startVoiceWorker() {
   const worker = new Worker(
@@ -18,11 +19,14 @@ export function startVoiceWorker() {
         return;
       }
 
+      const startTime = Date.now();
       try {
         const data = await voiceService.parseAudio(audio, mimeType, userId, {
           today: today || new Date().toISOString().slice(0, 10),
           timezone: timezone || 'UTC',
         });
+
+        recordVoiceJob(Date.now() - startTime, true);
 
         await redis.setEx(
           `job:${jobId}`,
@@ -34,6 +38,7 @@ export function startVoiceWorker() {
           })
         );
       } catch (e: unknown) {
+        recordVoiceJob(Date.now() - startTime, false);
         logger.error({ err: e, jobId }, 'Voice job failed');
         await redis.setEx(
           `job:${jobId}`,

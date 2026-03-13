@@ -10,6 +10,7 @@ import * as foodSearchModel from '../models/foodSearch.js';
 import { lookupAndCreateFood } from '../services/foodLookupGemini.js';
 import { sendJson } from '../utils/response.js';
 import { sendError } from '../utils/response.js';
+import { recordCacheHit, recordCacheMiss } from '../lib/metrics.js';
 
 const FOOD_SEARCH_CACHE_TTL_SEC = 3600;
 
@@ -29,11 +30,13 @@ export const search = asyncHandler(async (req: Request, res: Response) => {
       const cacheKey = `food:search:${encodeURIComponent(q)}:${limit}`;
       const cached = await redis.get(cacheKey);
       if (cached) {
+        recordCacheHit();
         return sendJson(res, JSON.parse(cached));
       }
     }
   }
 
+  recordCacheMiss();
   const results = await foodSearchModel.search(q, limit);
 
   if (config.isRedisConfigured) {
