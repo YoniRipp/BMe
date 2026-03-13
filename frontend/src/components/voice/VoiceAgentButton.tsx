@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Mic, Loader2, Lock, MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -20,6 +20,8 @@ export function VoiceAgentButton({ panelOpen, onTogglePanel }: VoiceAgentButtonP
   const { isPro } = useSubscription();
   const { processVoiceResult, showResultToasts } = useVoiceActions();
   const [chatOpen, setChatOpen] = useState(false);
+  const [isStarting, setIsStarting] = useState(false);
+  const busyRef = useRef(false);
 
   const {
     isAvailable,
@@ -34,6 +36,16 @@ export function VoiceAgentButton({ panelOpen, onTogglePanel }: VoiceAgentButtonP
   const isListeningRef = useRef(isListening);
   isListeningRef.current = isListening;
 
+  // Detect when recording stops unexpectedly (e.g. WebSocket closes)
+  const wasListeningRef = useRef(false);
+  useEffect(() => {
+    if (isListening) {
+      wasListeningRef.current = true;
+    } else if (wasListeningRef.current && !isProcessing) {
+      wasListeningRef.current = false;
+    }
+  }, [isListening, isProcessing]);
+
   const handleMicClick = useCallback(async () => {
     if (onTogglePanel != null) {
       onTogglePanel();
@@ -45,39 +57,50 @@ export function VoiceAgentButton({ panelOpen, onTogglePanel }: VoiceAgentButtonP
       return;
     }
 
-    if (isListeningRef.current) {
-      try {
-        await stopListening();
-        const result = await getVoiceResult();
-
-        if (!result || result.actions.length === 0 || result.actions[0].intent === 'unknown') {
-          toast.error('No speech captured or not understood. Try again.');
-          return;
-        }
-
-        const processResult = await processVoiceResult(result);
-        showResultToasts(processResult);
-      } catch (e) {
-        const msg = e instanceof Error ? e.message : 'Network or server error. Please try again.';
-        toast.error('Voice processing failed', { description: msg });
-      }
-      return;
-    }
-
-    if (!isAvailable) {
-      toast.error('Voice not available', { description: 'Microphone access required. Please use Chrome or Edge.' });
-      return;
-    }
+    // Prevent concurrent execution
+    if (busyRef.current) return;
+    busyRef.current = true;
 
     try {
-      await startListening();
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Could not start listening. Please check microphone permissions.';
-      toast.error('Could not start recording', { description: msg });
+      if (isListeningRef.current) {
+        try {
+          await stopListening();
+          const result = await getVoiceResult();
+
+          if (!result || result.actions.length === 0 || result.actions[0].intent === 'unknown') {
+            toast.error('No speech captured or not understood. Try again.');
+            return;
+          }
+
+          const processResult = await processVoiceResult(result);
+          showResultToasts(processResult);
+        } catch (e) {
+          const msg = e instanceof Error ? e.message : 'Network or server error. Please try again.';
+          toast.error('Voice processing failed', { description: msg });
+        }
+        return;
+      }
+
+      if (!isAvailable) {
+        toast.error('Voice not available', { description: 'Microphone access required. Please use Chrome or Edge.' });
+        return;
+      }
+
+      try {
+        setIsStarting(true);
+        await startListening();
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : 'Could not start listening. Please check microphone permissions.';
+        toast.error('Could not start recording', { description: msg });
+      } finally {
+        setIsStarting(false);
+      }
+    } finally {
+      busyRef.current = false;
     }
   }, [onTogglePanel, isPro, isAvailable, startListening, stopListening, getVoiceResult, processVoiceResult, showResultToasts]);
 
-  const state = isListening ? 'listening' : isProcessing ? 'processing' : 'idle';
+  const state = isStarting ? 'starting' : isListening ? 'listening' : isProcessing ? 'processing' : 'idle';
   const isActive = onTogglePanel != null ? panelOpen : state === 'listening' || state === 'processing';
 
   // Home page has VoiceMicHero instead of this floating button
@@ -128,9 +151,9 @@ export function VoiceAgentButton({ panelOpen, onTogglePanel }: VoiceAgentButtonP
                 : 'Start voice input'
         }
         onClick={handleMicClick}
-        disabled={onTogglePanel == null && state === 'processing'}
+        disabled={onTogglePanel == null && (state === 'processing' || state === 'starting')}
       >
-        {onTogglePanel == null && state === 'processing' ? (
+        {onTogglePanel == null && (state === 'processing' || state === 'starting') ? (
           <Loader2 className="h-6 w-6 animate-spin" />
         ) : !isPro ? (
           <div className="relative">

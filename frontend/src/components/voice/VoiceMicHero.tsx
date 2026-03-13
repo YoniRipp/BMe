@@ -12,8 +12,10 @@ const VOICE_USED_KEY = 'beme_voice_used';
 export function VoiceMicHero() {
   const { isPro, subscribe } = useSubscription();
   const [statusText, setStatusText] = useState('');
+  const [isStarting, setIsStarting] = useState(false);
   const [hasUsedVoice, setHasUsedVoice] = useState(() => localStorage.getItem(VOICE_USED_KEY) === '1');
   const statusTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
+  const busyRef = useRef(false);
 
   const { processVoiceResult, showResultToasts } = useVoiceActions();
 
@@ -35,73 +37,97 @@ export function VoiceMicHero() {
   const isListeningRef = useRef(isListening);
   isListeningRef.current = isListening;
 
+  // Clear stale status when recording stops unexpectedly (e.g. WebSocket closes)
+  const wasListeningRef = useRef(false);
+  useEffect(() => {
+    if (isListening) {
+      wasListeningRef.current = true;
+    } else if (wasListeningRef.current && !isProcessing) {
+      // Was listening, now idle — recording stopped without user action
+      wasListeningRef.current = false;
+      setStatusText('');
+    }
+  }, [isListening, isProcessing]);
+
   const handleMicClick = useCallback(async () => {
     if (!isPro) {
       subscribe();
       return;
     }
 
-    if (isListeningRef.current) {
-      try {
-        setStatusText('Processing...');
-        await stopListening();
-        const result = await getVoiceResult();
-
-        if (!result || result.actions.length === 0 || result.actions[0].intent === 'unknown') {
-          setStatusText('');
-          toast.error('No speech captured or not understood. Try again.');
-          return;
-        }
-
-        const processResult = await processVoiceResult(result);
-        const msg = showResultToasts(processResult);
-        setStatusText(msg || (processResult.failed.length > 0 ? `${processResult.failed.length} failed` : ''));
-
-        clearTimeout(statusTimeoutRef.current);
-        statusTimeoutRef.current = setTimeout(() => setStatusText(''), 5000);
-      } catch (e) {
-        setStatusText('');
-        toast.error('Voice processing failed', { description: e instanceof Error ? e.message : 'Please try again.' });
-      }
-      return;
-    }
-
-    if (!isAvailable) {
-      toast.error('Voice not available', { description: 'Microphone access required.' });
-      return;
-    }
+    // Prevent concurrent execution (e.g. tapping while startListening is pending)
+    if (busyRef.current) return;
+    busyRef.current = true;
 
     try {
-      setStatusText('Listening...');
-      if (!hasUsedVoice) {
-        setHasUsedVoice(true);
-        localStorage.setItem(VOICE_USED_KEY, '1');
-      }
-      await startListening();
-    } catch (e) {
-      setStatusText('');
-      toast.error('Could not start recording', { description: e instanceof Error ? e.message : 'Check microphone permissions.' });
-    }
-  }, [isPro, subscribe, isAvailable, startListening, stopListening, getVoiceResult, processVoiceResult, showResultToasts]);
+      if (isListeningRef.current) {
+        try {
+          setStatusText('Processing...');
+          await stopListening();
+          const result = await getVoiceResult();
 
-  const state = isListening ? 'listening' : isProcessing ? 'processing' : 'idle';
+          if (!result || result.actions.length === 0 || result.actions[0].intent === 'unknown') {
+            setStatusText('');
+            toast.error('No speech captured or not understood. Try again.');
+            return;
+          }
+
+          const processResult = await processVoiceResult(result);
+          const msg = showResultToasts(processResult);
+          setStatusText(msg || (processResult.failed.length > 0 ? `${processResult.failed.length} failed` : ''));
+
+          clearTimeout(statusTimeoutRef.current);
+          statusTimeoutRef.current = setTimeout(() => setStatusText(''), 5000);
+        } catch (e) {
+          setStatusText('');
+          toast.error('Voice processing failed', { description: e instanceof Error ? e.message : 'Please try again.' });
+        }
+        return;
+      }
+
+      if (!isAvailable) {
+        toast.error('Voice not available', { description: 'Microphone access required.' });
+        return;
+      }
+
+      try {
+        setIsStarting(true);
+        if (!hasUsedVoice) {
+          setHasUsedVoice(true);
+          localStorage.setItem(VOICE_USED_KEY, '1');
+        }
+        await startListening();
+        // isListening is now true — state-driven UI shows "Listening... Tap to stop"
+      } catch (e) {
+        setStatusText('');
+        toast.error('Could not start recording', { description: e instanceof Error ? e.message : 'Check microphone permissions.' });
+      } finally {
+        setIsStarting(false);
+      }
+    } finally {
+      busyRef.current = false;
+    }
+  }, [isPro, subscribe, isAvailable, hasUsedVoice, startListening, stopListening, getVoiceResult, processVoiceResult, showResultToasts]);
+
+  const state = isStarting ? 'starting' : isListening ? 'listening' : isProcessing ? 'processing' : 'idle';
 
   return (
     <Card className="overflow-hidden bg-gradient-to-br from-card to-primary/5">
       <CardContent className="flex flex-col items-center gap-4 py-8">
         <button
           onClick={handleMicClick}
-          disabled={state === 'processing'}
+          disabled={state === 'processing' || state === 'starting'}
           className={cn(
             'relative flex h-24 w-24 items-center justify-center rounded-full transition-all',
             'bg-primary text-primary-foreground shadow-lg hover:shadow-xl hover:scale-105',
             state === 'listening' && 'animate-pulse ring-4 ring-primary/30 scale-110',
+            state === 'starting' && 'animate-pulse opacity-70',
             state === 'processing' && 'opacity-70',
             !isPro && 'bg-muted text-muted-foreground hover:bg-muted/80',
           )}
           aria-label={isPro ? (state === 'listening' ? 'Stop recording' : 'Start voice input') : 'Upgrade to Pro for voice input'}
         >
-          {state === 'processing' ? (
+          {(state === 'processing' || state === 'starting') ? (
             <Loader2 className="h-10 w-10 animate-spin" />
           ) : !isPro ? (
             <div className="relative">
@@ -117,11 +143,13 @@ export function VoiceMicHero() {
           <p className="text-sm font-medium text-foreground">
             {!isPro
               ? 'Upgrade to Pro to track by voice'
-              : state === 'listening'
-                ? 'Listening... Tap to stop'
-                : state === 'processing'
-                  ? 'Processing your voice...'
-                  : 'Tap to log by voice'}
+              : state === 'starting'
+                ? 'Starting...'
+                : state === 'listening'
+                  ? 'Listening... Tap to stop'
+                  : state === 'processing'
+                    ? 'Processing your voice...'
+                    : 'Tap to log by voice'}
           </p>
           {isPro && state === 'idle' && !statusText && !hasUsedVoice && (
             <p className="mt-1 text-xs text-muted-foreground">
