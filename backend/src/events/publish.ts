@@ -14,10 +14,12 @@ import { voiceContext } from '../lib/voiceContext.js';
  * @param {{ correlationId?: string; causationId?: string }} [meta]
  */
 type PublishMeta = { correlationId?: string; causationId?: string };
-export async function publishEvent(type: string, payload: Record<string, unknown>, userId: string, meta: PublishMeta = {}) {
+export async function publishEvent(type: string, payload: Record<string, unknown> | object, userId: string, meta: PublishMeta = {}) {
   const correlationId = meta.correlationId ?? getRequestId();
   const store = voiceContext.getStore();
-  const enrichedPayload = store ? { ...payload, source: store.source } : payload;
+  const enrichedPayload: Record<string, unknown> = store
+    ? { ...(payload as Record<string, unknown>), source: store.source }
+    : (payload as Record<string, unknown>);
   await busPublish({
     eventId: crypto.randomUUID(),
     type,

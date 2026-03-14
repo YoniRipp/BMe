@@ -93,6 +93,19 @@ vi.mock('../db/index.js', () => ({
   isDbConfigured: vi.fn().mockReturnValue(true),
 }));
 
+const mockResolveWorkout = vi.fn();
+const mockResolveCheckIn = vi.fn();
+
+vi.mock('./voice/resolvers.js', () => ({
+  resolveWorkout: (...args: unknown[]) => mockResolveWorkout(...args),
+  resolveFoodEntry: vi.fn(),
+  resolveCheckIn: (...args: unknown[]) => mockResolveCheckIn(...args),
+  resolveGoal: vi.fn(),
+  resolveWeightEntry: vi.fn(),
+  resolveCycleEntry: vi.fn(),
+  resolveClientId: vi.fn(),
+}));
+
 import { isDbConfigured } from '../db/index.js';
 
 describe('voiceExecutor', () => {
@@ -161,7 +174,7 @@ describe('voiceExecutor', () => {
 
   describe('edit_workout', () => {
     it('returns failure when workout not found', async () => {
-      mockWorkoutList.mockResolvedValue({ data: [], total: 0 });
+      mockResolveWorkout.mockResolvedValue(null);
 
       const results = await executeActions(
         [{ intent: 'edit_workout', workoutTitle: 'Unknown', title: 'New Title' }],
@@ -208,7 +221,7 @@ describe('voiceExecutor', () => {
 
   describe('log_sleep', () => {
     it('creates check-in when none exists', async () => {
-      mockDailyCheckInList.mockResolvedValue({ data: [], total: 0 });
+      mockResolveCheckIn.mockResolvedValue(null);
       mockDailyCheckInCreate.mockResolvedValue(undefined);
 
       const results = await executeActions(
@@ -225,7 +238,7 @@ describe('voiceExecutor', () => {
 
     it('updates check-in when one exists for date', async () => {
       const existing = { id: 'c1', date: '2025-02-24', sleepHours: 6 };
-      mockDailyCheckInList.mockResolvedValue({ data: [existing], total: 1 });
+      mockResolveCheckIn.mockResolvedValue(existing);
       mockDailyCheckInUpdate.mockResolvedValue(undefined);
 
       const results = await executeActions(
