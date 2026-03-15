@@ -229,6 +229,8 @@ function TodayRecommendations() {
 
 // ─── Main Section ──────────────────────────────────────────────────────────────
 
+const ALL_PERIODS = [7, 14, 30, 90] as const;
+
 export function AiInsightsSection() {
   const queryClient = useQueryClient();
   const [periodDays, setPeriodDays] = useState(30);
@@ -240,15 +242,35 @@ export function AiInsightsSection() {
     staleTime: 15 * 60 * 1000, // 15 min cache
   });
 
+  // Prefetch all other periods once the initial query succeeds
+  const prefetchedRef = useRef(false);
+  useEffect(() => {
+    if (data && !prefetchedRef.current) {
+      prefetchedRef.current = true;
+      const otherPeriods = ALL_PERIODS.filter(d => d !== periodDays);
+      for (const days of otherPeriods) {
+        void queryClient.prefetchQuery({
+          queryKey: ['ai-insights', days],
+          queryFn: () => aiInsightsApi.getInsights(days),
+          staleTime: 15 * 60 * 1000,
+        });
+      }
+    }
+  }, [data, periodDays, queryClient]);
+
   const autoRefreshTriggered = useRef(false);
 
   const refreshMutation = useMutation({
     mutationFn: () => aiInsightsApi.refreshInsights(periodDays),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['ai-insights', periodDays] });
+      // Invalidate all period caches so they refetch the newly preloaded data
+      for (const days of ALL_PERIODS) {
+        void queryClient.invalidateQueries({ queryKey: ['ai-insights', days] });
+      }
       void queryClient.invalidateQueries({ queryKey: ['ai-today-recs'] });
       void queryClient.invalidateQueries({ queryKey: ['ai-insights-freshness'] });
       autoRefreshTriggered.current = false;
+      prefetchedRef.current = false; // allow re-prefetch after refresh
     },
   });
 
@@ -272,6 +294,15 @@ export function AiInsightsSection() {
     }
   }, [freshness?.needsRefresh, refreshMutation.isPending, isLoading, data]);
 
+  // Smart refresh: skip if nothing has changed
+  const handleRefresh = () => {
+    if (freshness && !freshness.needsRefresh) {
+      // Nothing changed — no-op, don't call the backend
+      return;
+    }
+    refreshMutation.mutate();
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-4 flex-wrap">
@@ -285,7 +316,7 @@ export function AiInsightsSection() {
             variant="outline"
             size="sm"
             disabled={isLoading || refreshMutation.isPending}
-            onClick={() => refreshMutation.mutate()}
+            onClick={handleRefresh}
           >
             <RefreshCw
               className={cn('w-4 h-4 mr-1.5', (isLoading || refreshMutation.isPending) && 'animate-spin')}
@@ -335,7 +366,7 @@ export function AiInsightsSection() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => refreshMutation.mutate()}
+                onClick={handleRefresh}
                 disabled={refreshMutation.isPending}
               >
                 <RefreshCw className={cn('w-4 h-4 mr-1.5', refreshMutation.isPending && 'animate-spin')} />
