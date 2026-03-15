@@ -488,5 +488,51 @@ Return exactly this JSON (no markdown, raw JSON):
   }
 }
 
+// ─── Freshness helpers ──────────────────────────────────────────────────────
+
+const ALL_PERIODS = [7, 14, 30, 90] as const;
+
+/**
+ * Check whether the user has logged any activity since the last insight was generated
+ * for a specific period (or globally if no period is specified).
+ */
+export async function hasNewActivitySinceLastInsight(userId: string, days?: number): Promise<boolean> {
+  const pool = getPool();
+  const [activityResult, insightResult] = await Promise.all([
+    pool.query(
+      `SELECT created_at FROM user_activity_log WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1`,
+      [userId],
+    ),
+    pool.query(
+      `SELECT created_at FROM ai_insights WHERE user_id = $1 ${days != null ? 'AND period_days = $2' : ''} ORDER BY created_at DESC LIMIT 1`,
+      days != null ? [userId, days] : [userId],
+    ),
+  ]);
+
+  const lastActivityAt: string | null = activityResult.rows[0]?.created_at ?? null;
+  const lastInsightAt: string | null = insightResult.rows[0]?.created_at ?? null;
+
+  if (!lastInsightAt) return true; // no insight yet — needs generation
+  if (!lastActivityAt) return false; // no activity at all — nothing changed
+  return new Date(lastActivityAt) > new Date(lastInsightAt);
+}
+
+/**
+ * Refresh all period variants in parallel (fire-and-forget for background preloading).
+ * Returns immediately after generating the requested period; others run in the background.
+ */
+export async function refreshAllPeriods(userId: string, requestedDays: number) {
+  // Generate the requested period first
+  const result = await refreshInsights(userId, requestedDays);
+
+  // Fire-and-forget the remaining periods
+  const otherPeriods = ALL_PERIODS.filter(d => d !== requestedDays);
+  void Promise.allSettled(
+    otherPeriods.map(d => refreshInsights(userId, d))
+  ).catch(err => logger.warn({ err }, 'Background period preload partially failed'));
+
+  return result;
+}
+
 /** Export fetchUserContext for reuse by the chat service. */
 export { fetchUserContext };
