@@ -12,7 +12,7 @@ interface MacroCirclesProps {
   onEditGoals?: () => void;
 }
 
-const R = 32;
+const R = 38;
 const CIRCUMFERENCE = 2 * Math.PI * R;
 
 function MacroRing({
@@ -20,41 +20,50 @@ function MacroRing({
   current,
   goal,
   color,
+  gradientId,
 }: {
   label: string;
   current: number;
   goal: number;
   color: string;
+  gradientId: string;
 }) {
   const pct = goal > 0 ? Math.min(current / goal, 1) : 0;
   const offset = CIRCUMFERENCE * (1 - pct);
 
   return (
-    <div className="flex flex-col items-center gap-1 flex-1">
-      <p className="text-xs font-medium text-primary mb-1">{label}</p>
-      <div className="relative w-[96px] h-[96px]">
-        <svg className="w-[96px] h-[96px] -rotate-90" viewBox="0 0 80 80">
+    <div className="flex flex-col items-center gap-1.5 flex-1">
+      <p className="text-xs font-semibold text-muted-foreground tracking-wide uppercase">{label}</p>
+      <div className="relative w-[112px] h-[112px]">
+        <svg className="w-[112px] h-[112px] -rotate-90" viewBox="0 0 96 96">
+          <defs>
+            <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stopColor={color} stopOpacity="0.4" />
+              <stop offset="100%" stopColor={color} stopOpacity="1" />
+            </linearGradient>
+          </defs>
           <circle
-            cx="40" cy="40" r={R}
+            cx="48" cy="48" r={R}
             fill="none"
             stroke="currentColor"
-            strokeWidth="6"
-            className="text-muted"
+            strokeWidth="5"
+            className="text-mist"
           />
           <circle
-            cx="40" cy="40" r={R}
+            cx="48" cy="48" r={R}
             fill="none"
-            stroke={color}
-            strokeWidth="6"
+            stroke={`url(#${gradientId})`}
+            strokeWidth="5"
             strokeLinecap="round"
             strokeDasharray={CIRCUMFERENCE}
             strokeDashoffset={offset}
-            className="transition-all duration-500 ease-out"
+            className="transition-all duration-700 ease-out"
+            style={{ filter: `drop-shadow(0 0 3px ${color}30)` }}
           />
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <span className="text-lg font-bold leading-none tabular-nums">{Math.round(current)}</span>
-          <span className="text-xs text-muted-foreground leading-none mt-0.5">/{goal}g</span>
+          <span className="text-xl font-bold leading-none tabular-nums animate-count-up">{Math.round(current)}</span>
+          <span className="text-xs text-muted-foreground leading-none mt-1">/{goal}g</span>
         </div>
       </div>
     </div>
@@ -76,25 +85,28 @@ export function MacroCircles({ carbs, fat, protein, onEditGoals }: MacroCirclesP
           </button>
         </div>
       )}
-      <div className="flex items-start justify-center gap-5">
-      <MacroRing
-        label="Carbs"
-        current={carbs.current}
-        goal={carbs.goal}
-        color="hsl(45, 85%, 55%)"
-      />
-      <MacroRing
-        label="Fat"
-        current={fat.current}
-        goal={fat.goal}
-        color="hsl(17, 48%, 60%)"
-      />
-      <MacroRing
-        label="Protein"
-        current={protein.current}
-        goal={protein.goal}
-        color="hsl(210, 60%, 50%)"
-      />
+      <div className="flex items-start justify-center gap-4">
+        <MacroRing
+          label="Carbs"
+          current={carbs.current}
+          goal={carbs.goal}
+          color="hsl(42, 55%, 55%)"
+          gradientId="carbsGradient"
+        />
+        <MacroRing
+          label="Fat"
+          current={fat.current}
+          goal={fat.goal}
+          color="hsl(14, 55%, 58%)"
+          gradientId="fatGradient"
+        />
+        <MacroRing
+          label="Protein"
+          current={protein.current}
+          goal={protein.goal}
+          color="hsl(210, 70%, 55%)"
+          gradientId="proteinGradient"
+        />
       </div>
     </div>
   );

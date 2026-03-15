@@ -114,7 +114,7 @@ export function Base44Layout() {
       {/* Mobile overlay */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40 lg:hidden"
+          className="fixed inset-0 bg-charcoal/40 backdrop-blur-sm z-40 lg:hidden"
           aria-hidden
           onClick={() => setSidebarOpen(false)}
         />
@@ -187,7 +187,7 @@ export function Base44Layout() {
       <div className="lg:ml-72 min-h-screen">
         <header
           className={`sticky top-0 z-30 transition-all duration-300
-            ${scrolled ? 'bg-white/80 backdrop-blur-xl shadow-sm border-b border-border' : 'bg-transparent'}`}
+            ${scrolled ? 'bg-card/80 backdrop-blur-xl shadow-sm border-b border-border/50' : 'bg-transparent'}`}
         >
           <div className="flex items-center justify-between px-4 sm:px-6 lg:px-8 py-3 min-h-[4rem]">
             <div className="flex items-center gap-3">

@@ -21,7 +21,7 @@ export const WorkoutCard = memo(function WorkoutCard({ workout, onEdit, onDelete
   const cardImageUrl = workout.exercises.map(ex => getImageUrl(ex.name)).find(Boolean);
   return (
     <div
-      className="flex items-start gap-3 p-3 bg-white border border-border/50 rounded-xl cursor-pointer hover:shadow-sm transition-all"
+      className="group flex items-start gap-3 p-4 bg-card border-l-[3px] border-l-info/50 border border-border/30 rounded-xl cursor-pointer hover:bg-sage-50/50 transition-colors tap-target"
       onClick={() => onEdit && onEdit(workout)}
       role="button"
       tabIndex={0}
@@ -37,10 +37,10 @@ export const WorkoutCard = memo(function WorkoutCard({ workout, onEdit, onDelete
 
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-1">
-          <p className="text-sm font-medium truncate">{workout.title}</p>
-          <Badge variant="secondary">{workout.type}</Badge>
+          <p className="text-[15px] font-semibold truncate">{workout.title}</p>
+          <Badge variant="secondary" className="bg-info/10 text-info border-0 text-[10px]">{workout.type}</Badge>
         </div>
-        <div className="flex items-center gap-4 text-sm text-muted-foreground mb-1">
+        <div className="flex items-center gap-4 text-xs text-muted-foreground mb-1.5">
           <span>{formatDate(workout.date)}</span>
           <span className="flex items-center gap-1">
             <Clock className="w-3 h-3" />
@@ -51,9 +51,9 @@ export const WorkoutCard = memo(function WorkoutCard({ workout, onEdit, onDelete
           <div className="mt-1.5 space-y-0.5">
             {workout.exercises.slice(0, 3).map((ex, i) => (
               <p key={i} className="text-xs text-muted-foreground truncate">
-                {ex.name}{' '}
-                <span className="text-muted-foreground">
-                  {ex.sets} × {ex.reps}{ex.weight ? ` ${ex.weight} ${unit}` : ''}
+                <span className="text-foreground/70 font-medium">{ex.name}</span>{' '}
+                <span className="tabular-nums">
+                  {ex.sets} × {ex.reps}{ex.weight ? ` · ${ex.weight} ${unit}` : ''}
                 </span>
               </p>
             ))}
@@ -69,7 +69,7 @@ export const WorkoutCard = memo(function WorkoutCard({ workout, onEdit, onDelete
         <Button
           variant="ghost"
           size="icon"
-          className="shrink-0"
+          className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
           onClick={(e) => {
             e.stopPropagation();
             onDelete(workout.id);

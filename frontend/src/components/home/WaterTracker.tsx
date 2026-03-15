@@ -29,14 +29,14 @@ export function WaterTracker() {
   };
 
   return (
-    <Card className="rounded-2xl overflow-hidden">
+    <Card className="rounded-2xl overflow-hidden border border-border/30 shadow-sm">
       <CardContent className="p-5">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
-            <Droplets className="w-4 h-4 text-blue-500" />
-            <h3 className="text-sm font-medium">Water</h3>
+            <Droplets className="w-4 h-4 text-info" />
+            <h3 className="text-sm font-semibold">Water</h3>
           </div>
-          <span className="text-xs text-muted-foreground">{mlTotal} ml</span>
+          <span className="text-xs text-muted-foreground tabular-nums">{mlTotal} ml</span>
         </div>
 
         <div className="flex items-center gap-4">
@@ -46,44 +46,44 @@ export function WaterTracker() {
               {Array.from({ length: goal }, (_, i) => (
                 <div
                   key={i}
-                  className={`h-6 flex-1 rounded-sm transition-colors ${
-                    i < glasses ? 'bg-blue-500' : 'bg-muted'
+                  className={`h-6 flex-1 rounded-sm transition-colors duration-300 ${
+                    i < glasses ? 'bg-info' : 'bg-mist'
                   }`}
                 />
               ))}
             </div>
             <p className="text-sm">
-              <span className="font-semibold">{glasses}</span>
+              <span className="font-bold tabular-nums">{glasses}</span>
               <span className="text-muted-foreground">/{goal} glasses</span>
             </p>
           </div>
 
-          <div className="flex gap-1">
+          <div className="flex gap-1.5">
             <Button
               variant="outline"
               size="icon"
-              className="h-8 w-8 rounded-full"
+              className="h-9 w-9 rounded-full"
               onClick={handleRemove}
               disabled={glasses <= 0 || waterLoading}
             >
-              <Minus className="w-3 h-3" />
+              <Minus className="w-3.5 h-3.5" />
             </Button>
             <Button
               variant="default"
               size="icon"
-              className="h-8 w-8 rounded-full"
+              className="h-9 w-9 rounded-full"
               onClick={handleAdd}
               disabled={waterLoading}
             >
-              <Plus className="w-3 h-3" />
+              <Plus className="w-3.5 h-3.5" />
             </Button>
           </div>
         </div>
 
         {/* Progress bar */}
-        <div className="mt-3 h-1.5 bg-muted rounded-full overflow-hidden">
+        <div className="mt-3 h-2 bg-mist rounded-full overflow-hidden">
           <div
-            className="h-full bg-blue-500 rounded-full transition-all duration-500"
+            className="h-full bg-info rounded-full transition-all duration-500"
             style={{ width: `${pct * 100}%` }}
           />
         </div>
