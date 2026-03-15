@@ -11,7 +11,7 @@ const googleClientId = (import.meta as { env?: { VITE_GOOGLE_CLIENT_ID?: string 
 function App() {
   return (
     <GoogleOAuthProvider clientId={googleClientId || 'placeholder.apps.googleusercontent.com'}>
-      <ThemeProvider attribute="class" defaultTheme="light" forcedTheme="light">
+      <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
         <Providers>
           <AppRoutes />
           <InstallPrompt />

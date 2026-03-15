@@ -18,7 +18,7 @@ export const FoodCard = memo(function FoodCard({ entry, onEdit, onDelete }: Food
 
   return (
     <div
-      className="flex items-center gap-3 p-3 rounded-xl bg-white border border-border/50 cursor-pointer hover:shadow-sm transition-all"
+      className="group flex items-center gap-3 p-3.5 rounded-xl bg-card border-l-[3px] border-l-terracotta/50 border border-border/30 cursor-pointer hover:bg-sage-50/50 transition-colors tap-target"
       role="button"
       tabIndex={0}
       aria-label={`Food entry: ${entry.name}, ${entry.calories} calories`}
@@ -35,18 +35,18 @@ export const FoodCard = memo(function FoodCard({ entry, onEdit, onDelete }: Food
       </div>
 
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-semibold truncate">{entry.name}</p>
+        <p className="text-[15px] font-semibold truncate">{entry.name}</p>
         {portionText && (
           <p className="text-xs text-muted-foreground truncate">{portionText}</p>
         )}
       </div>
 
       <div className="flex items-center gap-2 shrink-0">
-        <span className="text-sm font-bold tabular-nums">{entry.calories} cal</span>
+        <span className="text-base font-bold tabular-nums text-terracotta">{entry.calories} <span className="text-xs font-medium">cal</span></span>
         <Button
           variant="ghost"
           size="icon"
-          className="h-7 w-7 text-muted-foreground hover:text-destructive"
+          className="h-7 w-7 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
           onClick={(e) => {
             e.stopPropagation();
             onDelete(entry.id);

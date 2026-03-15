@@ -74,7 +74,7 @@ export function QuickAddMenu({ open, onOpenChange }: QuickAddMenuProps) {
 
       {/* Bottom sheet menu */}
       {open && (
-        <div className="fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-2xl shadow-xl animate-fade-up p-6 pb-8">
+        <div className="fixed bottom-0 left-0 right-0 z-50 bg-card rounded-t-2xl shadow-xl animate-fade-up p-6 pb-8">
           <div className="w-10 h-1 bg-muted rounded-full mx-auto mb-6" />
           <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-4">Quick Add</p>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">

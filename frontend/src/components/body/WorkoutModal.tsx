@@ -135,7 +135,7 @@ function ExerciseNameInput({
         autoComplete="off"
       />
       {showSuggestions && suggestions.length > 0 && (
-        <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-white border border-border rounded-lg shadow-lg max-h-48 overflow-y-auto">
+        <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-card border border-border rounded-lg shadow-lg max-h-48 overflow-y-auto">
           {suggestions.map((ex, i) => (
             <button
               key={ex.id}

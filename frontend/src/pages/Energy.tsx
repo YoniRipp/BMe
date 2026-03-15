@@ -144,7 +144,7 @@ function CollapsibleGroup({
   const calLabel = isAvg && uniqueDays > 1 ? `${displayCal} cal/day` : `${displayCal} cal`;
 
   return (
-    <div className="rounded-2xl border bg-white overflow-hidden">
+    <div className="rounded-2xl border bg-card overflow-hidden">
       <button
         type="button"
         className="w-full flex items-center justify-between p-3 hover:bg-muted/40 transition-colors"

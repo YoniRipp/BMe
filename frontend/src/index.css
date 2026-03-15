@@ -9,19 +9,25 @@
 
 @layer base {
   :root {
-    /* Brand palette — sage green primary, clean white backgrounds */
-    --sage: 138 15% 54%;
-    --sage-light: 138 20% 68%;
-    --sage-dark: 130 16% 42%;
+    /* Brand palette — "Natural Vitality" — enriched earth-inspired tones */
+    --sage: 145 20% 52%;
+    --sage-light: 145 25% 72%;
+    --sage-dark: 148 24% 38%;
+    --sage-50: 145 20% 96%;
+    --sage-100: 145 20% 90%;
     --cream: 0 0% 100%;
-    --cream-warm: 220 14% 96%;
-    --terracotta: 17 48% 60%;
-    --terracotta-light: 18 65% 75%;
-    --gold: 43 44% 58%;
-    --charcoal: 220 13% 18%;
-    --stone: 220 8% 46%;
-    --mist: 220 14% 96%;
+    --cream-warm: 220 16% 97%;
+    --terracotta: 14 55% 58%;
+    --terracotta-light: 14 60% 80%;
+    --gold: 42 55% 55%;
+    --charcoal: 220 15% 15%;
+    --stone: 220 10% 52%;
+    --mist: 220 12% 94%;
     --border-base44: 220 13% 91%;
+    /* Semantic status colors */
+    --success: 145 60% 42%;
+    --info: 210 70% 55%;
+    --warning: 38 90% 55%;
     /* Semantic tokens — clean MFP-inspired with sage accent */
     --background: 0 0% 100%;
     --foreground: var(--charcoal);
@@ -53,13 +59,64 @@
     --sidebar-border: 220 13% 91%;
     --sidebar-ring: var(--charcoal);
     /* Chart */
-    --chart-1: 138 15% 54%;
-    --chart-2: 17 48% 60%;
-    --chart-3: 43 44% 58%;
-    --chart-4: 220 8% 46%;
-    --chart-5: 220 14% 96%;
+    --chart-1: 145 20% 52%;
+    --chart-2: 14 55% 58%;
+    --chart-3: 42 55% 55%;
+    --chart-4: 220 10% 52%;
+    --chart-5: 220 12% 94%;
   }
 
+  /* Dark mode — deep blue-gray (not pure black, per Apple HIG) */
+  .dark {
+    --sage: 145 22% 55%;
+    --sage-light: 145 20% 40%;
+    --sage-dark: 148 28% 50%;
+    --sage-50: 145 15% 14%;
+    --sage-100: 145 15% 20%;
+    --cream: 220 16% 10%;
+    --cream-warm: 220 14% 12%;
+    --terracotta: 14 50% 62%;
+    --terracotta-light: 14 40% 30%;
+    --gold: 42 50% 58%;
+    --charcoal: 220 10% 90%;
+    --stone: 220 8% 60%;
+    --mist: 220 14% 18%;
+    --success: 145 55% 48%;
+    --info: 210 65% 60%;
+    --warning: 38 85% 58%;
+    --background: 220 16% 10%;
+    --foreground: 220 10% 90%;
+    --card: 220 14% 14%;
+    --card-foreground: 220 10% 90%;
+    --popover: 220 14% 14%;
+    --popover-foreground: 220 10% 90%;
+    --primary: 148 28% 50%;
+    --primary-foreground: 220 16% 10%;
+    --secondary: 220 14% 18%;
+    --secondary-foreground: 220 10% 85%;
+    --muted: 220 14% 18%;
+    --muted-foreground: 220 8% 60%;
+    --accent: 220 14% 18%;
+    --accent-foreground: 220 10% 85%;
+    --destructive: 0 70% 55%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 220 12% 22%;
+    --input: 220 12% 22%;
+    --ring: 220 10% 70%;
+    --sidebar-background: 220 14% 12%;
+    --sidebar-foreground: 220 10% 90%;
+    --sidebar-primary: 148 28% 50%;
+    --sidebar-primary-foreground: 220 16% 10%;
+    --sidebar-accent: 220 14% 18%;
+    --sidebar-accent-foreground: 220 10% 85%;
+    --sidebar-border: 220 12% 22%;
+    --sidebar-ring: 220 10% 70%;
+    --chart-1: 145 22% 55%;
+    --chart-2: 14 50% 62%;
+    --chart-3: 42 50% 58%;
+    --chart-4: 220 8% 60%;
+    --chart-5: 220 14% 18%;
+  }
 }
 
 @layer base {
@@ -74,6 +131,11 @@
     font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
     font-feature-settings: "rlig" 1, "calt" 1;
   }
+}
+
+/* Tabular nums for stats alignment */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
 }
 
 /* Micro-interactions and animations */
@@ -92,6 +154,26 @@
 
   .animate-fade-up {
     animation: fadeUp 0.4s ease-out;
+  }
+
+  .animate-card-entrance {
+    animation: cardEntrance 0.4s ease-out both;
+  }
+
+  .animate-ring-fill {
+    animation: ringFill 0.8s ease-out both;
+  }
+
+  .animate-flame-pulse {
+    animation: flamePulse 2s ease-in-out infinite;
+  }
+
+  .animate-celebrate {
+    animation: celebrate 0.5s ease-out;
+  }
+
+  .animate-count-up {
+    animation: countUp 0.4s ease-out both;
   }
 }
 
@@ -123,6 +205,58 @@
   to {
     transform: translateY(0);
     opacity: 1;
+  }
+}
+
+@keyframes cardEntrance {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes ringFill {
+  from {
+    stroke-dashoffset: var(--ring-circumference, 100);
+  }
+  to {
+    stroke-dashoffset: var(--ring-offset, 0);
+  }
+}
+
+@keyframes flamePulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+}
+
+@keyframes celebrate {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes countUp {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 
@@ -166,6 +300,19 @@
   transition-duration: 150ms;
 }
 
+/* Tap feedback for mobile — active press scale */
+.tap-target {
+  @apply active:scale-[0.97] transition-transform;
+}
+
+/* Glassmorphism utility */
+.glass {
+  @apply bg-white/95 backdrop-blur-lg;
+}
+.dark .glass {
+  @apply bg-card/95 backdrop-blur-lg;
+}
+
 /* Pricing card reveal animation */
 @keyframes fadeUpReveal {
   from { opacity: 0; transform: translateY(24px); }
@@ -180,6 +327,14 @@
 .animate-reveal-delay-2 {
   animation: fadeUpReveal 0.5s ease-out 0.3s both;
 }
+
+/* Staggered card entrances */
+.stagger-1 { animation-delay: 0ms; }
+.stagger-2 { animation-delay: 50ms; }
+.stagger-3 { animation-delay: 100ms; }
+.stagger-4 { animation-delay: 150ms; }
+.stagger-5 { animation-delay: 200ms; }
+.stagger-6 { animation-delay: 250ms; }
 
 /* Respect reduced motion preference */
 @media (prefers-reduced-motion: reduce) {
