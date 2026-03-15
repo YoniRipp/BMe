@@ -28,6 +28,7 @@ import { useSettings } from '@/hooks/useSettings';
 import { getWeightUnit } from '@/lib/utils';
 import { useExercises, type CatalogExercise } from '@/hooks/useExercises';
 import { ImagePlaceholder } from '@/components/shared/ImagePlaceholder';
+import { ImageLightbox } from '@/components/shared/ImageLightbox';
 
 export type WorkoutTemplate = Omit<Workout, 'id' | 'date'>;
 
@@ -167,7 +168,8 @@ export function WorkoutModal({ open, onOpenChange, onSave, workout }: WorkoutMod
   const { settings } = useSettings();
   const unit = getWeightUnit(settings.units);
   const [templates, setTemplates] = useState<WorkoutTemplate[]>([]);
-  const { exercises: catalogExercises } = useExercises();
+  const { exercises: catalogExercises, getImageUrl } = useExercises();
+  const [lightboxImage, setLightboxImage] = useState<{ src: string; alt: string } | null>(null);
 
   const {
     register,
@@ -441,7 +443,8 @@ export function WorkoutModal({ open, onOpenChange, onSave, workout }: WorkoutMod
                 </Button>
               </div>
               <div className="rounded-lg border bg-muted/30 p-3 space-y-3">
-                <div className="grid gap-2 grid-cols-[1fr_5rem_minmax(0,1fr)_6rem] items-center text-xs font-medium text-muted-foreground">
+                <div className="grid gap-2 grid-cols-[2.5rem_1fr_5rem_minmax(0,1fr)_6rem] items-center text-xs font-medium text-muted-foreground">
+                  <span></span>
                   <span>Exercise name</span>
                   <span className="text-center">Sets</span>
                   <span>Reps per set</span>
@@ -453,7 +456,30 @@ export function WorkoutModal({ open, onOpenChange, onSave, workout }: WorkoutMod
                   const repsError = errors.exercises?.[idx]?.repsPerSet;
                   return (
                     <div key={field.id} className="space-y-1">
-                      <div className="grid gap-2 grid-cols-[1fr_5rem_minmax(0,1fr)_6rem] items-start">
+                      <div className="grid gap-2 grid-cols-[2.5rem_1fr_5rem_minmax(0,1fr)_6rem] items-start">
+                        <div className="flex items-center justify-center pt-1">
+                          {watchedExercises?.[idx]?.name ? (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const imgUrl = getImageUrl(watchedExercises[idx].name);
+                                if (imgUrl) {
+                                  setLightboxImage({ src: imgUrl, alt: watchedExercises[idx].name });
+                                }
+                              }}
+                              className="w-9 h-9 rounded-lg overflow-hidden bg-muted flex-shrink-0 hover:ring-2 hover:ring-primary/50 transition-all"
+                            >
+                              <img
+                                src={getImageUrl(watchedExercises[idx].name) ?? ''}
+                                alt={watchedExercises[idx].name}
+                                className="w-full h-full object-cover"
+                                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                              />
+                            </button>
+                          ) : (
+                            <div className="w-9 h-9 rounded-lg bg-muted" />
+                          )}
+                        </div>
                         <div>
                           <Controller
                             name={`exercises.${idx}.name`}
@@ -566,6 +592,14 @@ export function WorkoutModal({ open, onOpenChange, onSave, workout }: WorkoutMod
           </DialogFooter>
         </form>
       </DialogContent>
+      {lightboxImage && (
+        <ImageLightbox
+          open={!!lightboxImage}
+          onOpenChange={(open) => { if (!open) setLightboxImage(null); }}
+          src={lightboxImage.src}
+          alt={lightboxImage.alt}
+        />
+      )}
     </Dialog>
   );
 }

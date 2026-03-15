@@ -144,7 +144,7 @@ function CollapsibleGroup({
   const calLabel = isAvg && uniqueDays > 1 ? `${displayCal} cal/day` : `${displayCal} cal`;
 
   return (
-    <div className="rounded-2xl border bg-card overflow-hidden">
+    <div className="bg-card overflow-hidden">
       <button
         type="button"
         className="w-full flex items-center justify-between p-3 hover:bg-muted/40 transition-colors"
@@ -464,28 +464,31 @@ export function Energy() {
 
       {/* Food entries */}
       <div className="space-y-3">
-        {/* Action buttons */}
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-1.5"
-            onClick={() => setBulkModalOpen(true)}
-          >
-            <ClipboardList className="w-4 h-4" />
-            Add Menu
-          </Button>
-          {caloriePeriod === 'daily' && periodFoodEntries.length > 0 && (
+        {/* Section header with action buttons */}
+        <div className="flex items-center justify-between">
+          <h3 className="text-base font-semibold">Journal</h3>
+          <div className="flex items-center gap-2">
             <Button
-              variant="outline"
+              variant="ghost"
               size="sm"
-              className="gap-1.5"
-              onClick={() => setDuplicateDialogOpen(true)}
+              className="gap-1.5 h-8 text-xs"
+              onClick={() => setBulkModalOpen(true)}
             >
-              <Copy className="w-4 h-4" />
-              Copy Day
+              <ClipboardList className="w-3.5 h-3.5" />
+              Add Menu
             </Button>
-          )}
+            {caloriePeriod === 'daily' && periodFoodEntries.length > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="gap-1.5 h-8 text-xs"
+                onClick={() => setDuplicateDialogOpen(true)}
+              >
+                <Copy className="w-3.5 h-3.5" />
+                Copy Day
+              </Button>
+            )}
+          </div>
         </div>
 
         {periodFoodEntries.length === 0 ? (
@@ -513,18 +516,20 @@ export function Energy() {
             )}
           </>
         ) : (
-          /* Weekly/Monthly/Yearly: collapsible time-bucket groups */
+          /* Weekly/Monthly/Yearly: unified accordion */
           <>
-            {foodGroups.map((group, i) => (
-              <CollapsibleGroup
-                key={group.key}
-                group={group}
-                defaultOpen={i === 0}
-                period={caloriePeriod as 'weekly' | 'monthly' | 'yearly'}
-                onEdit={handleEditFood}
-                onDelete={handleDeleteFood}
-              />
-            ))}
+            <Card className="rounded-2xl overflow-hidden divide-y">
+              {foodGroups.map((group, i) => (
+                <CollapsibleGroup
+                  key={group.key}
+                  group={group}
+                  defaultOpen={i === 0}
+                  period={caloriePeriod as 'weekly' | 'monthly' | 'yearly'}
+                  onEdit={handleEditFood}
+                  onDelete={handleDeleteFood}
+                />
+              ))}
+            </Card>
             <AddAnotherCard onClick={handleAddFood} label="Add food entry" />
           </>
         )}

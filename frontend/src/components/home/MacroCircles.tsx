@@ -33,32 +33,31 @@ function MacroRing({
 
   return (
     <div className="flex flex-col items-center gap-1.5 flex-1">
-      <p className="text-xs font-semibold text-muted-foreground tracking-wide uppercase">{label}</p>
+      <p className="text-xs font-semibold tracking-wide uppercase" style={{ color }}>{label}</p>
       <div className="relative w-[112px] h-[112px]">
         <svg className="w-[112px] h-[112px] -rotate-90" viewBox="0 0 96 96">
           <defs>
             <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor={color} stopOpacity="0.4" />
+              <stop offset="0%" stopColor={color} stopOpacity="0.7" />
               <stop offset="100%" stopColor={color} stopOpacity="1" />
             </linearGradient>
           </defs>
           <circle
             cx="48" cy="48" r={R}
             fill="none"
-            stroke="currentColor"
-            strokeWidth="5"
-            className="text-mist"
+            stroke="hsl(var(--border))"
+            strokeWidth="6"
           />
           <circle
             cx="48" cy="48" r={R}
             fill="none"
             stroke={`url(#${gradientId})`}
-            strokeWidth="5"
+            strokeWidth="6"
             strokeLinecap="round"
             strokeDasharray={CIRCUMFERENCE}
             strokeDashoffset={offset}
             className="transition-all duration-700 ease-out"
-            style={{ filter: `drop-shadow(0 0 3px ${color}30)` }}
+            style={{ filter: `drop-shadow(0 0 4px ${color}50)` }}
           />
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center">
@@ -90,21 +89,21 @@ export function MacroCircles({ carbs, fat, protein, onEditGoals }: MacroCirclesP
           label="Carbs"
           current={carbs.current}
           goal={carbs.goal}
-          color="hsl(42, 55%, 55%)"
+          color="hsl(42, 75%, 50%)"
           gradientId="carbsGradient"
         />
         <MacroRing
           label="Fat"
           current={fat.current}
           goal={fat.goal}
-          color="hsl(14, 55%, 58%)"
+          color="hsl(14, 65%, 55%)"
           gradientId="fatGradient"
         />
         <MacroRing
           label="Protein"
           current={protein.current}
           goal={protein.goal}
-          color="hsl(210, 70%, 55%)"
+          color="hsl(210, 80%, 50%)"
           gradientId="proteinGradient"
         />
       </div>
