@@ -144,7 +144,7 @@ function CollapsibleGroup({
   const calLabel = isAvg && uniqueDays > 1 ? `${displayCal} cal/day` : `${displayCal} cal`;
 
   return (
-    <div className="rounded-2xl border bg-card overflow-hidden">
+    <div className="bg-card overflow-hidden">
       <button
         type="button"
         className="w-full flex items-center justify-between p-3 hover:bg-muted/40 transition-colors"
@@ -192,7 +192,7 @@ function MealSection({
   onAdd: () => void;
 }) {
   return (
-    <Card className="rounded-2xl overflow-hidden">
+    <Card className="rounded-2xl overflow-hidden border border-border/30 shadow-sm">
       <div className="flex items-center justify-between px-4 pt-4 pb-2">
         <h4 className="text-sm font-semibold">{meal}</h4>
         <span className="text-sm font-medium text-muted-foreground tabular-nums">{totalCal} cal</span>
@@ -390,6 +390,28 @@ export function Energy() {
   return (
     <div className="max-w-lg md:max-w-6xl mx-auto space-y-5 pb-24">
       <ContentWithLoading loading={energyLoading} loadingText="Loading energy...">
+      {/* Action buttons */}
+      <div className="flex items-center justify-end gap-2">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="gap-1.5 h-8 text-xs"
+          onClick={() => setBulkModalOpen(true)}
+        >
+          <ClipboardList className="w-3.5 h-3.5" />
+          Add Menu
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="gap-1.5 h-8 text-xs"
+          onClick={() => setDuplicateDialogOpen(true)}
+        >
+          <Copy className="w-3.5 h-3.5" />
+          Copy Day
+        </Button>
+      </div>
+
       {/* Calorie + Macro Section */}
       {(() => {
         const calGoalTarget = calorieGoal;
@@ -437,19 +459,19 @@ export function Energy() {
           <>
             {/* Mobile: stacked cards */}
             <div className="md:hidden space-y-5">
-              <Card className="rounded-2xl overflow-hidden">
+              <Card className="rounded-2xl overflow-hidden border border-border/30 shadow-sm">
                 <CardContent className="p-5">
                   {periodSelectorEl}
                   <div className="flex justify-center my-4">{calorieRingEl}</div>
                 </CardContent>
               </Card>
-              <Card className="rounded-2xl overflow-hidden">
+              <Card className="rounded-2xl overflow-hidden border border-border/30 shadow-sm">
                 <CardContent className="p-5">{macroCirclesEl}</CardContent>
               </Card>
             </div>
 
             {/* Desktop: single card, all circles in one row */}
-            <Card className="hidden md:block rounded-2xl overflow-hidden">
+            <Card className="hidden md:block rounded-2xl overflow-hidden border border-border/30 shadow-sm">
               <CardContent className="p-5">
                 {periodSelectorEl}
                 <div className="flex items-center justify-center gap-8 my-4">
@@ -464,29 +486,7 @@ export function Energy() {
 
       {/* Food entries */}
       <div className="space-y-3">
-        {/* Action buttons */}
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-1.5"
-            onClick={() => setBulkModalOpen(true)}
-          >
-            <ClipboardList className="w-4 h-4" />
-            Add Menu
-          </Button>
-          {caloriePeriod === 'daily' && periodFoodEntries.length > 0 && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-1.5"
-              onClick={() => setDuplicateDialogOpen(true)}
-            >
-              <Copy className="w-4 h-4" />
-              Copy Day
-            </Button>
-          )}
-        </div>
+        <h3 className="text-base font-semibold">Journal</h3>
 
         {periodFoodEntries.length === 0 ? (
           <EmptyStateCard
@@ -513,25 +513,27 @@ export function Energy() {
             )}
           </>
         ) : (
-          /* Weekly/Monthly/Yearly: collapsible time-bucket groups */
+          /* Weekly/Monthly/Yearly: unified accordion */
           <>
-            {foodGroups.map((group, i) => (
-              <CollapsibleGroup
-                key={group.key}
-                group={group}
-                defaultOpen={i === 0}
-                period={caloriePeriod as 'weekly' | 'monthly' | 'yearly'}
-                onEdit={handleEditFood}
-                onDelete={handleDeleteFood}
-              />
-            ))}
+            <Card className="rounded-2xl overflow-hidden border border-border/30 shadow-sm divide-y">
+              {foodGroups.map((group, i) => (
+                <CollapsibleGroup
+                  key={group.key}
+                  group={group}
+                  defaultOpen={i === 0}
+                  period={caloriePeriod as 'weekly' | 'monthly' | 'yearly'}
+                  onEdit={handleEditFood}
+                  onDelete={handleDeleteFood}
+                />
+              ))}
+            </Card>
             <AddAnotherCard onClick={handleAddFood} label="Add food entry" />
           </>
         )}
       </div>
 
       {/* Sleep Hours Card */}
-      <Card className="p-4 sm:p-5 rounded-2xl">
+      <Card className="p-4 sm:p-5 rounded-2xl border border-border/30 shadow-sm">
         <h3 className="text-lg font-semibold mb-3">Hours Slept</h3>
 
         <PeriodSelector
@@ -653,15 +655,11 @@ export function Energy() {
         onSave={addFoodEntriesBatch}
       />
 
-      {caloriePeriod === 'daily' && (
-        <DuplicateDayDialog
-          open={duplicateDialogOpen}
-          onOpenChange={setDuplicateDialogOpen}
-          sourceDate={today}
-          entryCount={periodFoodEntries.length}
-          onDuplicate={duplicateDay}
-        />
-      )}
+      <DuplicateDayDialog
+        open={duplicateDialogOpen}
+        onOpenChange={setDuplicateDialogOpen}
+        onDuplicate={duplicateDay}
+      />
     </div>
   );
 }
