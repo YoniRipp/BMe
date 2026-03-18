@@ -52,12 +52,12 @@ describe('Energy Page', () => {
     render(<Energy />, { wrapper });
 
     await waitFor(() => {
-      // All 4 meal sections always visible (even when empty)
-      expect(screen.getByText('Breakfast')).toBeInTheDocument();
+      // Empty state shows unified voice CTA
+      expect(screen.getByText('What did you eat today?')).toBeInTheDocument();
     });
-    // Click the first "Add Manually" button (in the Breakfast section)
-    const addButtons = screen.getAllByText(/add manually/i);
-    await user.click(addButtons[0]);
+    // Click the "Add Manually" button in the empty state
+    const addButton = screen.getByText(/add manually/i);
+    await user.click(addButton);
 
     await waitFor(() => {
       expect(screen.getByText(/add food entry/i)).toBeInTheDocument();
