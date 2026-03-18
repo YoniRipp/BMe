@@ -239,6 +239,7 @@ export async function sendMessageStream(
   userMessage: string,
   onChunk: (text: string) => void,
   onThinking: () => void,
+  signal?: AbortSignal,
 ): Promise<AgentChatResponse> {
   // 1. Save user message
   await saveChatMessage(userId, 'user', userMessage);
@@ -276,8 +277,8 @@ export async function sendMessageStream(
   let responseText = '';
 
   try {
-    // Real streaming: first call
-    const streamResult = await chat.sendMessageStream(userMessage);
+    // Real streaming: first call — pass AbortSignal so 120s timeout can cancel it
+    const streamResult = await chat.sendMessageStream(userMessage, { signal } as never);
 
     let streamedText = '';
     for await (const chunk of streamResult.stream) {
@@ -350,6 +351,14 @@ export async function sendMessageStream(
       onChunk(responseText);
     }
   } catch (err) {
+    if ((err as Error)?.name === 'AbortError') {
+      // Timeout: save whatever partial text was accumulated, then re-throw
+      // so the controller can send the correct timeout error to the client
+      if (responseText) {
+        await saveChatMessage(userId, 'assistant', responseText);
+      }
+      throw err;
+    }
     logger.error({ err }, 'AI agent stream response failed');
     responseText = 'I apologize, but I encountered an issue. Please try again.';
     onChunk(responseText);

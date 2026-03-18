@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { chatApi, type ChatMessage, type StreamAction } from '@/core/api/chat';
 
@@ -23,7 +23,9 @@ export function useAgent() {
   } = useQuery({
     queryKey: ['chat', 'history'],
     queryFn: () => chatApi.getHistory(50),
-    staleTime: 30_000,
+    staleTime: 0,              // always re-fetch on mount
+    refetchOnMount: true,
+    refetchOnWindowFocus: true, // re-fetch when user returns to the app
   });
 
   const historyMessages: AgentMessage[] = (historyData?.messages ?? []).map((m: ChatMessage) => ({
@@ -35,6 +37,28 @@ export function useAgent() {
   const messages = pendingUserMsg && !historyMessages.some(m => m.id === pendingUserMsg.id)
     ? [...historyMessages, pendingUserMsg]
     : historyMessages;
+
+  // Detect when the last message is a user message with no assistant reply
+  // AND we're not currently streaming — means the backend may still be processing
+  // (e.g. user closed the app mid-stream and the backend saved the response later)
+  const hasPendingResponse = !isSending
+    && messages.length > 0
+    && messages[messages.length - 1].role === 'user';
+
+  // Poll every 3s (up to 120s) while a pending response is expected
+  useEffect(() => {
+    if (!hasPendingResponse) return;
+    let attempts = 0;
+    const MAX_ATTEMPTS = 40; // 40 × 3s = 120s
+
+    const poll = setInterval(() => {
+      attempts++;
+      queryClient.invalidateQueries({ queryKey: ['chat', 'history'] });
+      if (attempts >= MAX_ATTEMPTS) clearInterval(poll);
+    }, 3000);
+
+    return () => clearInterval(poll);
+  }, [hasPendingResponse, queryClient]);
 
   const sendMessage = useCallback(async (text: string): Promise<{ actions: StreamAction[] } | null> => {
     if (!text.trim() || isSending) return null;
@@ -112,6 +136,7 @@ export function useAgent() {
     isSending,
     isThinking,
     streamingContent,
+    hasPendingResponse,
     sendMessage,
     clearHistory,
   };

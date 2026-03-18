@@ -55,8 +55,14 @@ export const agentChatStream = asyncHandler(async (req: Request, res: Response) 
   res.flushHeaders();
 
   const send = (data: object) => {
-    res.write(`data: ${JSON.stringify(data)}\n\n`);
+    try { res.write(`data: ${JSON.stringify(data)}\n\n`); } catch { /* client disconnected */ }
   };
+
+  // Auto-abort after 120s — prevents truly stuck connections
+  // NOTE: we do NOT abort on req.close intentionally — let the backend finish
+  // and save the response to DB so the user can retrieve it when they return.
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 120_000);
 
   try {
     const result = await sendMessageStream(
@@ -64,11 +70,17 @@ export const agentChatStream = asyncHandler(async (req: Request, res: Response) 
       message.trim(),
       (chunk: string) => send({ chunk }),
       () => send({ thinking: true }),
+      controller.signal,
     );
     send({ done: true, actions: result.actions });
   } catch (err) {
-    send({ error: 'An error occurred. Please try again.' });
+    if ((err as Error)?.name === 'AbortError') {
+      send({ error: 'Request timed out. Your response may still be processing — check back shortly.' });
+    } else {
+      send({ error: 'An error occurred. Please try again.' });
+    }
   } finally {
+    clearTimeout(timeout);
     res.end();
   }
 });
