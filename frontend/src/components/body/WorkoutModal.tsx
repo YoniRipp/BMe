@@ -280,6 +280,7 @@ export function WorkoutModal({ open, onOpenChange, onSave, workout }: WorkoutMod
       type: watch('type'),
       durationMinutes: parseInt(watch('durationMinutes') || '0', 10),
       notes: watch('notes'),
+      completed: false,
       exercises: exercises.map((e) => ({
         name: e.name,
         sets: e.sets,
@@ -325,6 +326,7 @@ export function WorkoutModal({ open, onOpenChange, onSave, workout }: WorkoutMod
       durationMinutes: parseInt(data.durationMinutes, 10),
       notes: data.notes,
       exercises,
+      completed: workout?.completed ?? false,
     });
     onOpenChange(false);
   };
