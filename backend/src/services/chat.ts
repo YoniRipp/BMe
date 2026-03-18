@@ -215,6 +215,7 @@ ${detailedFood}
 - Be encouraging but honest — if they're not hitting goals, say so kindly with a concrete plan.
 - Keep responses concise for mobile — 2-4 short paragraphs unless they ask for detailed breakdowns.
 - You can respond in Hebrew or English based on the language the user writes in.
+- WORKOUT IMPLEMENTATION: If the user asks you to "implement", "add", "save", "create", or "log" a workout plan (even a multi-day program), you MUST call add_workout once per workout session — do NOT just describe the plan. Use today's date for the first workout and increment dates for subsequent days (e.g. day 2 = tomorrow, day 3 = day after, etc.). After calling add_workout for each session, confirm all workouts were saved.
 - Today's date: ${new Date().toISOString().slice(0, 10)}`;
 }
 
@@ -223,6 +224,106 @@ ${detailedFood}
 export interface AgentChatResponse {
   message: ChatMessage;
   actions: ExecuteResult[];
+}
+
+// ─── Streaming send message ─────────────────────────────────────────────────
+
+export async function sendMessageStream(
+  userId: string,
+  userMessage: string,
+  onChunk: (text: string) => void,
+  onThinking: () => void,
+): Promise<AgentChatResponse> {
+  // 1. Save user message
+  await saveChatMessage(userId, 'user', userMessage);
+
+  // 2. Build context and load history
+  const [systemPrompt, history] = await Promise.all([
+    buildChatSystemPrompt(userId),
+    getChatHistory(userId, 20),
+  ]);
+
+  // 3. Build Gemini model
+  if (!config.geminiApiKey) throw new Error('GEMINI_API_KEY not configured');
+  const genAI = new GoogleGenerativeAI(config.geminiApiKey);
+  const model = genAI.getGenerativeModel({
+    model: config.geminiModel,
+    tools: VOICE_TOOLS as never,
+  });
+
+  const chat = model.startChat({
+    history: [
+      { role: 'user', parts: [{ text: 'System instructions: ' + systemPrompt + '\n\nYou are an AI agent — not just a chatbot. You can take actions on behalf of the user using the available tools (log food, workouts, sleep, goals, query data, etc.). When the user asks you to log, add, edit, or delete something, USE the appropriate tool to do it. When the user asks about their data, USE the query_user_data tool to look it up. After taking an action, confirm what you did in a natural, conversational way.' }] },
+      { role: 'model', parts: [{ text: 'Understood. I\'m your fitness coach and assistant. I can both advise you AND take actions — log meals, workouts, sleep, manage goals, and look up your data. What would you like to do?' }] },
+      ...history.slice(0, -1).map(msg => ({
+        role: msg.role === 'user' ? 'user' as const : 'model' as const,
+        parts: [{ text: msg.content }],
+      })),
+    ],
+  });
+
+  // 4. Agent loop: handle tool calls synchronously, then stream final text
+  const allActions: ExecuteResult[] = [];
+  let responseText = '';
+
+  try {
+    // First call — may contain tool calls
+    let result = await chat.sendMessage(userMessage);
+    let response = result.response;
+    let rounds = 0;
+
+    while (rounds < MAX_TOOL_ROUNDS) {
+      const functionCalls = response.functionCalls?.() ?? [];
+      if (functionCalls.length === 0) break;
+
+      onThinking(); // still processing tools
+
+      const actions = functionCalls.map(fc => ({ intent: fc.name, ...fc.args }));
+      const results = await executeActions(actions as { intent: string; [key: string]: unknown }[], userId);
+      allActions.push(...results);
+
+      const functionResponses = functionCalls.map((fc, i) => ({
+        functionResponse: {
+          name: fc.name,
+          response: {
+            success: results[i]?.success ?? false,
+            message: results[i]?.message ?? 'Unknown result',
+          },
+        },
+      }));
+
+      result = await chat.sendMessage(functionResponses as never);
+      response = result.response;
+      rounds++;
+    }
+
+    // Check if the last response already has text (no streaming needed)
+    const immediateText = response.text?.()?.trim();
+    if (immediateText) {
+      // Stream it character-by-character for UX consistency
+      onChunk(immediateText);
+      responseText = immediateText;
+    } else {
+      // Stream the final text response
+      const streamResult = await chat.sendMessageStream('Please provide your response now.');
+      for await (const chunk of streamResult.stream) {
+        const chunkText = chunk.text();
+        if (chunkText) {
+          responseText += chunkText;
+          onChunk(chunkText);
+        }
+      }
+      responseText = responseText.trim();
+    }
+  } catch (err) {
+    logger.error({ err }, 'AI agent stream response failed');
+    responseText = 'I apologize, but I encountered an issue. Please try again.';
+    onChunk(responseText);
+  }
+
+  // 5. Save and return
+  const saved = await saveChatMessage(userId, 'assistant', responseText);
+  return { message: saved, actions: allActions };
 }
 
 // ─── Send message (agent loop with function calling) ────────────────────────
