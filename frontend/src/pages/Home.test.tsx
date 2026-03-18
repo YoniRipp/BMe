@@ -24,6 +24,7 @@ vi.mock('@/hooks/useWorkouts', () => ({
     addWorkout: vi.fn(),
     updateWorkout: vi.fn(),
     deleteWorkout: vi.fn(),
+    toggleWorkoutCompleted: vi.fn(),
     getWorkoutById: vi.fn(),
   }),
 }));
