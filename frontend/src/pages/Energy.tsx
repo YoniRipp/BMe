@@ -450,7 +450,10 @@ export function Energy() {
   }>) => {
     await addFoodEntriesBatch({
       date: toLocalDateString(today),
-      entries,
+      entries: entries.map((e) => ({
+        ...e,
+        mealType: e.mealType as FoodEntry['mealType'],
+      })),
     });
   }, [addFoodEntriesBatch, today]);
 
