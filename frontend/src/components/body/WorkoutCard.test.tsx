@@ -24,6 +24,7 @@ const mockWorkout: Workout = {
   exercises: [
     { name: 'Bench Press', sets: 3, reps: 10, weight: 135 },
   ],
+  completed: false,
 };
 
 describe('WorkoutCard', () => {

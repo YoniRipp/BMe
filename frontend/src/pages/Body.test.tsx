@@ -44,6 +44,7 @@ describe('Body Page', () => {
     addWorkout: vi.fn(),
     updateWorkout: vi.fn(),
     deleteWorkout: vi.fn(),
+    toggleWorkoutCompleted: vi.fn(),
     getWorkoutById: vi.fn(),
   };
 
@@ -75,6 +76,7 @@ describe('Body Page', () => {
           type: 'strength',
           durationMinutes: 45,
           exercises: [{ name: 'Squat', sets: 3, reps: 10, weight: 100 }],
+          completed: false,
         },
         {
           id: '2',
@@ -83,6 +85,7 @@ describe('Body Page', () => {
           type: 'strength',
           durationMinutes: 30,
           exercises: [{ name: 'Bench', sets: 3, reps: 8 }],
+          completed: false,
         },
       ],
     });
