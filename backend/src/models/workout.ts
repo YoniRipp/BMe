@@ -11,7 +11,9 @@ const RETURNING = 'id, date, title, type, duration_minutes, exercises, notes, co
 function rowToWorkout(row: Record<string, unknown>): Workout {
   return {
     id: row.id as string,
-    date: String(row.date),
+    date: row.date instanceof Date
+      ? row.date.toISOString().split('T')[0]
+      : String(row.date),
     title: row.title as string,
     type: row.type as WorkoutType,
     durationMinutes: Number(row.duration_minutes),

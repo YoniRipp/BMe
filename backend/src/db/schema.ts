@@ -52,6 +52,7 @@ export async function initSchema() {
         duration_minutes int NOT NULL,
         exercises jsonb NOT NULL DEFAULT '[]',
         notes text,
+        completed boolean NOT NULL DEFAULT false,
         created_at timestamptz DEFAULT now(),
         updated_at timestamptz DEFAULT now()
       );

@@ -11,7 +11,7 @@ const RETURNING = 'id, date, sleep_hours';
 function rowToCheckIn(row: Record<string, unknown>): DailyCheckIn {
   return {
     id: row.id as string,
-    date: String(row.date),
+    date: row.date instanceof Date ? row.date.toISOString().split('T')[0] : String(row.date),
     sleepHours: row.sleep_hours != null ? Number(row.sleep_hours) : undefined,
   };
 }

@@ -11,7 +11,7 @@ const RETURNING = 'id, date, period_start, period_end, flow, symptoms, notes';
 function rowToEntry(row: Record<string, unknown>): CycleEntry {
   return {
     id: row.id as string,
-    date: String(row.date),
+    date: row.date instanceof Date ? row.date.toISOString().split('T')[0] : String(row.date),
     periodStart: Boolean(row.period_start),
     periodEnd: Boolean(row.period_end),
     flow: (row.flow as string) ?? undefined,
