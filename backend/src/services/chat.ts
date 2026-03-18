@@ -215,7 +215,7 @@ ${detailedFood}
 - Be encouraging but honest — if they're not hitting goals, say so kindly with a concrete plan.
 - Keep responses concise for mobile — 2-4 short paragraphs unless they ask for detailed breakdowns.
 - You can respond in Hebrew or English based on the language the user writes in.
-- WORKOUT IMPLEMENTATION: If the user asks you to "implement", "add", "save", "create", or "log" a workout plan (even a multi-day program), you MUST call add_workout once per workout session — do NOT just describe the plan. Use today's date for the first workout and increment dates for subsequent days (e.g. day 2 = tomorrow, day 3 = day after, etc.). After calling add_workout for each session, confirm all workouts were saved.
+- WORKOUT IMPLEMENTATION: Whenever you write, create, suggest, or describe a workout plan for the user — you MUST call add_workout for EACH session/day. This applies whether the user says "write me a workout", "create a program", "give me a plan", "implement this", etc. Use today's date for the first session and increment dates (tomorrow, day after, etc.) for subsequent days. After logging all sessions, briefly confirm what was saved. NEVER describe a workout plan without creating it in the app.
 - Today's date: ${new Date().toISOString().slice(0, 10)}`;
 }
 
@@ -227,6 +227,12 @@ export interface AgentChatResponse {
 }
 
 // ─── Streaming send message ─────────────────────────────────────────────────
+
+const AGENT_SYSTEM_INIT = `You are an AI agent — not just a chatbot. CRITICAL RULES:
+1. When the user asks to log, add, edit, or delete data (food, workouts, sleep, goals, weight, water) — USE the appropriate tool. Do NOT describe what you would do — actually call the tool.
+2. When you write or create a workout plan for the user — call add_workout for EACH session/day. Never describe a plan without actually creating it in the app. Use today's date for the first session and increment dates for each subsequent day.
+3. When the user asks about their data — look it up with the available read tools before answering.
+4. NEVER claim to have performed an action without actually calling the tool. "I've logged..." means you MUST have called the tool, not just described doing so.`;
 
 export async function sendMessageStream(
   userId: string,
@@ -253,8 +259,8 @@ export async function sendMessageStream(
 
   const chat = model.startChat({
     history: [
-      { role: 'user', parts: [{ text: 'System instructions: ' + systemPrompt + '\n\nYou are an AI agent — not just a chatbot. You can take actions on behalf of the user using the available tools (log food, workouts, sleep, goals, query data, etc.). When the user asks you to log, add, edit, or delete something, USE the appropriate tool to do it. When the user asks about their data, USE the query_user_data tool to look it up. After taking an action, confirm what you did in a natural, conversational way.' }] },
-      { role: 'model', parts: [{ text: 'Understood. I\'m your fitness coach and assistant. I can both advise you AND take actions — log meals, workouts, sleep, manage goals, and look up your data. What would you like to do?' }] },
+      { role: 'user', parts: [{ text: 'System instructions:\n' + systemPrompt + '\n\n' + AGENT_SYSTEM_INIT }] },
+      { role: 'model', parts: [{ text: 'Understood. I am your fitness coach and agent. I will always call the appropriate tools to actually perform actions — never just describe them. What would you like to do?' }] },
       ...history.slice(0, -1).map(msg => ({
         role: msg.role === 'user' ? 'user' as const : 'model' as const,
         parts: [{ text: msg.content }],
@@ -262,58 +268,86 @@ export async function sendMessageStream(
     ],
   });
 
-  // 4. Agent loop: handle tool calls synchronously, then stream final text
+  // 4. Streaming agent loop
+  //    - First call uses sendMessageStream for real time-to-first-token
+  //    - If model returns tool calls instead of text, handle them synchronously
+  //    - After tool calls, emit final text in word-level chunks (simulated streaming)
   const allActions: ExecuteResult[] = [];
   let responseText = '';
 
   try {
-    // First call — may contain tool calls
-    let result = await chat.sendMessage(userMessage);
-    let response = result.response;
-    let rounds = 0;
+    // Real streaming: first call
+    const streamResult = await chat.sendMessageStream(userMessage);
 
-    while (rounds < MAX_TOOL_ROUNDS) {
-      const functionCalls = response.functionCalls?.() ?? [];
-      if (functionCalls.length === 0) break;
-
-      onThinking(); // still processing tools
-
-      const actions = functionCalls.map(fc => ({ intent: fc.name, ...fc.args }));
-      const results = await executeActions(actions as { intent: string; [key: string]: unknown }[], userId);
-      allActions.push(...results);
-
-      const functionResponses = functionCalls.map((fc, i) => ({
-        functionResponse: {
-          name: fc.name,
-          response: {
-            success: results[i]?.success ?? false,
-            message: results[i]?.message ?? 'Unknown result',
-          },
-        },
-      }));
-
-      result = await chat.sendMessage(functionResponses as never);
-      response = result.response;
-      rounds++;
+    let streamedText = '';
+    for await (const chunk of streamResult.stream) {
+      try {
+        const text = chunk.text();
+        if (text) {
+          streamedText += text;
+          onChunk(text); // true real-time streaming
+        }
+      } catch {
+        // chunk contains function calls — no text, skip
+      }
     }
 
-    // Check if the last response already has text (no streaming needed)
-    const immediateText = response.text?.()?.trim();
-    if (immediateText) {
-      // Stream it character-by-character for UX consistency
-      onChunk(immediateText);
-      responseText = immediateText;
+    // Get full response to check for function calls
+    const initialResponse = await streamResult.response;
+    let pendingCalls = initialResponse.functionCalls?.() ?? [];
+
+    if (pendingCalls.length === 0) {
+      // Pure text response — already streamed above
+      responseText = streamedText.trim();
     } else {
-      // Stream the final text response
-      const streamResult = await chat.sendMessageStream('Please provide your response now.');
-      for await (const chunk of streamResult.stream) {
-        const chunkText = chunk.text();
-        if (chunkText) {
-          responseText += chunkText;
-          onChunk(chunkText);
+      // Tool calls: handle synchronously, then stream final text
+      let finalText = '';
+      let rounds = 0;
+
+      while (pendingCalls.length > 0 && rounds < MAX_TOOL_ROUNDS) {
+        onThinking();
+
+        const actions = pendingCalls.map(fc => ({ intent: fc.name, ...fc.args }));
+        const results = await executeActions(actions as { intent: string; [key: string]: unknown }[], userId);
+        allActions.push(...results);
+
+        const functionResponses = pendingCalls.map((fc, i) => ({
+          functionResponse: {
+            name: fc.name,
+            response: {
+              success: results[i]?.success ?? false,
+              message: results[i]?.message ?? 'Unknown result',
+            },
+          },
+        }));
+
+        const nextResult = await chat.sendMessage(functionResponses as never);
+        const nextResponse = nextResult.response;
+        pendingCalls = nextResponse.functionCalls?.() ?? [];
+
+        if (pendingCalls.length === 0) {
+          // This is the final text response
+          try { finalText = nextResponse.text().trim(); } catch { /* no text part */ }
         }
+
+        rounds++;
       }
-      responseText = responseText.trim();
+
+      // Emit final text in word-level chunks (simulated streaming)
+      if (finalText) {
+        const segments = finalText.match(/\S+\s*/g) ?? [finalText];
+        for (const segment of segments) {
+          responseText += segment;
+          onChunk(segment);
+          await new Promise(r => setTimeout(r, 10));
+        }
+        responseText = responseText.trim();
+      }
+    }
+
+    if (!responseText) {
+      responseText = 'Done.';
+      onChunk(responseText);
     }
   } catch (err) {
     logger.error({ err }, 'AI agent stream response failed');
@@ -350,8 +384,8 @@ export async function sendMessage(userId: string, userMessage: string): Promise<
 
   const chat = model.startChat({
     history: [
-      { role: 'user', parts: [{ text: 'System instructions: ' + systemPrompt + '\n\nYou are an AI agent — not just a chatbot. You can take actions on behalf of the user using the available tools (log food, workouts, sleep, goals, query data, etc.). When the user asks you to log, add, edit, or delete something, USE the appropriate tool to do it. When the user asks about their data, USE the query_user_data tool to look it up. After taking an action, confirm what you did in a natural, conversational way.' }] },
-      { role: 'model', parts: [{ text: 'Understood. I\'m your fitness coach and assistant. I can both advise you AND take actions — log meals, workouts, sleep, manage goals, and look up your data. What would you like to do?' }] },
+      { role: 'user', parts: [{ text: 'System instructions:\n' + systemPrompt + '\n\n' + AGENT_SYSTEM_INIT }] },
+      { role: 'model', parts: [{ text: 'Understood. I am your fitness coach and agent. I will always call the appropriate tools to actually perform actions — never just describe them. What would you like to do?' }] },
       ...history.slice(0, -1).map(msg => ({
         role: msg.role === 'user' ? 'user' as const : 'model' as const,
         parts: [{ text: msg.content }],

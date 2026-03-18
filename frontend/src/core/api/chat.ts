@@ -49,6 +49,7 @@ export const chatApi = {
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
     let buffer = '';
+    let completed = false;
 
     while (true) {
       const { done, value } = await reader.read();
@@ -68,12 +69,17 @@ export const chatApi = {
           };
           if (data.chunk) onChunk(data.chunk);
           else if (data.thinking) onThinking();
-          else if (data.done) onDone(data.actions ?? []);
-          else if (data.error) onError(data.error);
+          else if (data.done) { completed = true; onDone(data.actions ?? []); }
+          else if (data.error) { completed = true; onError(data.error); }
         } catch {
           // ignore malformed lines
         }
       }
+    }
+
+    // Guard: if stream ended without a done/error event, surface the error
+    if (!completed) {
+      onError('Response was interrupted. Please try again.');
     }
   },
 

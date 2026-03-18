@@ -65,11 +65,13 @@ export function useAgent() {
           await queryClient.invalidateQueries({ queryKey: ['water'] });
           resolve({ actions: finalActions });
         },
-        (err) => {
+        async (err) => {
           console.error('Stream error:', err);
           setIsSending(false);
           setIsThinking(false);
           setStreamingContent('');
+          // Refresh history so the user's saved message shows even on error
+          await queryClient.invalidateQueries({ queryKey: ['chat', 'history'] });
           resolve(null);
         },
       ).catch((err) => {
