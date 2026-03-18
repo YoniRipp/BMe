@@ -23,7 +23,7 @@ interface ChatAgentPanelProps {
 }
 
 export function ChatAgentPanel({ open, onOpenChange }: ChatAgentPanelProps) {
-  const { messages, isLoadingHistory, isSending, isThinking, streamingContent, sendMessage, clearHistory } = useAgent();
+  const { messages, isLoadingHistory, isSending, isThinking, streamingContent, hasPendingResponse, sendMessage, clearHistory } = useAgent();
   const [input, setInput] = useState('');
   const [lastActions, setLastActions] = useState<AgentResponse['actions'] | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -213,6 +213,18 @@ export function ChatAgentPanel({ open, onOpenChange }: ChatAgentPanelProps) {
                   <span>{action.message || action.intent}</span>
                 </div>
               ))}
+            </div>
+          )}
+
+          {/* Pending response indicator — backend still processing after reconnect */}
+          {hasPendingResponse && !isSending && (
+            <div className="mr-auto flex items-center gap-2 rounded-2xl bg-muted px-4 py-2.5">
+              <div className="flex gap-1">
+                <span className="h-2 w-2 animate-bounce rounded-full bg-muted-foreground/50 [animation-delay:0ms]" />
+                <span className="h-2 w-2 animate-bounce rounded-full bg-muted-foreground/50 [animation-delay:150ms]" />
+                <span className="h-2 w-2 animate-bounce rounded-full bg-muted-foreground/50 [animation-delay:300ms]" />
+              </div>
+              <span className="text-xs text-muted-foreground">Waiting for response...</span>
             </div>
           )}
 
