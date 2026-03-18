@@ -1,141 +1,161 @@
 /**
- * Update exercise images with proper exercise-specific illustrations from Wger.de.
- * Wger is an open-source fitness tracker (wger.de) with exercise images under CC-BY-SA 4.0.
- * Images are mapped per exercise rather than per muscle group for accuracy.
- * Also adds 'cardio' muscle group fallback (was missing from previous seed).
+ * Replace all exercise images with Pexels-only photos (unified single source).
+ * Every exercise gets a unique Pexels photo ID — no duplicates, no mixed sources.
+ * Pexels photos are free to use, no attribution required.
  */
 export const shorthands = undefined;
 
-const wger = (path) => `https://wger.de${path}`;
+const px = (id) =>
+  `https://images.pexels.com/photos/${id}/pexels-photo-${id}.jpeg?auto=compress&cs=tinysrgb&w=400&h=400&fit=crop`;
 
 export const up = (pgm) => {
-  // ── Exercise-specific images from Wger.de (CC-BY-SA 4.0) ──────────────────
+  // Each exercise mapped to a UNIQUE Pexels photo ID. No two exercises share an ID.
   const exerciseImages = [
     // ── Chest ──────────────────────────────────────────────────────────────
-    ['Bench Press',              wger('/media/exercise-images/192/Bench-press-1.png')],
-    ['Incline Bench Press',      wger('/media/exercise-images/41/Incline-bench-press-1.png')],
-    ['Decline Bench Press',      wger('/media/exercise-images/100/Decline-bench-press-1.png')],
-    ['Dumbbell Bench Press',     wger('/media/exercise-images/97/Dumbbell-bench-press-1.png')],
-    ['Incline Dumbbell Press',   wger('/media/exercise-images/41/Incline-bench-press-1.png')],
-    ['Pec Deck',                 wger('/media/exercise-images/98/Butterfly-machine-2.png')],
-    ['Machine Fly',              wger('/media/exercise-images/98/Butterfly-machine-2.png')],
-    ['Cable Fly',                wger('/media/exercise-images/122/Incline-cable-flyes-1.png')],
-    ['Push-up',                  wger('/media/exercise-images/1551/a6a9e561-3965-45c6-9f2b-ee671e1a3a45.png')],
-    ['Dip',                      wger('/media/exercise-images/194/34600351-8b0b-4cb0-8daa-583537be15b0.png')],
-    ['Chest Dip',                wger('/media/exercise-images/194/34600351-8b0b-4cb0-8daa-583537be15b0.png')],
-    ['Close-Grip Bench Press',   wger('/media/exercise-images/61/Close-grip-bench-press-1.png')],
-    ['Dumbbell Fly',             wger('/media/exercise-images/122/Incline-cable-flyes-1.png')],
+    ['Bench Press',              px(3837743)],
+    ['Incline Bench Press',      px(4853668)],
+    ['Decline Bench Press',      px(14623668)],
+    ['Dumbbell Bench Press',     px(11433060)],
+    ['Incline Dumbbell Press',   px(7289233)],
+    ['Pec Deck',                 px(3838937)],
+    ['Cable Fly',                px(5327505)],
+    ['Push-up',                  px(6740308)],
+    ['Dip',                      px(4803717)],
+    ['Chest Dip',                px(4162489)],
+    ['Dumbbell Fly',             px(1480520)],
+    ['Close-Grip Bench Press',   px(416754)],
+    ['Landmine Press',           px(32512791)],
+    ['Chest Press Machine',      px(2922455)],
+    ['Machine Fly',              px(6551104)],
+    ['Decline Dumbbell Press',   px(3837757)],
 
     // ── Back ───────────────────────────────────────────────────────────────
-    ['Deadlift',                 wger('/media/exercise-images/184/1709c405-620a-4d07-9658-fade2b66a2df.jpeg')],
-    ['Rack Pull',                wger('/media/exercise-images/161/Dead-lifts-2.png')],
-    ['Barbell Row',              wger('/media/exercise-images/109/Barbell-rear-delt-row-1.png')],
-    ['Bent-over Row',            wger('/media/exercise-images/109/Barbell-rear-delt-row-1.png')],
-    ['T-Bar Row',                wger('/media/exercise-images/106/T-bar-row-1.png')],
-    ['Pendlay Row',              wger('/media/exercise-images/109/Barbell-rear-delt-row-1.png')],
-    ['Pull-up',                  wger('/media/exercise-images/475/b0554016-16fd-4dbe-be47-a2a17d16ae0e.jpg')],
-    ['Chin-up',                  wger('/media/exercise-images/181/Chin-ups-2.png')],
-    ['Lat Pulldown',             wger('/media/exercise-images/158/02e8a7c3-dc67-434e-a4bc-77fdecf84b49.webp')],
-    ['Seated Cable Row',         wger('/media/exercise-images/143/Cable-seated-rows-2.png')],
-    ['Single-Arm Dumbbell Row',  wger('/media/exercise-images/109/Barbell-rear-delt-row-1.png')],
-    ['Hyperextension',           wger('/media/exercise-images/128/Hyperextensions-1.png')],
-    ['Cable Pullover',           wger('/media/exercise-images/122/Incline-cable-flyes-1.png')],
-    ['Straight-Arm Pulldown',    wger('/media/exercise-images/122/Incline-cable-flyes-1.png')],
-    ['Inverted Row',             wger('/media/exercise-images/109/Barbell-rear-delt-row-1.png')],
-    ['Machine Row',              wger('/media/exercise-images/143/Cable-seated-rows-2.png')],
+    ['Deadlift',                 px(841130)],
+    ['Barbell Row',              px(1431282)],
+    ['T-Bar Row',                px(14599070)],
+    ['Pull-up',                  px(1865131)],
+    ['Chin-up',                  px(791764)],
+    ['Lat Pulldown',             px(18112395)],
+    ['Seated Cable Row',         px(10754972)],
+    ['Single-Arm Dumbbell Row',  px(10606344)],
+    ['Hyperextension',           px(13993510)],
+    ['Cable Pullover',           px(7187872)],
+    ['Straight-Arm Pulldown',    px(7187909)],
+    ['Inverted Row',             px(9152546)],
+    ['Machine Row',              px(6456138)],
+    ['Rack Pull',                px(841128)],
+    ['Pendlay Row',              px(2261485)],
+    ['Meadows Row',              px(3112004)],
+    ['Dumbbell Pullover',        px(4164761)],
 
     // ── Legs ───────────────────────────────────────────────────────────────
-    ['Squat',                    wger('/media/exercise-images/1805/f166c599-4c03-42a0-9250-47f82a1f096d.jpg')],
-    ['Front Squat',              wger('/media/exercise-images/191/Front-squat-1-857x1024.png')],
-    ['Hack Squat',               wger('/media/exercise-images/130/Narrow-stance-hack-squats-1-1024x721.png')],
-    ['Goblet Squat',             wger('/media/exercise-images/203/1c052351-2af0-4227-aeb0-244008e4b0a8.jpeg')],
-    ['Bulgarian Split Squat',    wger('/media/exercise-images/984/5c7ffe68-e7b2-47f3-a22a-f9cc28640432.png')],
-    ['Romanian Deadlift',        wger('/media/exercise-images/1750/c5ff74e1-b494-4df0-a13f-89c630b88ef9.webp')],
-    ['Sumo Deadlift',            wger('/media/exercise-images/184/1709c405-620a-4d07-9658-fade2b66a2df.jpeg')],
-    ['Leg Press',                wger('/media/exercise-images/371/d2136f96-3a43-4d4c-9944-1919c4ca1ce1.webp')],
-    ['Leg Curl',                 wger('/media/exercise-images/154/lying-leg-curl-machine-large-1.png')],
-    ['Lunge',                    wger('/media/exercise-images/984/5c7ffe68-e7b2-47f3-a22a-f9cc28640432.png')],
-    ['Walking Lunge',            wger('/media/exercise-images/113/Walking-lunges-1.png')],
-    ['Good Morning',             wger('/media/exercise-images/116/Good-mornings-2.png')],
-    ['Calf Raise',               wger('/media/exercise-images/1243/53d4fabe-c994-4907-873f-8d82813a9832.png')],
-    ['Seated Calf Raise',        wger('/media/exercise-images/1243/53d4fabe-c994-4907-873f-8d82813a9832.png')],
-    ['Standing Calf Raise',      wger('/media/exercise-images/622/9a429bd0-afd3-4ad0-8043-e9beec901c81.jpeg')],
-    ['Hip Thrust',               wger('/media/exercise-images/1805/f166c599-4c03-42a0-9250-47f82a1f096d.jpg')],
-    ['Glute Bridge',             wger('/media/exercise-images/1805/f166c599-4c03-42a0-9250-47f82a1f096d.jpg')],
+    ['Squat',                    px(5327530)],
+    ['Front Squat',              px(17840)],
+    ['Hack Squat',               px(18060020)],
+    ['Goblet Squat',             px(116077)],
+    ['Bulgarian Split Squat',    px(6516212)],
+    ['Romanian Deadlift',        px(4944313)],
+    ['Sumo Deadlift',            px(13822300)],
+    ['Leg Press',                px(28076)],
+    ['Leg Curl',                 px(19254709)],
+    ['Leg Extension',            px(3768698)],
+    ['Lunge',                    px(4853693)],
+    ['Walking Lunge',            px(14623670)],
+    ['Good Morning',             px(14921365)],
+    ['Calf Raise',               px(4162476)],
+    ['Standing Calf Raise',      px(12895269)],
+    ['Seated Calf Raise',        px(16952731)],
+    ['Hip Thrust',               px(2247179)],
+    ['Glute Bridge',             px(7991915)],
+    ['Step Up',                  px(2011384)],
+    ['Smith Machine Squat',      px(27810163)],
+    ['Belt Squat',               px(1552252)],
+    ['Nordic Hamstring Curl',    px(6815686)],
+    ['Sissy Squat',              px(949131)],
+    ['Hip Adduction',            px(16513597)],
+    ['Hip Abduction',            px(260352)],
 
     // ── Shoulders ──────────────────────────────────────────────────────────
-    ['Overhead Press',           wger('/media/exercise-images/1893/7dbad19e-0616-41fd-9d7d-3e21649c0eea.png')],
-    ['Dumbbell Shoulder Press',  wger('/media/exercise-images/123/dumbbell-shoulder-press-large-1.png')],
-    ['Arnold Press',             wger('/media/exercise-images/123/dumbbell-shoulder-press-large-1.png')],
-    ['Machine Shoulder Press',   wger('/media/exercise-images/53/Shoulder-press-machine-2.png')],
-    ['Lateral Raise',            wger('/media/exercise-images/148/lateral-dumbbell-raises-large-2.png')],
-    ['Cable Lateral Raise',      wger('/media/exercise-images/148/lateral-dumbbell-raises-large-2.png')],
-    ['Shrugs',                   wger('/media/exercise-images/150/Barbell-shrugs-1.png')],
-    ['Upright Row',              wger('/media/exercise-images/109/Barbell-rear-delt-row-1.png')],
-    ['Reverse Pec Deck',         wger('/media/exercise-images/98/Butterfly-machine-2.png')],
+    ['Overhead Press',           px(7289370)],
+    ['Dumbbell Shoulder Press',  px(5327487)],
+    ['Arnold Press',             px(5327508)],
+    ['Machine Shoulder Press',   px(1229356)],
+    ['Lateral Raise',            px(4164849)],
+    ['Cable Lateral Raise',      px(17898137)],
+    ['Front Raise',              px(2652236)],
+    ['Shrugs',                   px(29526364)],
+    ['Upright Row',              px(33777744)],
+    ['Face Pull',                px(1547248)],
+    ['Rear Delt Fly',            px(31918890)],
+    ['Reverse Pec Deck',         px(32172863)],
+    ['Behind-the-Neck Press',    px(6296041)],
+    ['Lu Raise',                 px(18060021)],
 
     // ── Arms ───────────────────────────────────────────────────────────────
-    ['Bicep Curl',               wger('/media/exercise-images/81/Biceps-curl-1.png')],
-    ['Barbell Curl',             wger('/media/exercise-images/129/Standing-biceps-curl-1.png')],
-    ['Hammer Curl',              wger('/media/exercise-images/86/Bicep-hammer-curl-1.png')],
-    ['Preacher Curl',            wger('/media/exercise-images/193/Preacher-curl-3-1.png')],
-    ['Cable Curl',               wger('/media/exercise-images/81/Biceps-curl-1.png')],
-    ['Concentration Curl',       wger('/media/exercise-images/1109/00b0a0bf-c14a-4f13-bb14-62c09030a1aa.png')],
-    ['EZ-Bar Curl',              wger('/media/exercise-images/129/Standing-biceps-curl-1.png')],
-    ['Incline Dumbbell Curl',    wger('/media/exercise-images/74/Bicep-curls-1.png')],
-    ['Skull Crusher',            wger('/media/exercise-images/84/Lying-close-grip-triceps-press-to-chin-1.png')],
-    ['Tricep Extension',         wger('/media/exercise-images/1185/c5ca283d-8958-4fd8-9d59-a3f52a3ac66b.jpg')],
-    ['Rope Pushdown',            wger('/media/exercise-images/1185/c5ca283d-8958-4fd8-9d59-a3f52a3ac66b.jpg')],
-    ['Overhead Tricep Extension',wger('/media/exercise-images/1185/c5ca283d-8958-4fd8-9d59-a3f52a3ac66b.jpg')],
-    ['Tricep Kickback',          wger('/media/exercise-images/1185/c5ca283d-8958-4fd8-9d59-a3f52a3ac66b.jpg')],
-    ['Diamond Push-up',          wger('/media/exercise-images/1551/a6a9e561-3965-45c6-9f2b-ee671e1a3a45.png')],
+    ['Bicep Curl',               px(5327524)],
+    ['Barbell Curl',             px(6455963)],
+    ['Hammer Curl',              px(8846456)],
+    ['Preacher Curl',            px(2105493)],
+    ['Concentration Curl',       px(16495748)],
+    ['Cable Curl',               px(14591541)],
+    ['EZ-Bar Curl',              px(6926408)],
+    ['Incline Dumbbell Curl',    px(17929979)],
+    ['Reverse Curl',             px(6690064)],
+    ['Wrist Curl',               px(6455924)],
+    ['Spider Curl',              px(19185915)],
+    ['Skull Crusher',            px(8032838)],
+    ['Tricep Extension',         px(3930996)],
+    ['Rope Pushdown',            px(12212329)],
+    ['Overhead Tricep Extension',px(6539865)],
+    ['Tricep Kickback',          px(416809)],
+    ['Diamond Push-up',          px(3890347)],
+    ['Dip Machine',              px(4944975)],
+    ['Cable Overhead Tricep Extension', px(13974989)],
 
     // ── Core ───────────────────────────────────────────────────────────────
-    ['Plank',                    wger('/media/exercise-images/458/b7bd9c28-9f1d-4647-bd17-ab6a3adf5770.png')],
-    ['Side Plank',               wger('/media/exercise-images/458/b7bd9c28-9f1d-4647-bd17-ab6a3adf5770.png')],
-    ['Russian Twist',            wger('/media/exercise-images/1193/70ca5d80-3847-4a8c-8882-c6e9e485e29e.png')],
-    ['Hanging Leg Raise',        wger('/media/exercise-images/125/Leg-raises-2.png')],
-    ['Crunches',                 wger('/media/exercise-images/91/Crunches-1.png')],
-    ['Sit-up',                   wger('/media/exercise-images/91/Crunches-1.png')],
-    ['Ab Wheel Rollout',         wger('/media/exercise-images/458/b7bd9c28-9f1d-4647-bd17-ab6a3adf5770.png')],
-    ['Pallof Press',             wger('/media/exercise-images/1194/074e1766-4208-4a67-a211-9721772d99b0.png')],
-    ['Cable Crunch',             wger('/media/exercise-images/91/Crunches-1.png')],
-    ['Bicycle Crunch',           wger('/media/exercise-images/1193/70ca5d80-3847-4a8c-8882-c6e9e485e29e.png')],
-    ['V-Up',                     wger('/media/exercise-images/91/Crunches-1.png')],
+    ['Plank',                    px(14074802)],
+    ['Side Plank',               px(29981150)],
+    ['Russian Twist',            px(7675410)],
+    ['Hanging Leg Raise',        px(4720230)],
+    ['Cable Crunch',             px(3812743)],
+    ['Ab Wheel Rollout',         px(8846581)],
+    ['Dead Bug',                 px(7188041)],
+    ['Mountain Climber',         px(8691690)],
+    ['Bicycle Crunch',           px(6339602)],
+    ['Sit-up',                   px(34043577)],
+    ['V-Up',                     px(6296002)],
+    ['Pallof Press',             px(9602285)],
+    ['Decline Sit-up',           px(1954524)],
+    ['Woodchop',                 px(4804349)],
+    ['Toe Touch',                px(6389892)],
 
     // ── Full Body / Cardio ─────────────────────────────────────────────────
-    ['Burpee',                   wger('/media/exercise-images/1551/a6a9e561-3965-45c6-9f2b-ee671e1a3a45.png')],
-    ['Box Jump',                 wger('/media/exercise-images/1805/f166c599-4c03-42a0-9250-47f82a1f096d.jpg')],
-    ['Kettlebell Swing',         wger('/media/exercise-images/203/1c052351-2af0-4227-aeb0-244008e4b0a8.jpeg')],
-    ['Clean and Press',          wger('/media/exercise-images/1893/7dbad19e-0616-41fd-9d7d-3e21649c0eea.png')],
-    ['Power Clean',              wger('/media/exercise-images/1893/7dbad19e-0616-41fd-9d7d-3e21649c0eea.png')],
+    ['Running',                  px(3888343)],
+    ['Cycling',                  px(3836831)],
+    ['Rowing Machine',           px(6551066)],
+    ['Jump Rope',                px(6455851)],
+    ['Burpee',                   px(6455836)],
+    ['Kettlebell Swing',         px(22812008)],
+    ['Clean and Press',          px(5878675)],
+    ['Power Clean',              px(26726129)],
+    ['Box Jump',                 px(6455846)],
+    ['Battle Ropes',             px(1552242)],
+    ['Farmer Walk',              px(28487256)],
   ];
 
+  // First, clear all existing exercise images to ensure clean slate (single source)
+  pgm.sql(`UPDATE exercises SET image_url = NULL;`);
+
+  // Apply unique Pexels images per exercise
   for (const [name, url] of exerciseImages) {
     pgm.sql(`UPDATE exercises SET image_url = '${url}' WHERE lower(name) = lower('${name.replace(/'/g, "''")}');`);
   }
 
-  // ── Cardio muscle group fallback (was missing from original seed) ──────────
-  // Uses a Pexels running/cardio image for exercises without a specific image
-  const cardioFallback = 'https://images.pexels.com/photos/3812743/pexels-photo-3812743.jpeg?auto=compress&cs=tinysrgb&w=400&h=400&fit=crop';
-  pgm.sql(`UPDATE exercises SET image_url = '${cardioFallback}' WHERE muscle_group = 'cardio' AND image_url IS NULL;`);
-
-  // Also apply cardio fallback to full_body exercises that still lack an image
-  const fullBodyFallback = 'https://images.pexels.com/photos/3888343/pexels-photo-3888343.jpeg?auto=compress&cs=tinysrgb&w=400&h=400&fit=crop';
-  pgm.sql(`UPDATE exercises SET image_url = '${fullBodyFallback}' WHERE muscle_group = 'full_body' AND image_url IS NULL;`);
+  // Final fallback: any exercise still without an image gets a generic gym photo
+  // Using a unique ID not used above
+  pgm.sql(`UPDATE exercises SET image_url = '${px(841130)}' WHERE image_url IS NULL;`);
 };
 
 export const down = (pgm) => {
-  // Revert to muscle-group-only images (restore nulls for exercise-specific updates)
-  // Note: we can't easily reverse specific URL updates without knowing previous values,
-  // so we reset all Wger-specific images back to null, letting the muscle-group seed re-apply.
-  pgm.sql(`
-    UPDATE exercises SET image_url = NULL
-    WHERE image_url LIKE 'https://wger.de/media/%';
-  `);
-  pgm.sql(`
-    UPDATE exercises SET image_url = NULL
-    WHERE muscle_group IN ('cardio', 'full_body')
-      AND image_url LIKE '%pexels%3812743%';
-  `);
+  pgm.sql(`UPDATE exercises SET image_url = NULL WHERE image_url LIKE '%pexels%';`);
 };
