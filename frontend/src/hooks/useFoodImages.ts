@@ -1,6 +1,6 @@
 /**
  * Lightweight food image lookup by keyword matching.
- * Uses the same Pexels free images seeded in the foods table.
+ * All images from Pexels (single source). Each food has a unique photo.
  * No API calls – instant, works offline.
  */
 
@@ -8,114 +8,115 @@ const px = (id: number) =>
   `https://images.pexels.com/photos/${id}/pexels-photo-${id}.jpeg?auto=compress&cs=tinysrgb&w=400&h=400&fit=crop`;
 
 // Ordered: more-specific keywords first so "chicken breast" matches "chicken" before "breast"
+// Every entry uses a UNIQUE Pexels photo ID — no duplicates.
 const FOOD_IMAGE_MAP: [string, string][] = [
   // Poultry
-  ['chicken', px(1247677)],
-  ['turkey', px(1247677)],
-  ['duck', px(1247677)],
-  ['rotisserie', px(1247677)],
+  ['chicken', px(2673353)],    // cooked chicken on white plate
+  ['turkey', px(3659862)],     // turkey meat sliced
+  ['duck', px(28247014)],      // chicken/poultry plate with vegetables
+  ['rotisserie', px(7172851)], // fried chicken on ceramic plate
   // Red meat
-  ['beef', px(299347)],
-  ['steak', px(299347)],
-  ['brisket', px(299347)],
-  ['ribeye', px(299347)],
-  ['sirloin', px(299347)],
-  ['filet mignon', px(299347)],
-  ['veal', px(299347)],
-  ['lamb', px(299347)],
-  ['bison', px(299347)],
+  ['beef', px(1639557)],       // raw beef steak
+  ['steak', px(1251208)],      // grilled steak
+  ['brisket', px(2233729)],    // barbecue meat
+  ['ribeye', px(3535383)],     // steak on plate
+  ['sirloin', px(8694600)],    // meat on cutting board
+  ['filet mignon', px(3997609)], // fine dining steak
+  ['veal', px(3338497)],       // meat on plate
+  ['lamb', px(1352270)],       // lamb chop
+  ['bison', px(2491273)],      // cooked meat
   // Pork
-  ['pork', px(2067418)],
-  ['bacon', px(2067418)],
-  ['ham', px(2067418)],
-  ['sausage', px(2067418)],
-  ['prosciutto', px(2067418)],
-  ['chorizo', px(2067418)],
-  ['pepperoni', px(2067418)],
-  ['salami', px(2067418)],
+  ['pork', px(2067418)],       // pork cuts
+  ['bacon', px(1059943)],      // crispy bacon strips
+  ['ham', px(3186654)],        // ham sliced
+  ['sausage', px(929137)],     // sausages
+  ['prosciutto', px(3662136)], // prosciutto sliced
+  ['chorizo', px(4676401)],    // chorizo sausage
+  ['pepperoni', px(4109111)],  // pepperoni
+  ['salami', px(6287502)],     // salami sliced
   // Fish & seafood
-  ['salmon', px(2374946)],
-  ['tuna', px(2374946)],
-  ['cod', px(2374946)],
-  ['tilapia', px(2374946)],
-  ['trout', px(2374946)],
-  ['halibut', px(2374946)],
-  ['fish', px(2374946)],
-  ['shrimp', px(1510714)],
-  ['crab', px(1510714)],
-  ['lobster', px(1510714)],
-  ['scallop', px(1510714)],
-  ['mussel', px(1510714)],
-  ['oyster', px(1510714)],
-  ['squid', px(1510714)],
-  ['seafood', px(1510714)],
+  ['salmon', px(1516415)],     // salmon dish with vegetables
+  ['tuna', px(7627407)],       // fish steak with spinach
+  ['cod', px(3763847)],        // white fish fillet
+  ['tilapia', px(3843224)],    // fried fish
+  ['trout', px(19001608)],     // fish on tray
+  ['halibut', px(3655916)],    // white fish plate
+  ['fish', px(2374946)],       // generic fish
+  ['shrimp', px(725992)],      // shrimp prawns
+  ['crab', px(3298180)],       // crab on plate
+  ['lobster', px(3763908)],    // lobster
+  ['scallop', px(8969237)],    // scallops
+  ['mussel', px(12419890)],    // mussels
+  ['oyster', px(7260470)],     // oysters
+  ['squid', px(4553020)],      // calamari
+  ['seafood', px(1510714)],    // mixed seafood
   // Eggs
-  ['egg', px(103124)],
+  ['egg', px(824635)],         // eggs in carton
   // Dairy
-  ['cheese', px(1279330)],
-  ['yogurt', px(4220141)],
-  ['milk', px(2198626)],
-  ['cream', px(2198626)],
-  ['butter', px(2198626)],
-  ['cottage', px(1279330)],
-  ['ricotta', px(1279330)],
-  ['paneer', px(1279330)],
+  ['cheese', px(821365)],      // cheese block
+  ['yogurt', px(414262)],      // yogurt bowl
+  ['milk', px(2198626)],       // glass of milk
+  ['cream', px(5765825)],      // cream in bowl
+  ['butter', px(531334)],      // butter block
+  ['cottage', px(4397899)],    // cottage cheese
+  ['ricotta', px(5417843)],    // ricotta cheese
+  ['paneer', px(9609838)],     // paneer cubes
   // Grains & starches
-  ['rice', px(17910326)],
-  ['pasta', px(1279330)],
-  ['bread', px(162846)],
-  ['oat', px(4220141)],
-  ['cereal', px(4220141)],
-  ['tortilla', px(162846)],
-  ['quinoa', px(17910326)],
-  ['couscous', px(17910326)],
-  // Vegetables
-  ['broccoli', px(2181151)],
-  ['spinach', px(2181151)],
-  ['carrot', px(2181151)],
-  ['tomato', px(2181151)],
-  ['potato', px(2181151)],
-  ['pepper', px(2181151)],
-  ['onion', px(2181151)],
-  ['avocado', px(2181151)],
-  ['vegetable', px(2181151)],
-  ['salad', px(2181151)],
-  ['lettuce', px(2181151)],
-  ['kale', px(2181151)],
-  ['cucumber', px(2181151)],
-  ['celery', px(2181151)],
-  // Fruits
-  ['banana', px(1128678)],
-  ['apple', px(1128678)],
-  ['orange', px(1128678)],
-  ['berry', px(1120575)],
-  ['blueberry', px(1120575)],
-  ['strawberry', px(1120575)],
-  ['grape', px(1128678)],
-  ['mango', px(1128678)],
-  ['melon', px(1128678)],
-  ['pear', px(1128678)],
-  ['fruit', px(1128678)],
-  // Nuts & seeds
-  ['almond', px(4220141)],
-  ['walnut', px(4220141)],
-  ['peanut', px(4220141)],
-  ['cashew', px(4220141)],
-  ['nut', px(4220141)],
-  ['seed', px(4220141)],
-  // Prepared / other
-  ['pizza', px(1279330)],
-  ['burger', px(299347)],
-  ['sandwich', px(162846)],
-  ['wrap', px(162846)],
-  ['soup', px(2181151)],
-  ['smoothie', px(2198626)],
-  ['protein', px(4220141)],
-  ['bar', px(4220141)],
+  ['rice', px(723198)],        // bowl of rice
+  ['pasta', px(1279330)],      // pasta
+  ['bread', px(1775043)],      // bread loaf
+  ['oat', px(543730)],         // oatmeal bowl
+  ['cereal', px(135525)],      // cereal bowl
+  ['tortilla', px(1108775)],   // tortillas
+  ['quinoa', px(17910326)],    // quinoa bowl
+  ['couscous', px(2284166)],   // couscous grain
+  // Vegetables (each gets a unique photo)
+  ['broccoli', px(47347)],     // broccoli on wooden table
+  ['spinach', px(2325843)],    // spinach leaves
+  ['carrot', px(143133)],      // carrots bunch
+  ['tomato', px(533280)],      // tomatoes
+  ['potato', px(144248)],      // potatoes
+  ['pepper', px(128536)],      // bell peppers
+  ['onion', px(175414)],       // onions
+  ['avocado', px(557659)],     // avocado halved
+  ['vegetable', px(2181151)],  // mixed vegetables
+  ['salad', px(1059905)],      // salad bowl
+  ['lettuce', px(2095569)],    // green leafy vegetables
+  ['kale', px(2280567)],       // kale and greens
+  ['cucumber', px(2329440)],   // cucumber sliced
+  ['celery', px(3727689)],     // green vegetable
+  // Fruits (each gets a unique photo)
+  ['banana', px(2238316)],     // yellow bananas
+  ['apple', px(1510392)],      // red apple
+  ['orange', px(2294477)],     // orange citrus
+  ['berry', px(1120575)],      // mixed berries
+  ['blueberry', px(1253545)],  // blueberries
+  ['strawberry', px(934066)],  // strawberries
+  ['grape', px(760281)],       // grapes
+  ['mango', px(918643)],       // mango
+  ['melon', px(2894285)],      // melon
+  ['pear', px(568471)],        // pear
+  ['fruit', px(1128678)],      // mixed fruit
+  // Nuts & seeds (each unique)
+  ['almond', px(1295572)],     // almonds
+  ['walnut', px(45202)],       // walnuts
+  ['peanut', px(1893650)],     // peanuts
+  ['cashew', px(7261946)],     // cashews
+  ['nut', px(890507)],          // mixed nuts
+  ['seed', px(1080754)],       // seeds
+  // Prepared / other (each unique)
+  ['pizza', px(315755)],       // pizza
+  ['burger', px(1199957)],     // burger
+  ['sandwich', px(1603901)],   // sandwich
+  ['wrap', px(461198)],        // wrap/burrito
+  ['soup', px(539451)],        // bowl of soup
+  ['smoothie', px(1346155)],   // smoothie glass
+  ['protein', px(4220141)],    // protein powder/shake
+  ['bar', px(3026810)],        // energy bar
   // Ground meat fallback
-  ['ground', px(299347)],
-  ['meatball', px(299347)],
-  ['jerky', px(299347)],
+  ['ground', px(6941010)],     // ground meat
+  ['meatball', px(2741448)],   // meatball plate
+  ['jerky', px(6210876)],      // dried meat
 ];
 
 export function getFoodImageUrl(name: string): string | undefined {
