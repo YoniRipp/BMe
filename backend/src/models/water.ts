@@ -10,7 +10,7 @@ const RETURNING = 'id, date, glasses, ml_total';
 function rowToEntry(row: Record<string, unknown>): WaterEntry {
   return {
     id: row.id as string,
-    date: String(row.date),
+    date: row.date instanceof Date ? row.date.toISOString().split('T')[0] : String(row.date),
     glasses: Number(row.glasses ?? 0),
     mlTotal: Number(row.ml_total ?? 0),
   };

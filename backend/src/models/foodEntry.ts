@@ -11,7 +11,7 @@ const RETURNING = 'id, date, name, calories, protein, carbs, fats, portion_amoun
 function rowToEntry(row: Record<string, unknown>): FoodEntry {
   return {
     id: row.id as string,
-    date: String(row.date),
+    date: row.date instanceof Date ? row.date.toISOString().split('T')[0] : String(row.date),
     name: row.name as string,
     calories: Number(row.calories),
     protein: Number(row.protein),

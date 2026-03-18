@@ -11,7 +11,7 @@ const RETURNING = 'id, date, weight, notes';
 function rowToEntry(row: Record<string, unknown>): WeightEntry {
   return {
     id: row.id as string,
-    date: String(row.date),
+    date: row.date instanceof Date ? row.date.toISOString().split('T')[0] : String(row.date),
     weight: Number(row.weight),
     notes: (row.notes as string) ?? undefined,
   };
