@@ -7,7 +7,7 @@
 import { Request, Response } from 'express';
 import { asyncHandler } from '../middleware/errorHandler.js';
 import { sendJson, sendError } from '../utils/response.js';
-import { getOrGenerateInsights, refreshInsights } from '../services/insights.js';
+import { getOrGenerateInsights, hasNewActivitySinceLastInsight, refreshAllPeriods } from '../services/insights.js';
 import { getStatsSince } from '../models/userDailyStats.js';
 import { config } from '../config/index.js';
 import { getPool } from '../db/index.js';
@@ -30,7 +30,18 @@ export const refreshInsightsController = asyncHandler(async (req: Request, res: 
     return sendError(res, 503, 'AI insights not configured (missing GEMINI_API_KEY)');
   }
   const days = parseDays(req.query.days);
-  const { main } = await refreshInsights(req.user!.id, days);
+  const userId = req.user!.id;
+
+  // Smart refresh: skip regeneration if nothing has changed
+  const changed = await hasNewActivitySinceLastInsight(userId);
+  if (!changed) {
+    // Return cached data — no new activity, no need to regenerate
+    const { main } = await getOrGenerateInsights(userId, days);
+    return sendJson(res, { ...main, cached: true });
+  }
+
+  // Something changed — regenerate requested period and preload all others in background
+  const { main } = await refreshAllPeriods(userId, days);
   return sendJson(res, main);
 });
 

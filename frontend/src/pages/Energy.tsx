@@ -5,6 +5,8 @@ import { FoodEntry, type DailyCheckIn } from '@/types/energy';
 import { ContentWithLoading } from '@/components/shared/ContentWithLoading';
 import { SleepEditModal } from '@/components/energy/SleepEditModal';
 import { FoodEntryModal } from '@/components/energy/FoodEntryModal';
+import { BulkFoodEntryModal } from '@/components/energy/BulkFoodEntryModal';
+import { DuplicateDayDialog } from '@/components/energy/DuplicateDayDialog';
 import { FoodCard } from '@/components/energy/FoodCard';
 import { MacroCircles } from '@/components/home/MacroCircles';
 import { MacroGoalModal } from '@/components/home/MacroGoalModal';
@@ -14,7 +16,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { EmptyStateCard } from '@/components/shared/EmptyStateCard';
 import { AddAnotherCard } from '@/components/shared/AddAnotherCard';
 import { PeriodSelector } from '@/components/shared/PeriodSelector';
-import { Moon, Trash2, Pencil, ChevronDown, Plus } from 'lucide-react';
+import { Moon, Trash2, Pencil, ChevronDown, Plus, ClipboardList, Copy } from 'lucide-react';
 import { isSameDay, isWithinInterval, format, startOfWeek, endOfWeek } from 'date-fns';
 import { getPeriodRange, toLocalDateString } from '@/lib/dateRanges';
 
@@ -142,7 +144,7 @@ function CollapsibleGroup({
   const calLabel = isAvg && uniqueDays > 1 ? `${displayCal} cal/day` : `${displayCal} cal`;
 
   return (
-    <div className="rounded-2xl border bg-white overflow-hidden">
+    <div className="bg-card overflow-hidden">
       <button
         type="button"
         className="w-full flex items-center justify-between p-3 hover:bg-muted/40 transition-colors"
@@ -190,7 +192,7 @@ function MealSection({
   onAdd: () => void;
 }) {
   return (
-    <Card className="rounded-2xl overflow-hidden">
+    <Card className="rounded-2xl overflow-hidden border border-border/30 shadow-sm">
       <div className="flex items-center justify-between px-4 pt-4 pb-2">
         <h4 className="text-sm font-semibold">{meal}</h4>
         <span className="text-sm font-medium text-muted-foreground tabular-nums">{totalCal} cal</span>
@@ -213,7 +215,7 @@ function MealSection({
 }
 
 export function Energy() {
-  const { checkIns, foodEntries, energyLoading, addCheckIn, updateCheckIn, deleteCheckIn, addFoodEntry, updateFoodEntry, deleteFoodEntry } = useEnergy();
+  const { checkIns, foodEntries, energyLoading, addCheckIn, updateCheckIn, deleteCheckIn, addFoodEntry, updateFoodEntry, deleteFoodEntry, addFoodEntriesBatch, duplicateDay } = useEnergy();
   const { macroGoals, setMacroGoals, calorieGoal } = useMacroGoals();
   const [sleepModalOpen, setSleepModalOpen] = useState(false);
   const [editingCheckIn, setEditingCheckIn] = useState<DailyCheckIn | undefined>(undefined);
@@ -224,6 +226,8 @@ export function Energy() {
   const [sleepPeriod, setSleepPeriod] = useState<'daily' | 'weekly' | 'monthly' | 'yearly'>('daily');
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [macroGoalModalOpen, setMacroGoalModalOpen] = useState(false);
+  const [bulkModalOpen, setBulkModalOpen] = useState(false);
+  const [duplicateDialogOpen, setDuplicateDialogOpen] = useState(false);
 
   const today = useMemo(() => new Date(), []);
 
@@ -384,8 +388,30 @@ export function Energy() {
   };
 
   return (
-    <div className="max-w-lg md:max-w-2xl mx-auto space-y-5 pb-24">
+    <div className="max-w-lg md:max-w-6xl mx-auto space-y-5 pb-24">
       <ContentWithLoading loading={energyLoading} loadingText="Loading energy...">
+      {/* Action buttons */}
+      <div className="flex items-center justify-end gap-2">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="gap-1.5 h-8 text-xs"
+          onClick={() => setBulkModalOpen(true)}
+        >
+          <ClipboardList className="w-3.5 h-3.5" />
+          Add Menu
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="gap-1.5 h-8 text-xs"
+          onClick={() => setDuplicateDialogOpen(true)}
+        >
+          <Copy className="w-3.5 h-3.5" />
+          Copy Day
+        </Button>
+      </div>
+
       {/* Calorie + Macro Section */}
       {(() => {
         const calGoalTarget = calorieGoal;
@@ -433,19 +459,19 @@ export function Energy() {
           <>
             {/* Mobile: stacked cards */}
             <div className="md:hidden space-y-5">
-              <Card className="rounded-2xl overflow-hidden">
+              <Card className="rounded-2xl overflow-hidden border border-border/30 shadow-sm">
                 <CardContent className="p-5">
                   {periodSelectorEl}
                   <div className="flex justify-center my-4">{calorieRingEl}</div>
                 </CardContent>
               </Card>
-              <Card className="rounded-2xl overflow-hidden">
+              <Card className="rounded-2xl overflow-hidden border border-border/30 shadow-sm">
                 <CardContent className="p-5">{macroCirclesEl}</CardContent>
               </Card>
             </div>
 
             {/* Desktop: single card, all circles in one row */}
-            <Card className="hidden md:block rounded-2xl overflow-hidden">
+            <Card className="hidden md:block rounded-2xl overflow-hidden border border-border/30 shadow-sm">
               <CardContent className="p-5">
                 {periodSelectorEl}
                 <div className="flex items-center justify-center gap-8 my-4">
@@ -460,6 +486,8 @@ export function Energy() {
 
       {/* Food entries */}
       <div className="space-y-3">
+        <h3 className="text-base font-semibold">Journal</h3>
+
         {periodFoodEntries.length === 0 ? (
           <EmptyStateCard
             onClick={handleAddFood}
@@ -485,25 +513,27 @@ export function Energy() {
             )}
           </>
         ) : (
-          /* Weekly/Monthly/Yearly: collapsible time-bucket groups */
+          /* Weekly/Monthly/Yearly: unified accordion */
           <>
-            {foodGroups.map((group, i) => (
-              <CollapsibleGroup
-                key={group.key}
-                group={group}
-                defaultOpen={i === 0}
-                period={caloriePeriod as 'weekly' | 'monthly' | 'yearly'}
-                onEdit={handleEditFood}
-                onDelete={handleDeleteFood}
-              />
-            ))}
+            <Card className="rounded-2xl overflow-hidden border border-border/30 shadow-sm divide-y">
+              {foodGroups.map((group, i) => (
+                <CollapsibleGroup
+                  key={group.key}
+                  group={group}
+                  defaultOpen={i === 0}
+                  period={caloriePeriod as 'weekly' | 'monthly' | 'yearly'}
+                  onEdit={handleEditFood}
+                  onDelete={handleDeleteFood}
+                />
+              ))}
+            </Card>
             <AddAnotherCard onClick={handleAddFood} label="Add food entry" />
           </>
         )}
       </div>
 
       {/* Sleep Hours Card */}
-      <Card className="p-4 sm:p-5 rounded-2xl">
+      <Card className="p-4 sm:p-5 rounded-2xl border border-border/30 shadow-sm">
         <h3 className="text-lg font-semibold mb-3">Hours Slept</h3>
 
         <PeriodSelector
@@ -617,6 +647,18 @@ export function Energy() {
         onOpenChange={setMacroGoalModalOpen}
         goals={macroGoals}
         onSave={setMacroGoals}
+      />
+
+      <BulkFoodEntryModal
+        open={bulkModalOpen}
+        onOpenChange={setBulkModalOpen}
+        onSave={addFoodEntriesBatch}
+      />
+
+      <DuplicateDayDialog
+        open={duplicateDialogOpen}
+        onOpenChange={setDuplicateDialogOpen}
+        onDuplicate={duplicateDay}
       />
     </div>
   );

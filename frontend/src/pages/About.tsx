@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { ShieldCheck, Layers, BrainCircuit, ArrowRight } from 'lucide-react';
+import { ShieldCheck, Layers, BrainCircuit, ArrowRight, Users, Code, Palette } from 'lucide-react';
 
 const VALUES = [
   {
@@ -26,7 +26,7 @@ export function About() {
     <>
       {/* Hero */}
       <section className="mx-auto max-w-3xl px-6 pt-24 pb-20 text-center">
-        <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">About BeMe</h1>
+        <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">About TrackVibe</h1>
         <p className="mx-auto mt-6 max-w-2xl text-lg text-muted-foreground">
           We believe managing your life shouldn't require five different apps.
         </p>
@@ -36,14 +36,14 @@ export function About() {
       <section className="mx-auto max-w-3xl px-6 pb-16">
         <h2 className="text-2xl font-bold tracking-tight">Our Mission</h2>
         <p className="mt-4 text-muted-foreground leading-relaxed">
-          BeMe was born from a simple frustration: tracking health and goals meant juggling
-          multiple apps that never talked to each other. We built BeMe to be the single place where all
+          TrackVibe was born from a simple frustration: tracking health and goals meant juggling
+          multiple apps that never talked to each other. We built TrackVibe to be the single place where all
           your wellness data lives — and where AI connects the dots to give you insights no single-purpose
           app ever could.
         </p>
         <p className="mt-4 text-muted-foreground leading-relaxed">
           Whether you're logging workouts, counting macros, tracking sleep, or setting goals,
-          BeMe brings it all together. And with voice-first input, tracking takes seconds
+          TrackVibe brings it all together. And with voice-first input, tracking takes seconds
           instead of minutes.
         </p>
       </section>
@@ -70,7 +70,7 @@ export function About() {
       <section className="mx-auto max-w-3xl px-6 py-16">
         <h2 className="text-2xl font-bold tracking-tight">The Product</h2>
         <p className="mt-4 text-muted-foreground leading-relaxed">
-          BeMe covers three wellness domains: <strong>Body</strong> (workouts & exercise logging),{' '}
+          TrackVibe covers three wellness domains: <strong>Body</strong> (workouts & exercise logging),{' '}
           <strong>Energy</strong> (nutrition, sleep & wellness), and <strong>Goals</strong>{' '}
           (measurable targets). Every domain supports voice input powered by Google Gemini AI.
         </p>
@@ -88,16 +88,50 @@ export function About() {
         </div>
       </section>
 
-      {/* Community */}
+      {/* Team */}
       <section className="bg-muted/50 py-16">
-        <div className="mx-auto max-w-3xl px-6">
-          <h2 className="text-2xl font-bold tracking-tight">Open Source & Community</h2>
-          <p className="mt-4 text-muted-foreground leading-relaxed">
-            BeMe is built in the open. We welcome contributions from developers, designers, and
-            anyone passionate about building better tools for personal growth. Check out our
-            contribution guidelines to get started — whether it's a bug fix, a new feature idea,
-            or improving documentation.
-          </p>
+        <div className="mx-auto max-w-5xl px-6">
+          <div className="text-center mb-10">
+            <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Our Team</h2>
+            <p className="mt-2 text-muted-foreground">
+              A small, passionate team building tools for a healthier life.
+            </p>
+          </div>
+          <div className="grid gap-6 sm:grid-cols-3">
+            <Card className="transition-shadow hover:shadow-md">
+              <CardContent className="p-6 space-y-3 text-center">
+                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
+                  <Code className="h-7 w-7 text-primary" aria-hidden="true" />
+                </div>
+                <h3 className="font-semibold">Engineering</h3>
+                <p className="text-sm text-muted-foreground">
+                  Full-stack developers building a fast, reliable platform with AI-powered features and voice integration.
+                </p>
+              </CardContent>
+            </Card>
+            <Card className="transition-shadow hover:shadow-md">
+              <CardContent className="p-6 space-y-3 text-center">
+                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
+                  <Palette className="h-7 w-7 text-primary" aria-hidden="true" />
+                </div>
+                <h3 className="font-semibold">Design</h3>
+                <p className="text-sm text-muted-foreground">
+                  Focused on creating a mobile-first experience that feels as natural as the apps you use every day.
+                </p>
+              </CardContent>
+            </Card>
+            <Card className="transition-shadow hover:shadow-md">
+              <CardContent className="p-6 space-y-3 text-center">
+                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
+                  <Users className="h-7 w-7 text-primary" aria-hidden="true" />
+                </div>
+                <h3 className="font-semibold">Community</h3>
+                <p className="text-sm text-muted-foreground">
+                  We build in the open and welcome contributions — from bug fixes to feature ideas and documentation.
+                </p>
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </section>
 

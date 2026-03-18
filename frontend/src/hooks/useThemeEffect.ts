@@ -4,7 +4,7 @@ import { ACCENT_PALETTE } from '@/lib/themePalette';
 
 /**
  * Applies accent palette colors to CSS custom properties.
- * Theme is always light (forced via ThemeProvider).
+ * Supports light, dark, and system themes via ThemeProvider.
  */
 export function useThemeEffect(_theme: unknown, accentColor: BalanceDisplayColor): void {
   useEffect(() => {

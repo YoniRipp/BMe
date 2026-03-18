@@ -22,14 +22,14 @@ export function WeightProgress() {
 
   return (
     <>
-      <Card className="rounded-2xl overflow-hidden cursor-pointer hover:border-primary/50 transition-colors" onClick={() => setModalOpen(true)} role="button">
+      <Card className="rounded-2xl overflow-hidden cursor-pointer hover:bg-sage-50/50 transition-colors border border-border/30 shadow-sm tap-target" onClick={() => setModalOpen(true)} role="button">
         <CardContent className="p-5">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <Scale className="w-4 h-4 text-purple-500" />
-              <h3 className="text-sm font-medium">Weight</h3>
+              <h3 className="text-sm font-semibold">Weight</h3>
             </div>
-            <div className="flex items-center gap-1 text-xs text-primary font-medium">
+            <div className="flex items-center gap-1 text-xs text-primary font-semibold">
               <Plus className="w-3 h-3" />
               Log
             </div>

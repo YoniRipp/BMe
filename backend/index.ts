@@ -14,6 +14,7 @@ import { subscribe, startEventsWorker, closeEventsBus } from './src/events/bus.j
 import { registerStatsAggregatorConsumer } from './src/events/consumers/statsAggregator.js';
 import { registerUserActivityLogConsumer } from './src/events/consumers/userActivityLog.js';
 import { registerPushNotifierConsumer } from './src/events/consumers/pushNotifier.js';
+import { registerStreakUpdaterConsumer } from './src/events/consumers/streakUpdater.js';
 import { setupVoiceStreamingWs } from './src/ws/voiceStreaming.js';
 import { logger } from './src/lib/logger.js';
 
@@ -21,6 +22,7 @@ import { logger } from './src/lib/logger.js';
 registerUserActivityLogConsumer(subscribe);
 registerStatsAggregatorConsumer(subscribe);
 registerPushNotifierConsumer(subscribe);
+registerStreakUpdaterConsumer(subscribe);
 
 async function start() {
   // Initialize database if configured - exit on failure since API requires it
@@ -39,7 +41,7 @@ async function start() {
   }
   const app = await createApp();
   const server = app.listen(config.port, config.host || '0.0.0.0', () => {
-    logger.info({ port: config.port, host: config.host || '0.0.0.0' }, 'BMe backend listening');
+    logger.info({ port: config.port, host: config.host || '0.0.0.0' }, 'TrackVibe backend listening');
   });
   server.setTimeout(300000); // 5 min timeout for voice processing
 
@@ -54,7 +56,13 @@ async function start() {
     voiceWorker = startVoiceWorker();
     logger.info('Voice worker started');
   }
-  // Event bus consumer runs in a separate process (workers/event-consumer.ts)
+  // Start events worker inline when Redis is configured and not using separate workers process
+  if (!config.separateWorkers) {
+    const eventsWorker = startEventsWorker();
+    if (eventsWorker) {
+      logger.info('Events worker started (inline)');
+    }
+  }
 
   async function shutdown() {
     let exitCode = 0;

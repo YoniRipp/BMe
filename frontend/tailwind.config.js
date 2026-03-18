@@ -88,6 +88,8 @@ export default {
           DEFAULT: "hsl(var(--sage))",
           light: "hsl(var(--sage-light))",
           dark: "hsl(var(--sage-dark))",
+          50: "hsl(var(--sage-50))",
+          100: "hsl(var(--sage-100))",
         },
         cream: "hsl(var(--cream))",
         "cream-warm": "hsl(var(--cream-warm))",
@@ -99,6 +101,9 @@ export default {
         charcoal: "hsl(var(--charcoal))",
         stone: "hsl(var(--stone))",
         mist: "hsl(var(--mist))",
+        success: "hsl(var(--success))",
+        info: "hsl(var(--info))",
+        warning: "hsl(var(--warning))",
       },
       borderRadius: {
         lg: "var(--radius)",

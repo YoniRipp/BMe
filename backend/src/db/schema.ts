@@ -34,6 +34,8 @@ export async function initSchema() {
         subscription_status text DEFAULT 'free',
         subscription_id text,
         subscription_current_period_end timestamptz,
+        subscription_source text DEFAULT 'self',
+        phone_number text UNIQUE,
         locked_until timestamptz,
         failed_login_attempts int DEFAULT 0,
         created_at timestamptz DEFAULT now()
@@ -320,6 +322,7 @@ export async function initSchema() {
     await client.query('CREATE INDEX IF NOT EXISTS idx_workouts_user_date ON workouts(user_id, date DESC)');
     await client.query('CREATE INDEX IF NOT EXISTS idx_food_entries_user_date ON food_entries(user_id, date DESC)');
     await client.query('CREATE INDEX IF NOT EXISTS idx_daily_check_ins_user_date ON daily_check_ins(user_id, date DESC)');
+    await client.query("CREATE INDEX IF NOT EXISTS idx_users_phone ON users (phone_number) WHERE phone_number IS NOT NULL");
     await client.query('CREATE INDEX IF NOT EXISTS idx_foods_name_lower ON foods (lower(name))');
     await client.query('CREATE INDEX IF NOT EXISTS idx_foods_barcode ON foods (barcode) WHERE barcode IS NOT NULL');
     // pg_trgm and full-text search indexes (created by migration 1772900000000, safe to repeat)

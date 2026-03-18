@@ -67,6 +67,10 @@ const configSchema = z.object({
   lemonSqueezyWebhookSecret: z.string().optional(),
   lemonSqueezyVariantIdMonthly: z.string().optional(),
   lemonSqueezyVariantIdYearly: z.string().optional(),
+  whatsappAccessToken: z.string().optional(),
+  whatsappPhoneNumberId: z.string().optional(),
+  whatsappVerifyToken: z.string().optional(),
+  whatsappBusinessAccountId: z.string().optional(),
 });
 
 const PORT = process.env.PORT;
@@ -75,14 +79,23 @@ const JWT_SECRET = process.env.JWT_SECRET || (isProduction ? null : 'dev-secret-
 if (JWT_SECRET === 'dev-secret-change-in-production') {
   logger.warn('JWT_SECRET is using development default; set a real secret for production');
 }
-const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN || process.env.CORS_ORIGIN;
-const CORS_ORIGIN = process.env.CORS_ORIGIN != null && process.env.CORS_ORIGIN !== ''
-  ? process.env.CORS_ORIGIN
-  : (isProduction ? FRONTEND_ORIGIN : true);
+// Clean up CORS origins — trim whitespace and trailing slashes to prevent subtle mismatches
+const rawCorsOrigin = process.env.CORS_ORIGIN?.trim().replace(/\/+$/, '');
+const FRONTEND_ORIGIN = (process.env.FRONTEND_ORIGIN?.trim().replace(/\/+$/, '')) || rawCorsOrigin;
+const CORS_ORIGIN: string | string[] | boolean = (() => {
+  if (rawCorsOrigin != null && rawCorsOrigin !== '') {
+    // Support comma-separated origins (e.g. "https://app.example.com,https://staging.example.com")
+    if (rawCorsOrigin.includes(',')) {
+      return rawCorsOrigin.split(',').map(o => o.trim().replace(/\/+$/, ''));
+    }
+    return rawCorsOrigin;
+  }
+  return isProduction ? (FRONTEND_ORIGIN ?? true) : true;
+})();
 if (isProduction && (CORS_ORIGIN === true || CORS_ORIGIN === 'true')) {
   throw new Error('CORS_ORIGIN must be an explicit origin in production, not true');
 }
-if (isProduction && !process.env.CORS_ORIGIN) {
+if (isProduction && !rawCorsOrigin) {
   throw new Error('CORS_ORIGIN must be explicitly set in production for security.');
 }
 
@@ -101,8 +114,8 @@ const rawConfig = {
   twitterClientId: process.env.TWITTER_CLIENT_ID,
   twitterClientSecret: process.env.TWITTER_CLIENT_SECRET,
   twitterRedirectUri: process.env.TWITTER_REDIRECT_URI,
-  mcpSecret: process.env.BEME_MCP_SECRET,
-  mcpUserId: process.env.BEME_MCP_USER_ID,
+  mcpSecret: process.env.TRACKVIBE_MCP_SECRET,
+  mcpUserId: process.env.TRACKVIBE_MCP_USER_ID,
   appBaseUrl: process.env.APP_BASE_URL || process.env.FRONTEND_URL,
   resendApiKey: process.env.RESEND_API_KEY,
   redisUrl: process.env.REDIS_URL ?? process.env.REDIS_PRIVATE_URL,
@@ -128,6 +141,10 @@ const rawConfig = {
   lemonSqueezyWebhookSecret: process.env.LEMONSQUEEZY_WEBHOOK_SECRET,
   lemonSqueezyVariantIdMonthly: process.env.LEMONSQUEEZY_VARIANT_ID_MONTHLY,
   lemonSqueezyVariantIdYearly: process.env.LEMONSQUEEZY_VARIANT_ID_YEARLY,
+  whatsappAccessToken: process.env.WHATSAPP_ACCESS_TOKEN,
+  whatsappPhoneNumberId: process.env.WHATSAPP_PHONE_NUMBER_ID,
+  whatsappVerifyToken: process.env.WHATSAPP_VERIFY_TOKEN || 'trackvibe-whatsapp-verify',
+  whatsappBusinessAccountId: process.env.WHATSAPP_BUSINESS_ACCOUNT_ID,
 };
 
 const parsed = configSchema.safeParse(rawConfig);

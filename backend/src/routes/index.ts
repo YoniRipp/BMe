@@ -25,6 +25,8 @@ import weightRouter from './weight.js';
 import waterRouter from './water.js';
 import cycleRouter from './cycle.js';
 import chatRouter from './chat.js';
+import whatsappRouter from './whatsapp.js';
+import streakRouter from './streak.js';
 
 const router = Router();
 
@@ -52,5 +54,7 @@ router.use(weightRouter);
 router.use(waterRouter);
 router.use(cycleRouter);
 router.use(chatRouter);
+router.use(whatsappRouter);
+router.use(streakRouter);
 
 export default router;

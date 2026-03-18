@@ -47,7 +47,7 @@ function ProgressRing({ value, color }: { value: number; color: string }) {
         fill="none"
         stroke="currentColor"
         strokeWidth="4"
-        className="text-muted/30"
+        className="text-mist"
       />
       <circle
         cx="24"
@@ -59,7 +59,8 @@ function ProgressRing({ value, color }: { value: number; color: string }) {
         strokeLinecap="round"
         strokeDasharray={CIRCUMFERENCE}
         strokeDashoffset={offset}
-        className="transition-all duration-500 ease-out"
+        className="transition-all duration-700 ease-out"
+        style={{ filter: `drop-shadow(0 0 2px ${color}40)` }}
       />
     </svg>
   );
@@ -84,7 +85,7 @@ function ProgressCard({
 
   return (
     <Card
-      className={`flex flex-col items-center p-4 relative ${isClickable ? 'cursor-pointer hover:border-primary/50 transition-colors' : ''}`}
+      className={`flex flex-col items-center p-5 relative border border-border/30 shadow-sm ${isClickable ? 'cursor-pointer hover:bg-sage-50/50 transition-colors tap-target' : ''}`}
       onClick={cardAction}
       role={isClickable ? 'button' : undefined}
     >

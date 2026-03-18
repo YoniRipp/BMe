@@ -1,11 +1,17 @@
 /**
- * AI Chat service — fitness guru chatbot powered by Gemini.
- * Builds comprehensive user context from all available data and maintains
- * conversation history for personalized, data-driven coaching.
+ * AI Chat service — fitness guru agent powered by Gemini.
+ * Builds comprehensive user context from all available data, maintains
+ * conversation history, and can take actions (log food, workouts, goals, etc.)
+ * via Gemini function calling — making this a true AI agent, not just a chatbot.
  */
+import { GoogleGenerativeAI } from '@google/generative-ai';
+import { config } from '../config/index.js';
 import { getPool } from '../db/pool.js';
 import { logger } from '../lib/logger.js';
-import { getGeminiText, fetchUserContext } from './insights.js';
+import { fetchUserContext } from './insights.js';
+import { VOICE_TOOLS } from '../../voice/tools.js';
+import { executeActions, type ExecuteResult } from './voiceExecutor.js';
+import { JEFF_NIPPARD_KNOWLEDGE } from '../data/jeffNippardKnowledge.js';
 
 // ─── DB operations ─────────────────────────────────────────────────────────────
 
@@ -29,7 +35,7 @@ export async function getChatHistory(userId: string, limit = 30): Promise<ChatMe
   return result.rows.reverse(); // oldest first
 }
 
-async function saveChatMessage(userId: string, role: 'user' | 'assistant', content: string): Promise<ChatMessage> {
+export async function saveChatMessage(userId: string, role: 'user' | 'assistant', content: string): Promise<ChatMessage> {
   const pool = getPool();
   const result = await pool.query(
     `INSERT INTO chat_messages (user_id, role, content)
@@ -87,7 +93,7 @@ async function buildDetailedFood(userId: string): Promise<string> {
   return `Recent daily nutrition (last 7 days):\n${lines.join('\n')}`;
 }
 
-async function buildChatSystemPrompt(userId: string): Promise<string> {
+export async function buildChatSystemPrompt(userId: string): Promise<string> {
   const ctx = await fetchUserContext(userId, 30);
   const [detailedWorkouts, detailedFood] = await Promise.all([
     buildDetailedWorkouts(userId),
@@ -171,9 +177,7 @@ async function buildChatSystemPrompt(userId: string): Promise<string> {
     }
   }
 
-  return `You are a world-class fitness and nutrition coach with deep expertise in exercise science, sports nutrition, sleep optimization, stress management, and overall wellness. You combine the knowledge of a certified sports nutritionist, an exercise physiologist, and a behavioral health coach.
-
-You have a warm, knowledgeable, and direct personality. You give honest, data-driven advice — not generic motivation. You're like a trusted personal trainer who happens to know everything about the user.
+  return `${JEFF_NIPPARD_KNOWLEDGE}
 
 You have FULL ACCESS to this user's health data. Always reference their actual numbers when giving advice. Never give generic advice when you have specific data.
 
@@ -201,17 +205,35 @@ ${detailedFood}
 - Be specific: "You averaged 1800 kcal/day but need ~2200 for your goal" NOT "try eating more".
 - If the user asks about something you have data for, cite their actual numbers.
 - Consider their goals in EVERY recommendation.
+- Apply Jeff Nippard's volume and frequency guidelines based on the user's training level.
+- Calculate macro targets using Nippard's formulas based on the user's actual bodyweight and goals.
+- Recommend program structures based on how many days/week the user can train.
+- Use RPE to guide intensity recommendations for exercises.
+- Always cite the scientific basis when making training or nutrition claims.
 - If they have cycle data, factor the menstrual phase into advice (energy, recovery, nutrition needs vary by phase).
 - Consider stress and energy levels when recommending workout intensity.
 - Be encouraging but honest — if they're not hitting goals, say so kindly with a concrete plan.
 - Keep responses concise for mobile — 2-4 short paragraphs unless they ask for detailed breakdowns.
 - You can respond in Hebrew or English based on the language the user writes in.
+- WORKOUT IMPLEMENTATION: If the user asks you to "implement", "add", "save", "create", or "log" a workout plan (even a multi-day program), you MUST call add_workout once per workout session — do NOT just describe the plan. Use today's date for the first workout and increment dates for subsequent days (e.g. day 2 = tomorrow, day 3 = day after, etc.). After calling add_workout for each session, confirm all workouts were saved.
 - Today's date: ${new Date().toISOString().slice(0, 10)}`;
 }
 
-// ─── Send message ──────────────────────────────────────────────────────────────
+// ─── Agent response type ────────────────────────────────────────────────────
 
-export async function sendMessage(userId: string, userMessage: string): Promise<ChatMessage> {
+export interface AgentChatResponse {
+  message: ChatMessage;
+  actions: ExecuteResult[];
+}
+
+// ─── Streaming send message ─────────────────────────────────────────────────
+
+export async function sendMessageStream(
+  userId: string,
+  userMessage: string,
+  onChunk: (text: string) => void,
+  onThinking: () => void,
+): Promise<AgentChatResponse> {
   // 1. Save user message
   await saveChatMessage(userId, 'user', userMessage);
 
@@ -221,12 +243,18 @@ export async function sendMessage(userId: string, userMessage: string): Promise<
     getChatHistory(userId, 20),
   ]);
 
-  // 3. Build Gemini conversation
-  const model = getGeminiText();
+  // 3. Build Gemini model
+  if (!config.geminiApiKey) throw new Error('GEMINI_API_KEY not configured');
+  const genAI = new GoogleGenerativeAI(config.geminiApiKey);
+  const model = genAI.getGenerativeModel({
+    model: config.geminiModel,
+    tools: VOICE_TOOLS as never,
+  });
+
   const chat = model.startChat({
     history: [
-      { role: 'user', parts: [{ text: 'System instructions: ' + systemPrompt }] },
-      { role: 'model', parts: [{ text: 'Understood. I have full access to your health data and will provide personalized, data-driven coaching. How can I help you today?' }] },
+      { role: 'user', parts: [{ text: 'System instructions: ' + systemPrompt + '\n\nYou are an AI agent — not just a chatbot. You can take actions on behalf of the user using the available tools (log food, workouts, sleep, goals, query data, etc.). When the user asks you to log, add, edit, or delete something, USE the appropriate tool to do it. When the user asks about their data, USE the query_user_data tool to look it up. After taking an action, confirm what you did in a natural, conversational way.' }] },
+      { role: 'model', parts: [{ text: 'Understood. I\'m your fitness coach and assistant. I can both advise you AND take actions — log meals, workouts, sleep, manage goals, and look up your data. What would you like to do?' }] },
       ...history.slice(0, -1).map(msg => ({
         role: msg.role === 'user' ? 'user' as const : 'model' as const,
         parts: [{ text: msg.content }],
@@ -234,17 +262,147 @@ export async function sendMessage(userId: string, userMessage: string): Promise<
     ],
   });
 
-  // 4. Send the user's latest message
-  let responseText: string;
+  // 4. Agent loop: handle tool calls synchronously, then stream final text
+  const allActions: ExecuteResult[] = [];
+  let responseText = '';
+
   try {
-    const result = await chat.sendMessage(userMessage);
-    responseText = result.response.text().trim();
+    // First call — may contain tool calls
+    let result = await chat.sendMessage(userMessage);
+    let response = result.response;
+    let rounds = 0;
+
+    while (rounds < MAX_TOOL_ROUNDS) {
+      const functionCalls = response.functionCalls?.() ?? [];
+      if (functionCalls.length === 0) break;
+
+      onThinking(); // still processing tools
+
+      const actions = functionCalls.map(fc => ({ intent: fc.name, ...fc.args }));
+      const results = await executeActions(actions as { intent: string; [key: string]: unknown }[], userId);
+      allActions.push(...results);
+
+      const functionResponses = functionCalls.map((fc, i) => ({
+        functionResponse: {
+          name: fc.name,
+          response: {
+            success: results[i]?.success ?? false,
+            message: results[i]?.message ?? 'Unknown result',
+          },
+        },
+      }));
+
+      result = await chat.sendMessage(functionResponses as never);
+      response = result.response;
+      rounds++;
+    }
+
+    // Check if the last response already has text (no streaming needed)
+    const immediateText = response.text?.()?.trim();
+    if (immediateText) {
+      // Stream it character-by-character for UX consistency
+      onChunk(immediateText);
+      responseText = immediateText;
+    } else {
+      // Stream the final text response
+      const streamResult = await chat.sendMessageStream('Please provide your response now.');
+      for await (const chunk of streamResult.stream) {
+        const chunkText = chunk.text();
+        if (chunkText) {
+          responseText += chunkText;
+          onChunk(chunkText);
+        }
+      }
+      responseText = responseText.trim();
+    }
   } catch (err) {
-    logger.error({ err }, 'AI chat response generation failed');
-    responseText = 'I apologize, but I encountered an issue generating a response. Please try again.';
+    logger.error({ err }, 'AI agent stream response failed');
+    responseText = 'I apologize, but I encountered an issue. Please try again.';
+    onChunk(responseText);
   }
 
-  // 5. Save and return assistant response
+  // 5. Save and return
   const saved = await saveChatMessage(userId, 'assistant', responseText);
-  return saved;
+  return { message: saved, actions: allActions };
+}
+
+// ─── Send message (agent loop with function calling) ────────────────────────
+
+const MAX_TOOL_ROUNDS = 5;
+
+export async function sendMessage(userId: string, userMessage: string): Promise<AgentChatResponse> {
+  // 1. Save user message
+  await saveChatMessage(userId, 'user', userMessage);
+
+  // 2. Build context and load history
+  const [systemPrompt, history] = await Promise.all([
+    buildChatSystemPrompt(userId),
+    getChatHistory(userId, 20),
+  ]);
+
+  // 3. Build Gemini model with function-calling tools
+  if (!config.geminiApiKey) throw new Error('GEMINI_API_KEY not configured');
+  const genAI = new GoogleGenerativeAI(config.geminiApiKey);
+  const model = genAI.getGenerativeModel({
+    model: config.geminiModel,
+    tools: VOICE_TOOLS as never,
+  });
+
+  const chat = model.startChat({
+    history: [
+      { role: 'user', parts: [{ text: 'System instructions: ' + systemPrompt + '\n\nYou are an AI agent — not just a chatbot. You can take actions on behalf of the user using the available tools (log food, workouts, sleep, goals, query data, etc.). When the user asks you to log, add, edit, or delete something, USE the appropriate tool to do it. When the user asks about their data, USE the query_user_data tool to look it up. After taking an action, confirm what you did in a natural, conversational way.' }] },
+      { role: 'model', parts: [{ text: 'Understood. I\'m your fitness coach and assistant. I can both advise you AND take actions — log meals, workouts, sleep, manage goals, and look up your data. What would you like to do?' }] },
+      ...history.slice(0, -1).map(msg => ({
+        role: msg.role === 'user' ? 'user' as const : 'model' as const,
+        parts: [{ text: msg.content }],
+      })),
+    ],
+  });
+
+  // 4. Agent loop: send message, handle function calls, repeat until text response
+  const allActions: ExecuteResult[] = [];
+  let responseText: string;
+
+  try {
+    let result = await chat.sendMessage(userMessage);
+    let response = result.response;
+    let rounds = 0;
+
+    while (rounds < MAX_TOOL_ROUNDS) {
+      const functionCalls = response.functionCalls?.() ?? [];
+      if (functionCalls.length === 0) break;
+
+      // Execute function calls via voiceExecutor
+      const actions = functionCalls.map(fc => ({
+        intent: fc.name,
+        ...fc.args,
+      }));
+      const results = await executeActions(actions as { intent: string; [key: string]: unknown }[], userId);
+      allActions.push(...results);
+
+      // Send function results back to Gemini so it can generate a natural response
+      const functionResponses = functionCalls.map((fc, i) => ({
+        functionResponse: {
+          name: fc.name,
+          response: {
+            success: results[i]?.success ?? false,
+            message: results[i]?.message ?? 'Unknown result',
+          },
+        },
+      }));
+
+      result = await chat.sendMessage(functionResponses as never);
+      response = result.response;
+      rounds++;
+    }
+
+    responseText = response.text().trim();
+  } catch (err) {
+    logger.error({ err }, 'AI agent chat response failed');
+    responseText = 'I apologize, but I encountered an issue. Please try again.';
+  }
+
+  // 5. Save and return assistant response with action results
+  const saved = await saveChatMessage(userId, 'assistant', responseText);
+  return { message: saved, actions: allActions };
 }

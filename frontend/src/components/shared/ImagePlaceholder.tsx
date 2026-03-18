@@ -4,13 +4,15 @@ import { cn } from '@/lib/utils';
 const CONFIG = {
   food: {
     icon: UtensilsCrossed,
-    bg: 'bg-orange-100',
-    text: 'text-orange-500',
+    bg: 'bg-terracotta/10',
+    text: 'text-terracotta',
+    ring: 'ring-terracotta-light/30',
   },
   exercise: {
     icon: Dumbbell,
-    bg: 'bg-blue-100',
-    text: 'text-blue-500',
+    bg: 'bg-info/10',
+    text: 'text-info',
+    ring: 'ring-info/20',
   },
 } as const;
 
@@ -28,7 +30,7 @@ interface ImagePlaceholderProps {
 }
 
 export function ImagePlaceholder({ type, size = 'md', imageUrl, className }: ImagePlaceholderProps) {
-  const { icon: Icon, bg, text } = CONFIG[type];
+  const { icon: Icon, bg, text, ring } = CONFIG[type];
   const { container, icon } = SIZES[size];
 
   if (imageUrl) {
@@ -36,7 +38,7 @@ export function ImagePlaceholder({ type, size = 'md', imageUrl, className }: Ima
       <img
         src={imageUrl}
         alt=""
-        className={cn('rounded-xl object-cover shrink-0', container, className)}
+        className={cn('rounded-xl object-cover shrink-0 ring-2', ring, container, className)}
         loading="lazy"
       />
     );

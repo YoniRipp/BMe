@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -20,6 +19,9 @@ import {
   ChevronDown,
   Mail,
   Clock,
+  Smartphone,
+  Utensils,
+  TrendingUp,
 } from 'lucide-react';
 
 /* --- Data --- */
@@ -28,7 +30,7 @@ const FEATURES = [
   {
     icon: Mic,
     title: 'Voice-First Tracking',
-    description: 'Just speak naturally. "I had oatmeal for breakfast" or "30 minute run" — BeMe handles the rest.',
+    description: 'Just speak naturally. "I had oatmeal for breakfast" or "30 minute run" — TrackVibe handles the rest.',
   },
   {
     icon: Sparkles,
@@ -86,13 +88,13 @@ const HOW_IT_WORKS = [
     icon: Sparkles,
     step: 3,
     title: 'Get AI insights',
-    description: 'BeMe connects the dots and shows you patterns across your fitness, nutrition, and habits.',
+    description: 'TrackVibe connects the dots and shows you patterns across your fitness, nutrition, and habits.',
   },
 ];
 
 const TESTIMONIALS = [
   {
-    quote: 'I used to track my food in one app, workouts in another, and sleep in a third. BeMe replaced all of them.',
+    quote: 'I used to track my food in one app, workouts in another, and sleep in a third. TrackVibe replaced all of them.',
     name: 'Sarah M.',
     role: 'Fitness Enthusiast',
   },
@@ -109,9 +111,9 @@ const TESTIMONIALS = [
 ];
 
 const STATS = [
-  { value: '10K+', label: 'Active users' },
-  { value: '2M+', label: 'Data points tracked' },
-  { value: '4.8', label: 'Average rating' },
+  { value: '5', label: 'Wellness domains' },
+  { value: '1000+', label: 'Foods in database' },
+  { value: '100+', label: 'Exercises available' },
 ];
 
 const FAQ = [
@@ -128,16 +130,16 @@ const FAQ = [
     a: 'You get full access to all Pro features for 7 days. Your card is charged only after the trial ends. Cancel anytime during the trial and you won\'t be charged.',
   },
   {
-    q: 'How is BeMe different from MyFitnessPal or YNAB?',
-    a: 'Those are great single-purpose tools. BeMe combines fitness, nutrition, sleep, and goals in one app with AI that connects insights across all areas.',
+    q: 'How is TrackVibe different from MyFitnessPal or YNAB?',
+    a: 'Those are great single-purpose tools. TrackVibe combines fitness, nutrition, sleep, and goals in one app with AI that connects insights across all areas.',
   },
   {
-    q: 'Can I use BeMe without the AI features?',
+    q: 'Can I use TrackVibe without the AI features?',
     a: 'Yes. The Free plan includes full manual tracking for workouts, food, sleep, and goals. AI features are Pro-only.',
   },
   {
-    q: 'Does BeMe work offline?',
-    a: 'BeMe requires an internet connection. Your data syncs in real-time so it\'s always up to date.',
+    q: 'Does TrackVibe work offline?',
+    a: 'TrackVibe requires an internet connection. Your data syncs in real-time so it\'s always up to date.',
   },
 ];
 
@@ -232,7 +234,7 @@ export function Landing() {
         </h1>
         <p className="mx-auto mt-6 max-w-2xl text-lg text-muted-foreground">
           Track your body, energy, and goals — all in one place.
-          Just speak and BeMe takes care of the rest.
+          Just speak and TrackVibe takes care of the rest.
         </p>
         <div className="mt-8 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
           <Link to="/signup">
@@ -248,6 +250,53 @@ export function Landing() {
         </div>
       </section>
 
+      {/* App Preview */}
+      <section aria-label="App preview" className="bg-muted/50 py-16">
+        <RevealSection>
+          <div className="mx-auto max-w-5xl px-6">
+            <div className="text-center mb-10">
+              <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
+                See TrackVibe in action
+              </h2>
+              <p className="mt-2 text-muted-foreground">
+                A single dashboard for your body, energy, and goals.
+              </p>
+            </div>
+            <div className="mx-auto max-w-3xl rounded-2xl border bg-card p-6 shadow-lg">
+              <div className="grid gap-4 sm:grid-cols-3">
+                <div className="flex flex-col items-center gap-3 rounded-xl bg-muted/60 p-5 text-center">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+                    <Dumbbell className="h-6 w-6 text-primary" />
+                  </div>
+                  <h3 className="text-sm font-semibold">Body</h3>
+                  <p className="text-xs text-muted-foreground">Log workouts, track sets & reps, monitor progress</p>
+                </div>
+                <div className="flex flex-col items-center gap-3 rounded-xl bg-muted/60 p-5 text-center">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+                    <Utensils className="h-6 w-6 text-primary" />
+                  </div>
+                  <h3 className="text-sm font-semibold">Energy</h3>
+                  <p className="text-xs text-muted-foreground">Track meals, macros, sleep, and daily energy levels</p>
+                </div>
+                <div className="flex flex-col items-center gap-3 rounded-xl bg-muted/60 p-5 text-center">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+                    <TrendingUp className="h-6 w-6 text-primary" />
+                  </div>
+                  <h3 className="text-sm font-semibold">Goals</h3>
+                  <p className="text-xs text-muted-foreground">Set targets, track habits, see your progress over time</p>
+                </div>
+              </div>
+              <div className="mt-5 flex items-center justify-center gap-3 rounded-lg bg-primary/5 p-4">
+                <Smartphone className="h-5 w-5 text-primary" />
+                <p className="text-sm text-muted-foreground">
+                  Available as a <strong className="text-foreground">web app</strong>, <strong className="text-foreground">iOS</strong>, and <strong className="text-foreground">Android</strong>
+                </p>
+              </div>
+            </div>
+          </div>
+        </RevealSection>
+      </section>
+
       {/* Features Grid */}
       <section id="features" aria-label="Features" className="mx-auto max-w-6xl px-6 py-16">
         <RevealSection>
@@ -256,7 +305,7 @@ export function Landing() {
               Everything you need, nothing you don't
             </h2>
             <p className="mt-2 text-muted-foreground">
-              BeMe consolidates your daily tracking into a single, intelligent app.
+              TrackVibe consolidates your daily tracking into a single, intelligent app.
             </p>
           </div>
           <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3" role="list">
@@ -285,7 +334,7 @@ export function Landing() {
             </h2>
             <p className="mx-auto mt-4 max-w-lg text-muted-foreground">
               Say things like "I had a chicken salad for lunch", "bench press 3 sets of 10 at 135",
-              or "I slept 7 hours last night" — BeMe understands and logs it instantly.
+              or "I slept 7 hours last night" — TrackVibe understands and logs it instantly.
             </p>
           </div>
         </RevealSection>
@@ -487,8 +536,8 @@ export function Landing() {
                 <Mail className="mt-1 h-5 w-5 text-primary" aria-hidden="true" />
                 <div>
                   <p className="font-medium">Email us</p>
-                  <a href="mailto:support@beme.app" className="text-sm text-primary hover:underline">
-                    support@beme.app
+                  <a href="mailto:support@trackvibe.app" className="text-sm text-primary hover:underline">
+                    support@trackvibe.app
                   </a>
                 </div>
               </div>
@@ -525,7 +574,14 @@ export function Landing() {
                 </div>
                 <Button
                   className="w-full"
-                  onClick={() => toast.info('Contact form coming soon! For now, email us at support@beme.app')}
+                  onClick={() => {
+                    const name = (document.getElementById('contact-name') as HTMLInputElement)?.value || '';
+                    const email = (document.getElementById('contact-email') as HTMLInputElement)?.value || '';
+                    const message = (document.getElementById('contact-message') as HTMLTextAreaElement)?.value || '';
+                    const subject = encodeURIComponent(`TrackVibe Contact: Message from ${name || 'Website Visitor'}`);
+                    const body = encodeURIComponent(`From: ${name}\nEmail: ${email}\n\n${message}`);
+                    window.location.href = `mailto:support@trackvibe.app?subject=${subject}&body=${body}`;
+                  }}
                 >
                   Send Message
                 </Button>

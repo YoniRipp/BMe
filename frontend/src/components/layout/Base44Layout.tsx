@@ -114,7 +114,7 @@ export function Base44Layout() {
       {/* Mobile overlay */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40 lg:hidden"
+          className="fixed inset-0 bg-charcoal/40 backdrop-blur-sm z-40 lg:hidden"
           aria-hidden
           onClick={() => setSidebarOpen(false)}
         />
@@ -131,13 +131,13 @@ export function Base44Layout() {
             <Link
               to="/"
               className="flex items-center gap-3"
-              aria-label="BeMe home"
+              aria-label="TrackVibe home"
             >
               <div className="w-10 h-10 rounded-2xl bg-primary flex items-center justify-center shadow-md">
                 <Leaf className="w-5 h-5 text-primary-foreground" />
               </div>
               <div>
-                <h1 className="text-xl font-bold tracking-tight">BeMe</h1>
+                <h1 className="text-xl font-bold tracking-tight">TrackVibe</h1>
                 <p className="text-xs uppercase tracking-[0.2em] text-primary font-medium">Life Balance</p>
               </div>
             </Link>
@@ -187,7 +187,7 @@ export function Base44Layout() {
       <div className="lg:ml-72 min-h-screen">
         <header
           className={`sticky top-0 z-30 transition-all duration-300
-            ${scrolled ? 'bg-white/80 backdrop-blur-xl shadow-sm border-b border-border' : 'bg-transparent'}`}
+            ${scrolled ? 'bg-card/80 backdrop-blur-xl shadow-sm border-b border-border/50' : 'bg-transparent'}`}
         >
           <div className="flex items-center justify-between px-4 sm:px-6 lg:px-8 py-3 min-h-[4rem]">
             <div className="flex items-center gap-3">
@@ -253,7 +253,7 @@ export function Base44Layout() {
       />
 
       <QuickAddMenu open={quickAddOpen} onOpenChange={setQuickAddOpen} />
-      <VoiceAgentButton />
+      {pathname !== '/' && <VoiceAgentButton />}
 
       {/* AI Chat FAB — bottom-right, below mic button */}
       {isPro && pathname !== '/insights' && (

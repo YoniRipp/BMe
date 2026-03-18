@@ -2,6 +2,7 @@
  * Event dispatcher: subscribe(eventType, handler) and dispatch(event).
  * Shared by event bus, event-consumer, and Lambda handlers.
  */
+import { recordEventHandler } from '../lib/metrics.js';
 
 export interface EventEnvelope {
   eventId: string;
@@ -34,9 +35,13 @@ export function createDispatcher() {
     async dispatch(event: EventEnvelope) {
       const handlers = [...getHandlers(event?.type ?? ''), ...getHandlers('*')];
       for (const h of handlers) {
+        const handlerName = h.name || 'anonymous';
+        const start = Date.now();
         try {
           await Promise.resolve(h(event));
+          recordEventHandler(handlerName, Date.now() - start);
         } catch (err) {
+          recordEventHandler(handlerName, Date.now() - start);
           throw err;
         }
       }

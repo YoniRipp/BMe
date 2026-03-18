@@ -2,6 +2,39 @@
  * Voice executor — executeActions with mocked services.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+
+vi.mock('../config/index.js', () => ({
+  config: { geminiApiKey: 'test-key', voiceExecuteOnServer: true },
+}));
+
+vi.mock('../models/weight.js', () => ({
+  findLatest: vi.fn(),
+  create: vi.fn(),
+}));
+
+vi.mock('../models/water.js', () => ({
+  findByDate: vi.fn(),
+  upsert: vi.fn(),
+}));
+
+vi.mock('../models/cycle.js', () => ({
+  findLatest: vi.fn(),
+  create: vi.fn(),
+}));
+
+vi.mock('../models/profile.js', () => ({
+  findByUserId: vi.fn(),
+  upsert: vi.fn(),
+}));
+
+vi.mock('../models/trainerClient.js', () => ({
+  findByTrainerId: vi.fn(),
+}));
+
+vi.mock('../lib/voiceContext.js', () => ({
+  voiceContext: { run: <T>(fn: () => T) => fn(), getStore: vi.fn() },
+}));
+
 import { executeActions } from './voiceExecutor.js';
 
 const mockWorkoutCreate = vi.fn();
@@ -50,6 +83,10 @@ vi.mock('./goal.js', () => ({
   update: (...args: unknown[]) => mockGoalUpdate(...args),
   remove: (...args: unknown[]) => mockGoalRemove(...args),
   list: (...args: unknown[]) => mockGoalList(...args),
+}));
+
+vi.mock('../db/pool.js', () => ({
+  getPool: vi.fn().mockReturnValue({}),
 }));
 
 vi.mock('../db/index.js', () => ({
