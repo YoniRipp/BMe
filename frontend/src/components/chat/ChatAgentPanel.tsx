@@ -1,5 +1,9 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Send, X, Trash2, Loader2, Mic, CheckCircle2, AlertCircle } from 'lucide-react';
+
+function isRTL(text: string): boolean {
+  return /[\u0590-\u05FF\uFB1D-\uFB4F]/.test(text);
+}
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { useAgent } from '@/hooks/useAgent';
@@ -13,7 +17,7 @@ interface ChatAgentPanelProps {
 }
 
 export function ChatAgentPanel({ open, onOpenChange }: ChatAgentPanelProps) {
-  const { messages, isLoadingHistory, isSending, sendMessage, clearHistory } = useAgent();
+  const { messages, isLoadingHistory, isSending, isThinking, streamingContent, sendMessage, clearHistory } = useAgent();
   const [input, setInput] = useState('');
   const [lastActions, setLastActions] = useState<AgentResponse['actions'] | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -124,19 +128,23 @@ export function ChatAgentPanel({ open, onOpenChange }: ChatAgentPanelProps) {
             </div>
           )}
 
-          {messages.map((msg) => (
-            <div
-              key={msg.id}
-              className={cn(
-                'max-w-[85%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed',
-                msg.role === 'user'
-                  ? 'ml-auto bg-primary text-primary-foreground'
-                  : 'mr-auto bg-muted'
-              )}
-            >
-              <p className="whitespace-pre-wrap">{msg.content}</p>
-            </div>
-          ))}
+          {messages.map((msg) => {
+            const rtl = isRTL(msg.content);
+            return (
+              <div
+                key={msg.id}
+                className={cn(
+                  'max-w-[85%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed',
+                  msg.role === 'user'
+                    ? 'ml-auto bg-primary text-primary-foreground'
+                    : 'mr-auto bg-muted'
+                )}
+                dir={rtl ? 'rtl' : 'ltr'}
+              >
+                <p className={cn('whitespace-pre-wrap', rtl && 'text-right')}>{msg.content}</p>
+              </div>
+            );
+          })}
 
           {/* Action results */}
           {lastActions && lastActions.length > 0 && (
@@ -162,10 +170,22 @@ export function ChatAgentPanel({ open, onOpenChange }: ChatAgentPanelProps) {
             </div>
           )}
 
-          {isSending && (
+          {isSending && isThinking && (
             <div className="mr-auto flex items-center gap-2 rounded-2xl bg-muted px-4 py-2.5">
               <Loader2 className="h-4 w-4 animate-spin" />
               <span className="text-sm text-muted-foreground">Thinking...</span>
+            </div>
+          )}
+
+          {isSending && !isThinking && streamingContent && (
+            <div
+              className="mr-auto max-w-[85%] rounded-2xl bg-muted px-4 py-2.5 text-sm leading-relaxed"
+              dir={isRTL(streamingContent) ? 'rtl' : 'ltr'}
+            >
+              <p className={cn('whitespace-pre-wrap', isRTL(streamingContent) && 'text-right')}>
+                {streamingContent}
+                <span className="ml-0.5 inline-block h-4 w-0.5 animate-pulse bg-foreground/60 align-middle" />
+              </p>
             </div>
           )}
 
