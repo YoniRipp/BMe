@@ -162,6 +162,8 @@ flowchart LR
 
 **Outcome:** Production-grade scalability, security, and ops on AWS; no custom OAuth or in-app secrets; horizontal scaling and global delivery.
 
+> **Detailed implementation guide:** See [aws-migration-plan.md](aws-migration-plan.md) for the full 8-phase migration plan with specific resource configurations, cost breakdowns per phase, data migration procedures, IAM roles, and cutover/rollback plans.
+
 ---
 
 ## 2.1 Scope

@@ -1,89 +1,94 @@
 # Running TrackVibe on AWS
 
-How to deploy TrackVibe on Amazon Web Services for production and high scale.
+How to deploy TrackVibe on Amazon Web Services for production.
 
-## Overview
+> **Comprehensive migration guide:** See [aws-migration-plan.md](aws-migration-plan.md) for the full 8-phase migration plan with detailed resource configs, cost estimates, data migration steps, and cutover procedures.
 
-For production and scaling, use a full AWS setup:
+## Quick Reference
 
-- **Frontend:** CloudFront + S3 (or Amplify Hosting)
-- **API:** API Gateway → ALB → ECS (Fargate) or Lambda
-- **Database:** RDS (Postgres) or Aurora
-- **Redis:** ElastiCache
-- **Queue:** SQS (optional, for event bus when `EVENT_TRANSPORT=sqs`)
-- **Auth:** Keep JWT or move to Cognito
+| Component | AWS Service | Key Config |
+|-----------|-------------|------------|
+| **Frontend** | CloudFront + S3 | `VITE_API_URL` at build time |
+| **API** | ECS Fargate + ALB | Port 3000, health check `/health` |
+| **Worker** | ECS Fargate | `SEPARATE_WORKERS=true` |
+| **Database** | RDS PostgreSQL 16 | `DATABASE_URL` via Secrets Manager |
+| **Cache** | ElastiCache Redis | `REDIS_URL=rediss://...` (TLS) |
+| **Queues** | SQS | `EVENT_TRANSPORT=sqs`, `EVENT_QUEUE_URL`, `VOICE_QUEUE_URL` |
+| **Storage** | S3 | `AWS_S3_BUCKET`, presigned uploads |
+| **Auth** | Custom JWT (Cognito optional) | `JWT_SECRET` via Secrets Manager |
 
-See [docs/architecture-target-aws.md](architecture-target-aws.md) for the target diagram.
+## Architecture
 
----
+See [architecture-target-aws.md](architecture-target-aws.md) for the target architecture diagram.
 
-## Option A: ECS Fargate
+## Backend Environment Variables
 
-### 1. Build artifacts
+| Variable | Source | Required |
+|----------|--------|----------|
+| `DATABASE_URL` | Secrets Manager | Yes |
+| `JWT_SECRET` | Secrets Manager | Yes |
+| `REDIS_URL` | ElastiCache endpoint (`rediss://` for TLS) | Yes |
+| `GEMINI_API_KEY` | Secrets Manager | Yes |
+| `CORS_ORIGIN` | CloudFront domain | Yes |
+| `FRONTEND_ORIGIN` | CloudFront domain | Yes |
+| `EVENT_TRANSPORT` | `sqs` | Yes (for SQS) |
+| `EVENT_QUEUE_URL` | SQS queue URL | Yes (for SQS) |
+| `VOICE_QUEUE_URL` | SQS voice queue URL | Yes (for voice) |
+| `AWS_REGION` | e.g. `us-east-1` | Yes |
+| `AWS_S3_BUCKET` | S3 bucket name | Yes (for uploads) |
+| `NODE_ENV` | `production` | Yes |
+| `PORT` | `3000` | Yes |
+| `SEPARATE_WORKERS` | `true` (for worker task) | Worker only |
 
-- **Backend:** Push image to ECR from `backend/Dockerfile`
-- **Frontend:** Build with `npm run build`; deploy `dist/` to S3
+All configuration flows through `backend/src/config/index.ts` which validates with Zod at startup.
 
-### 2. Infrastructure (summary)
+## Deployment Options
 
-- VPC with public and private subnets
-- RDS Postgres (private subnet)
-- ElastiCache Redis (private subnet)
-- SQS queue (optional, for event bus)
-- ECS cluster, task definitions for API and workers
-- ALB for API
-- CloudFront in front of S3 (static) and ALB (API)
+### Option A: ECS Fargate (Recommended)
 
-### 3. Backend ECS task env
+Full details in [aws-migration-plan.md](aws-migration-plan.md), Phases 4-5.
 
-| Variable | Source |
-|----------|--------|
-| `DATABASE_URL` | Secrets Manager or RDS connection |
-| `JWT_SECRET` | Secrets Manager |
-| `REDIS_URL` | ElastiCache endpoint |
-| `CORS_ORIGIN` | CloudFront or custom domain |
-| `FRONTEND_ORIGIN` | S3/CloudFront origin |
-| `EVENT_TRANSPORT` | `sqs` (or `redis` with ElastiCache) |
-| `EVENT_QUEUE_URL` | SQS queue URL (when using SQS) |
-| `AWS_REGION` | e.g. `us-east-1` |
+1. **Build & push** backend image to ECR from `backend/Dockerfile`
+2. **Create ECS services**: API (with ALB) + Worker (no LB)
+3. **Build frontend**: `VITE_API_URL=https://app.yourdomain.com npm run build`
+4. **Deploy frontend**: `aws s3 sync dist/ s3://trackvibe-frontend/ --delete`
 
-### 4. Event consumer
+### Option B: Amplify (Frontend Only)
 
-Run as separate ECS service with `node workers/event-consumer.js`, triggered by SQS or polling.
+1. Connect frontend repo to Amplify
+2. Build settings: `frontend/` as root, build command `npm run build`, output `dist`
+3. Backend still runs on ECS as above
 
-### 5. Frontend
+### Option C: Lightsail (Simplified)
 
-Build with `VITE_API_URL` = API Gateway or CloudFront/ALB URL. Deploy `dist/` to S3 and serve via CloudFront.
+Lower cost alternative using Lightsail Containers. Simpler but less scalable than ECS.
 
----
+## Pre-Built AWS Integrations
 
-## Option B: Amplify
+The codebase already supports AWS services — no code changes needed for basic deployment:
 
-1. Connect frontend repo to Amplify.
-2. Build settings: `frontend/` as root, build command `npm run build`, output `dist`.
-3. Env vars: `VITE_API_URL`, `VITE_GOOGLE_CLIENT_ID`, etc.
-4. Backend: deploy API and workers to ECS or Lambda as above.
+| Feature | File | Activated By |
+|---------|------|-------------|
+| SQS event transport | `backend/src/events/transports/sqs.ts` | `EVENT_TRANSPORT=sqs` |
+| SQS voice queue | `backend/src/queue/index.ts` | `VOICE_QUEUE_URL` env var |
+| S3 presigned uploads | `backend/src/services/storage.ts` | `AWS_S3_BUCKET` env var |
+| Lambda handlers | `backend/lambdas/` | SAM template deploy |
+| Health endpoints | `backend/app.ts` | Always active (`/health`, `/ready`) |
 
----
+## AWS Checklist
 
-## Option C: Lightsail (simplified)
+- [ ] VPC with public/private subnets ([Phase 1](aws-migration-plan.md#phase-1-aws-account--networking))
+- [ ] RDS PostgreSQL + Secrets Manager ([Phase 2](aws-migration-plan.md#phase-2-data-layer-rds-postgresql))
+- [ ] ElastiCache Redis ([Phase 3](aws-migration-plan.md#phase-3-cache-layer-elasticache-redis))
+- [ ] ECR repository + Docker image ([Phase 4](aws-migration-plan.md#phase-4-container-registry-ecr))
+- [ ] ECS services (API + Worker) + ALB ([Phase 5](aws-migration-plan.md#phase-5-compute-ecs-fargate--alb))
+- [ ] SQS queues ([Phase 6](aws-migration-plan.md#phase-6-queues-sqs))
+- [ ] CloudFront + S3 for frontend ([Phase 7](aws-migration-plan.md#phase-7-frontend--cdn-s3--cloudfront))
+- [ ] WAF + CloudWatch + CI/CD ([Phase 8](aws-migration-plan.md#phase-8-security-monitoring--cicd))
 
-- Lightsail Containers for backend and frontend
-- Managed Postgres
-- Add Redis (Upstash or ElastiCache)
-- Lower cost and simpler than ECS/RDS/CloudFront
+## Related Docs
 
----
-
-## AWS checklist
-
-- [ ] RDS (or Aurora) Postgres in private subnet
-- [ ] Secrets Manager for `DATABASE_URL`, `JWT_SECRET`
-- [ ] ElastiCache Redis or Upstash
-- [ ] SQS queue (if using SQS event transport)
-- [ ] ECR image for backend
-- [ ] ECS task definitions (API + event consumer)
-- [ ] ALB + target groups
-- [ ] CloudFront for static and API (optional)
-- [ ] WAF (optional)
-- [ ] CloudWatch logs and alarms
+- [aws-migration-plan.md](aws-migration-plan.md) — Full 8-phase migration plan with costs and timelines
+- [architecture-target-aws.md](architecture-target-aws.md) — Target architecture diagram
+- [scale-harden-aws.md](scale-harden-aws.md) — Short-term hardening (Plan 1) + AWS overview (Plan 2)
+- [architecture-current-railway-supabase.md](architecture-current-railway-supabase.md) — Current architecture
