@@ -5,7 +5,7 @@ import pg from 'pg';
 import { getPool } from '../db/pool.js';
 import type { UserProfile, UpsertProfileInput } from '../types/domain.js';
 
-const RETURNING = 'id, date_of_birth, sex, height_cm, current_weight, target_weight, activity_level, water_goal_glasses, cycle_tracking_enabled, average_cycle_length, setup_completed';
+const RETURNING = 'id, date_of_birth, sex, height_cm, current_weight, target_weight, activity_level, water_goal_glasses, cycle_tracking_enabled, average_cycle_length, setup_completed, macro_carbs, macro_fat, macro_protein';
 
 function rowToProfile(row: Record<string, unknown>): UserProfile {
   return {
@@ -20,6 +20,9 @@ function rowToProfile(row: Record<string, unknown>): UserProfile {
     cycleTrackingEnabled: Boolean(row.cycle_tracking_enabled),
     averageCycleLength: row.average_cycle_length != null ? Number(row.average_cycle_length) : undefined,
     setupCompleted: Boolean(row.setup_completed),
+    macroCarbs: row.macro_carbs != null ? Number(row.macro_carbs) : undefined,
+    macroFat: row.macro_fat != null ? Number(row.macro_fat) : undefined,
+    macroProtein: row.macro_protein != null ? Number(row.macro_protein) : undefined,
   };
 }
 
@@ -32,8 +35,8 @@ export async function findByUserId(userId: string, client?: pg.Pool | pg.PoolCli
 export async function upsert(input: UpsertProfileInput, client?: pg.Pool | pg.PoolClient): Promise<UserProfile> {
   const db = client ?? getPool();
   const result = await db.query(
-    `INSERT INTO user_profiles (user_id, date_of_birth, sex, height_cm, current_weight, target_weight, activity_level, water_goal_glasses, cycle_tracking_enabled, average_cycle_length, setup_completed)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+    `INSERT INTO user_profiles (user_id, date_of_birth, sex, height_cm, current_weight, target_weight, activity_level, water_goal_glasses, cycle_tracking_enabled, average_cycle_length, setup_completed, macro_carbs, macro_fat, macro_protein)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
      ON CONFLICT (user_id)
      DO UPDATE SET
        date_of_birth = COALESCE($2, user_profiles.date_of_birth),
@@ -46,6 +49,9 @@ export async function upsert(input: UpsertProfileInput, client?: pg.Pool | pg.Po
        cycle_tracking_enabled = COALESCE($9, user_profiles.cycle_tracking_enabled),
        average_cycle_length = COALESCE($10, user_profiles.average_cycle_length),
        setup_completed = COALESCE($11, user_profiles.setup_completed),
+       macro_carbs = COALESCE($12, user_profiles.macro_carbs),
+       macro_fat = COALESCE($13, user_profiles.macro_fat),
+       macro_protein = COALESCE($14, user_profiles.macro_protein),
        updated_at = NOW()
      RETURNING ${RETURNING}`,
     [
@@ -60,6 +66,9 @@ export async function upsert(input: UpsertProfileInput, client?: pg.Pool | pg.Po
       input.cycleTrackingEnabled ?? false,
       input.averageCycleLength ?? null,
       input.setupCompleted ?? false,
+      input.macroCarbs ?? null,
+      input.macroFat ?? null,
+      input.macroProtein ?? null,
     ],
   );
   return rowToProfile(result.rows[0]);

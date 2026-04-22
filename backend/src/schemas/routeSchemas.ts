@@ -148,6 +148,9 @@ export const upsertProfileSchema = z.object({
   cycleTrackingEnabled: z.boolean().optional(),
   averageCycleLength: z.number().int().min(15).max(60).optional().nullable(),
   setupCompleted: z.boolean().optional(),
+  macroCarbs: z.number().int().min(1).max(1500).optional().nullable(),
+  macroFat: z.number().int().min(1).max(500).optional().nullable(),
+  macroProtein: z.number().int().min(1).max(500).optional().nullable(),
 });
 
 // ─── Weight entry schemas ─────────────────────────────────────

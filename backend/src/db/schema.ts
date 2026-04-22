@@ -214,6 +214,9 @@ export async function initSchema() {
         cycle_tracking_enabled boolean DEFAULT false,
         average_cycle_length int DEFAULT 28,
         setup_completed boolean DEFAULT false,
+        macro_carbs numeric,
+        macro_fat numeric,
+        macro_protein numeric,
         created_at timestamptz DEFAULT now(),
         updated_at timestamptz DEFAULT now()
       );
