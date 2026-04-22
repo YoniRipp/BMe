@@ -1,4 +1,5 @@
-import { useState, useCallback } from 'react';
+import { useCallback } from 'react';
+import { useProfile } from './useProfile';
 
 export interface MacroGoals {
   carbs: number;
@@ -6,33 +7,24 @@ export interface MacroGoals {
   protein: number;
 }
 
-const STORAGE_KEY = 'trackvibe-macro-goals';
 const DEFAULTS: MacroGoals = { carbs: 300, fat: 80, protein: 120 };
 
-function loadGoals(): MacroGoals {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return DEFAULTS;
-    const parsed = JSON.parse(raw);
-    return {
-      carbs: typeof parsed.carbs === 'number' && parsed.carbs > 0 ? parsed.carbs : DEFAULTS.carbs,
-      fat: typeof parsed.fat === 'number' && parsed.fat > 0 ? parsed.fat : DEFAULTS.fat,
-      protein: typeof parsed.protein === 'number' && parsed.protein > 0 ? parsed.protein : DEFAULTS.protein,
-    };
-  } catch {
-    return DEFAULTS;
-  }
-}
-
 export function useMacroGoals() {
-  const [goals, setGoalsState] = useState<MacroGoals>(loadGoals);
+  const { profile, updateProfile } = useProfile();
 
-  const setGoals = useCallback((next: MacroGoals) => {
-    setGoalsState(next);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-  }, []);
+  const macroGoals: MacroGoals = {
+    carbs: profile.macroCarbs ?? DEFAULTS.carbs,
+    fat: profile.macroFat ?? DEFAULTS.fat,
+    protein: profile.macroProtein ?? DEFAULTS.protein,
+  };
 
-  const calorieGoal = goals.carbs * 4 + goals.fat * 9 + goals.protein * 4;
+  const setMacroGoals = useCallback(
+    (next: MacroGoals) =>
+      updateProfile({ macroCarbs: next.carbs, macroFat: next.fat, macroProtein: next.protein }),
+    [updateProfile],
+  );
 
-  return { macroGoals: goals, setMacroGoals: setGoals, calorieGoal };
+  const calorieGoal = macroGoals.carbs * 4 + macroGoals.fat * 9 + macroGoals.protein * 4;
+
+  return { macroGoals, setMacroGoals, calorieGoal };
 }

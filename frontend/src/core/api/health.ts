@@ -13,6 +13,9 @@ export interface ApiProfile {
   cycleTrackingEnabled: boolean;
   averageCycleLength?: number;
   setupCompleted: boolean;
+  macroCarbs?: number;
+  macroFat?: number;
+  macroProtein?: number;
 }
 
 export const profileApi = {

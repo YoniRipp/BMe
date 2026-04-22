@@ -211,6 +211,9 @@ export interface UserProfile {
   cycleTrackingEnabled: boolean;
   averageCycleLength?: number;
   setupCompleted: boolean;
+  macroCarbs?: number;
+  macroFat?: number;
+  macroProtein?: number;
 }
 
 export interface UpsertProfileInput {
@@ -225,6 +228,9 @@ export interface UpsertProfileInput {
   cycleTrackingEnabled?: boolean;
   averageCycleLength?: number;
   setupCompleted?: boolean;
+  macroCarbs?: number;
+  macroFat?: number;
+  macroProtein?: number;
 }
 
 // ─── Weight Entry ────────────────────────────────────────────
