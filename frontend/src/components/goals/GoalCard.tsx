@@ -10,15 +10,10 @@ import { cn } from '@/lib/utils';
 import { ConfirmationDialog } from '@/components/shared/ConfirmationDialog';
 import { toast } from 'sonner';
 
-const GOAL_ICONS: Record<GoalType, React.ReactNode> = {
-  calories: <Flame className="w-5 h-5 text-orange-600" />,
-  workouts: <Dumbbell className="w-5 h-5 text-blue-600" />,
-  sleep: <Moon className="w-5 h-5 text-indigo-600" />,
-};
-const GOAL_TYPE_BORDER: Record<GoalType, string> = {
-  calories: 'border-l-4 border-l-amber-500',
-  workouts: 'border-l-4 border-l-green-500',
-  sleep: 'border-l-4 border-l-indigo-500',
+const GOAL_ICON_STYLES: Record<GoalType, { icon: React.ElementType; bg: string; color: string }> = {
+  calories: { icon: Flame, bg: 'bg-terracotta/10', color: 'text-terracotta' },
+  workouts: { icon: Dumbbell, bg: 'bg-info/10', color: 'text-info' },
+  sleep: { icon: Moon, bg: 'bg-gold/10', color: 'text-gold' },
 };
 const GOAL_LABELS: Record<GoalType, string> = {
   calories: 'calories',
@@ -43,43 +38,45 @@ export function GoalCard({ goal, onEdit }: GoalCardProps) {
     toast.success('Goal deleted');
   };
 
+  const style = GOAL_ICON_STYLES[goal.type];
+  const Icon = style.icon;
+  const achieved = progress.percentage >= 100;
+
   return (
     <>
-      <Card className={cn(
-        "p-4",
-        GOAL_TYPE_BORDER[goal.type],
-        progress.percentage >= 100 && "ring-2 ring-green-500"
-      )}>
-        <div className="flex items-start justify-between mb-3">
-          <div className="flex items-center gap-3">
-            {GOAL_ICONS[goal.type]}
-            <div>
-              <h4 className="text-sm font-semibold capitalize">
-                {goal.type} Goal ({goal.period})
+      <Card className={cn('p-5', achieved && 'border-success/40 bg-success/[0.03]')}>
+        <div className="flex items-start justify-between mb-4">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className={cn('h-10 w-10 rounded-xl flex items-center justify-center shrink-0', style.bg, style.color)}>
+              <Icon className="w-5 h-5" />
+            </div>
+            <div className="min-w-0">
+              <h4 className="font-display text-base font-medium tracking-tight capitalize leading-tight">
+                {goal.type} goal <span className="text-muted-foreground font-sans font-normal text-sm normal-case">· {goal.period}</span>
               </h4>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm text-muted-foreground tabular-nums mt-0.5">
                 {formatGoalValue(goal.type, progress.current)} / {formatGoalValue(goal.type, goal.target)} {GOAL_LABELS[goal.type]}
               </p>
             </div>
           </div>
-          {progress.percentage >= 100 && (
-            <CheckCircle2 className="w-5 h-5 text-green-600" />
+          {achieved && (
+            <CheckCircle2 className="w-5 h-5 text-success shrink-0" />
           )}
         </div>
 
-        <div className="mb-3">
-          <Progress value={progress.percentage} className="h-2" />
-          <div className="flex items-center justify-between mt-1">
+        <div className="mb-4">
+          <Progress value={progress.percentage} className="h-1.5" />
+          <div className="flex items-center justify-between mt-2">
             <span className={cn(
-              "text-sm font-medium",
-              progress.percentage >= 100 ? "text-green-600" :
-              progress.percentage >= 80 ? "text-green-500" :
-              progress.percentage >= 50 ? "text-yellow-600" : "text-red-600"
+              'text-xs font-medium tabular-nums',
+              achieved ? 'text-success' :
+              progress.percentage >= 80 ? 'text-success' :
+              progress.percentage >= 50 ? 'text-warning' : 'text-muted-foreground'
             )}>
-              {progress.percentage.toFixed(0)}% Complete
+              {progress.percentage.toFixed(0)}% complete
             </span>
-            {progress.percentage >= 100 && (
-              <span className="text-xs text-green-600 font-medium">Achieved!</span>
+            {achieved && (
+              <span className="text-xs text-success font-semibold uppercase tracking-wider">Achieved!</span>
             )}
           </div>
         </div>
@@ -92,15 +89,16 @@ export function GoalCard({ goal, onEdit }: GoalCardProps) {
               onClick={() => onEdit(goal)}
               className="flex-1"
             >
-              <Pencil className="w-4 h-4 mr-1" aria-hidden="true" />
+              <Pencil className="w-3.5 h-3.5 mr-1" aria-hidden="true" />
               Edit
             </Button>
           )}
           <Button
-            variant="outline"
-            size="sm"
+            variant="ghost"
+            size="icon"
             onClick={() => setShowDeleteConfirm(true)}
-            className="text-destructive"
+            className="h-9 w-9 text-muted-foreground hover:text-destructive"
+            aria-label="Delete goal"
           >
             <Trash2 className="w-4 h-4" aria-hidden="true" />
           </Button>
