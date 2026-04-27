@@ -9,28 +9,19 @@
 
 @layer base {
   :root {
-    /* ──────────────────────────────────────────────────────────────
-       "Claude" palette — paper-warm neutrals, single sage accent,
-       terracotta reserved for food/energy, gold/info for status.
-       Typography pair: Fraunces (display) + Inter (body).
-       ────────────────────────────────────────────────────────────── */
-
-    /* Brand — sage (kept as primary identity, deepened for contrast) */
     --sage: 148 24% 42%;
     --sage-light: 148 22% 68%;
     --sage-dark: 150 28% 30%;
     --sage-50: 145 28% 95%;
     --sage-100: 145 24% 88%;
 
-    /* Paper-warm neutrals (Anthropic-inspired) */
-    --paper: 36 40% 97%;          /* app background */
-    --paper-2: 34 32% 94%;        /* muted sections */
-    --ink: 30 14% 14%;            /* primary text */
-    --ink-2: 28 10% 32%;          /* secondary text */
-    --ink-3: 24 8% 52%;           /* tertiary / captions */
-    --hairline: 32 14% 86%;       /* borders (fully opaque) */
+    --paper: 36 40% 97%;
+    --paper-2: 34 32% 94%;
+    --ink: 30 14% 14%;
+    --ink-2: 28 10% 32%;
+    --ink-3: 24 8% 52%;
+    --hairline: 32 14% 86%;
 
-    /* Accents */
     --terracotta: 14 58% 54%;
     --terracotta-light: 14 60% 92%;
     --gold: 38 70% 50%;
@@ -41,12 +32,10 @@
     --mist: var(--paper-2);
     --border-base44: var(--hairline);
 
-    /* Semantic status */
     --success: 150 45% 38%;
     --info: 212 58% 48%;
     --warning: 32 80% 48%;
 
-    /* shadcn semantic tokens */
     --background: var(--paper);
     --foreground: var(--ink);
     --card: 0 0% 100%;
@@ -68,7 +57,6 @@
     --ring: 150 28% 30%;
     --radius: 0.875rem;
 
-    /* Sidebar */
     --sidebar-background: 36 40% 98%;
     --sidebar-foreground: var(--ink);
     --sidebar-primary: var(--sage-dark);
@@ -78,42 +66,39 @@
     --sidebar-border: var(--hairline);
     --sidebar-ring: 150 28% 30%;
 
-    /* Chart */
     --chart-1: 148 24% 42%;
     --chart-2: 14 58% 54%;
     --chart-3: 38 70% 50%;
     --chart-4: 212 58% 48%;
     --chart-5: 28 10% 32%;
 
-    /* Typography */
     --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
     --font-serif: 'Fraunces', 'Georgia', 'Times New Roman', serif;
 
-    /* Elevation */
     --shadow-xs: 0 1px 2px 0 hsl(28 20% 20% / 0.04);
     --shadow-sm: 0 1px 2px 0 hsl(28 20% 20% / 0.04), 0 1px 3px 0 hsl(28 20% 20% / 0.06);
     --shadow-md: 0 2px 4px -1px hsl(28 20% 20% / 0.05), 0 4px 8px -2px hsl(28 20% 20% / 0.06);
     --shadow-lg: 0 6px 16px -4px hsl(28 20% 20% / 0.08), 0 12px 32px -8px hsl(28 20% 20% / 0.08);
   }
 
-  /* Dark mode — warm near-black (not pure black) */
+  /* Dark mode — PULSE deep-ink sport aesthetic */
   .dark {
-    --sage: 148 28% 58%;
-    --sage-light: 148 22% 42%;
-    --sage-dark: 148 32% 52%;
-    --sage-50: 148 20% 14%;
-    --sage-100: 148 20% 20%;
+    --sage: 93 86% 66%;
+    --sage-light: 93 70% 55%;
+    --sage-dark: 93 86% 58%;
+    --sage-50: 93 40% 10%;
+    --sage-100: 93 40% 16%;
 
-    --paper: 30 8% 9%;
-    --paper-2: 30 8% 13%;
-    --ink: 30 14% 92%;
-    --ink-2: 28 10% 76%;
-    --ink-3: 24 8% 60%;
-    --hairline: 30 8% 20%;
+    --paper: 150 8% 6%;
+    --paper-2: 200 8% 12%;
+    --ink: 120 14% 96%;
+    --ink-2: 120 8% 72%;
+    --ink-3: 120 6% 52%;
+    --hairline: 200 8% 16%;
 
-    --terracotta: 14 52% 64%;
-    --terracotta-light: 14 30% 22%;
-    --gold: 38 62% 60%;
+    --terracotta: 20 100% 61%;
+    --terracotta-light: 20 40% 16%;
+    --gold: 43 100% 64%;
     --cream: var(--paper);
     --cream-warm: var(--paper-2);
     --charcoal: var(--ink);
@@ -121,59 +106,55 @@
     --mist: var(--paper-2);
     --border-base44: var(--hairline);
 
-    --success: 150 40% 54%;
-    --info: 212 52% 62%;
-    --warning: 32 72% 60%;
+    --success: 93 60% 52%;
+    --info: 204 100% 68%;
+    --warning: 43 100% 64%;
 
     --background: var(--paper);
     --foreground: var(--ink);
-    --card: 30 8% 12%;
+    --card: 210 7% 9%;
     --card-foreground: var(--ink);
-    --popover: 30 8% 12%;
+    --popover: 210 7% 9%;
     --popover-foreground: var(--ink);
-    --primary: 148 32% 52%;
-    --primary-foreground: 30 8% 9%;
-    --secondary: 30 8% 16%;
+    --primary: 93 86% 66%;
+    --primary-foreground: 150 8% 6%;
+    --secondary: 200 8% 14%;
     --secondary-foreground: var(--ink);
-    --muted: 30 8% 16%;
+    --muted: 200 8% 14%;
     --muted-foreground: var(--ink-3);
-    --accent: 30 8% 16%;
+    --accent: 200 8% 14%;
     --accent-foreground: var(--ink);
-    --destructive: 6 64% 54%;
-    --destructive-foreground: 30 14% 95%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 120 14% 96%;
     --border: var(--hairline);
     --input: var(--hairline);
-    --ring: 148 32% 52%;
+    --ring: 93 86% 66%;
 
-    --sidebar-background: 30 8% 11%;
+    --sidebar-background: 210 7% 8%;
     --sidebar-foreground: var(--ink);
-    --sidebar-primary: 148 32% 52%;
-    --sidebar-primary-foreground: 30 8% 9%;
-    --sidebar-accent: 30 8% 16%;
+    --sidebar-primary: 93 86% 66%;
+    --sidebar-primary-foreground: 150 8% 6%;
+    --sidebar-accent: 200 8% 14%;
     --sidebar-accent-foreground: var(--ink);
     --sidebar-border: var(--hairline);
-    --sidebar-ring: 148 32% 52%;
+    --sidebar-ring: 93 86% 66%;
 
-    --chart-1: 148 28% 58%;
-    --chart-2: 14 52% 64%;
-    --chart-3: 38 62% 60%;
-    --chart-4: 212 52% 62%;
-    --chart-5: 28 10% 76%;
+    --chart-1: 93 86% 66%;
+    --chart-2: 20 100% 61%;
+    --chart-3: 43 100% 64%;
+    --chart-4: 204 100% 68%;
+    --chart-5: 120 8% 72%;
 
-    --shadow-xs: 0 1px 2px 0 hsl(0 0% 0% / 0.2);
-    --shadow-sm: 0 1px 2px 0 hsl(0 0% 0% / 0.22), 0 1px 3px 0 hsl(0 0% 0% / 0.3);
-    --shadow-md: 0 2px 4px -1px hsl(0 0% 0% / 0.25), 0 4px 8px -2px hsl(0 0% 0% / 0.3);
-    --shadow-lg: 0 6px 16px -4px hsl(0 0% 0% / 0.35), 0 12px 32px -8px hsl(0 0% 0% / 0.4);
+    --shadow-xs: 0 1px 2px 0 hsl(0 0% 0% / 0.4);
+    --shadow-sm: 0 1px 2px 0 hsl(0 0% 0% / 0.45), 0 1px 3px 0 hsl(0 0% 0% / 0.5);
+    --shadow-md: 0 2px 4px -1px hsl(0 0% 0% / 0.5), 0 4px 8px -2px hsl(0 0% 0% / 0.55);
+    --shadow-lg: 0 6px 16px -4px hsl(0 0% 0% / 0.6), 0 12px 32px -8px hsl(0 0% 0% / 0.65);
   }
 }
 
 @layer base {
-  html {
-    scroll-behavior: smooth;
-  }
-  * {
-    @apply border-border;
-  }
+  html { scroll-behavior: smooth; }
+  * { @apply border-border; }
   body {
     @apply bg-background text-foreground antialiased;
     font-family: var(--font-sans);
@@ -181,28 +162,12 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
-
-  /* Typography scale — mobile-first, generous line heights */
-  h1, .h-display {
-    font-family: var(--font-serif);
-    font-weight: 500;
-    letter-spacing: -0.02em;
-    line-height: 1.1;
-  }
-  h2, .h-title {
-    font-family: var(--font-serif);
-    font-weight: 500;
-    letter-spacing: -0.015em;
-    line-height: 1.2;
-  }
-  h3, h4, h5, h6 {
-    font-family: var(--font-sans);
-    letter-spacing: -0.01em;
-  }
+  h1, .h-display { font-family: var(--font-serif); font-weight: 500; letter-spacing: -0.02em; line-height: 1.1; }
+  h2, .h-title { font-family: var(--font-serif); font-weight: 500; letter-spacing: -0.015em; line-height: 1.2; }
+  h3, h4, h5, h6 { font-family: var(--font-sans); letter-spacing: -0.01em; }
 }
 
 @layer utilities {
-  /* Typography helpers */
   .font-display { font-family: var(--font-serif); font-feature-settings: "ss01" 1, "ss02" 1; }
   .font-sans { font-family: var(--font-sans); }
   .text-display-lg { font-family: var(--font-serif); font-weight: 500; letter-spacing: -0.025em; line-height: 1.05; }
@@ -210,30 +175,35 @@
   .text-display-sm { font-family: var(--font-serif); font-weight: 500; letter-spacing: -0.015em; line-height: 1.15; }
   .tabular-nums { font-variant-numeric: tabular-nums; }
 
-  /* Elevation helpers */
   .shadow-card { box-shadow: var(--shadow-sm); }
   .shadow-card-md { box-shadow: var(--shadow-md); }
   .shadow-card-lg { box-shadow: var(--shadow-lg); }
 
-  /* Safe-area insets for mobile */
   .pb-safe { padding-bottom: env(safe-area-inset-bottom, 0px); }
   .pt-safe { padding-top: env(safe-area-inset-top, 0px); }
 
-  /* Tap feedback */
   .tap-target { @apply active:scale-[0.98] transition-transform duration-150; }
   .press { @apply active:scale-[0.97] transition-transform duration-150; }
 
-  /* Glass */
   .glass {
     background-color: hsl(var(--paper) / 0.82);
     backdrop-filter: saturate(180%) blur(16px);
     -webkit-backdrop-filter: saturate(180%) blur(16px);
   }
-  .dark .glass {
-    background-color: hsl(var(--paper) / 0.78);
-  }
+  .dark .glass { background-color: hsl(var(--paper) / 0.78); }
 
-  /* Animations */
+  /* PULSE glow utilities */
+  .glow-primary { box-shadow: 0 0 12px hsl(var(--primary) / 0.3), 0 0 32px hsl(var(--primary) / 0.12); }
+  .dark .glow-primary { box-shadow: 0 0 16px hsl(var(--primary) / 0.5), 0 0 48px hsl(var(--primary) / 0.2); }
+  .glow-fab { box-shadow: 0 4px 20px hsl(var(--primary) / 0.45), 0 8px 24px hsl(0 0% 0% / 0.25); }
+
+  .stagger-1 { animation-delay: 0.05s; }
+  .stagger-2 { animation-delay: 0.10s; }
+  .stagger-3 { animation-delay: 0.15s; }
+  .stagger-4 { animation-delay: 0.20s; }
+  .stagger-5 { animation-delay: 0.25s; }
+  .stagger-6 { animation-delay: 0.30s; }
+
   .animate-in { animation: fadeIn 0.2s ease-in; }
   .fade-in { animation: fadeIn 0.3s ease-in; }
   .slide-in { animation: slideIn 0.3s ease-out; }
@@ -245,73 +215,33 @@
   .animate-count-up { animation: countUp 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
 }
 
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-@keyframes slideIn {
-  from { transform: translateY(-10px); opacity: 0; }
-  to { transform: translateY(0); opacity: 1; }
-}
-@keyframes fadeUp {
-  from { transform: translateY(8px); opacity: 0; }
-  to { transform: translateY(0); opacity: 1; }
-}
-@keyframes cardEntrance {
-  from { opacity: 0; transform: translateY(12px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-@keyframes ringFill {
-  from { stroke-dashoffset: var(--ring-circumference, 100); }
-  to { stroke-dashoffset: var(--ring-offset, 0); }
-}
-@keyframes flamePulse {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.1); }
-}
-@keyframes celebrate {
-  0% { transform: scale(1); }
-  50% { transform: scale(1.05); }
-  100% { transform: scale(1); }
-}
-@keyframes countUp {
-  from { opacity: 0; transform: translateY(4px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-@keyframes thinkingDots {
-  0%, 20% { opacity: 0.3; }
-  40%, 100% { opacity: 1; }
-}
-@keyframes thinkingShimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
-}
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes slideIn { from { transform: translateY(-10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+@keyframes fadeUp { from { transform: translateY(8px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+@keyframes cardEntrance { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes ringFill { from { stroke-dashoffset: var(--ring-circumference, 100); } to { stroke-dashoffset: var(--ring-offset, 0); } }
+@keyframes flamePulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.1); } }
+@keyframes celebrate { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
+@keyframes countUp { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes thinkingDots { 0%, 20% { opacity: 0.3; } 40%, 100% { opacity: 1; } }
+@keyframes thinkingShimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
 .animate-thinking-dots span { animation: thinkingDots 1.4s ease-in-out infinite; }
 .animate-thinking-dots span:nth-child(2) { animation-delay: 0.2s; }
 .animate-thinking-dots span:nth-child(3) { animation-delay: 0.4s; }
 
-/* Focus ring */
-*:focus-visible {
-  @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
-}
+*:focus-visible { @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background; }
 
-/* Smooth transitions — color & shadow only, not transforms (avoids jank) */
 * {
   transition-property: color, background-color, border-color, text-decoration-color, fill, stroke, box-shadow;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-duration: 150ms;
 }
 
-/* Pricing card reveal */
-@keyframes fadeUpReveal {
-  from { opacity: 0; transform: translateY(24px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
+@keyframes fadeUpReveal { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: translateY(0); } }
 .animate-reveal { animation: fadeUpReveal 0.5s ease-out both; }
 .animate-reveal-delay { animation: fadeUpReveal 0.5s ease-out 0.15s both; }
 .animate-reveal-delay-2 { animation: fadeUpReveal 0.5s ease-out 0.3s both; }
 
-/* Staggered entrances */
 .stagger-1 { animation-delay: 0ms; }
 .stagger-2 { animation-delay: 50ms; }
 .stagger-3 { animation-delay: 100ms; }
@@ -319,7 +249,6 @@
 .stagger-5 { animation-delay: 200ms; }
 .stagger-6 { animation-delay: 250ms; }
 
-/* Reduced motion */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
