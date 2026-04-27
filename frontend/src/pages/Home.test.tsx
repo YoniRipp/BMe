@@ -146,9 +146,9 @@ it('displays dashboard stats section', () => {
     expect(screen.getByText(/sleep/i)).toBeInTheDocument();
   });
 
-  it('keeps voice section visible', () => {
-    render(<Home />, { wrapper });
-    expect(screen.getByText(/voice/i)).toBeInTheDocument();
+  it('keeps voice onboarding section mounted', () => {
+    const { container } = render(<Home />, { wrapper });
+    expect(container.querySelector('[data-onboarding="voice"]')).toBeInTheDocument();
   });
 
 it('opens food modal from quick log button', async () => {
@@ -158,7 +158,7 @@ it('opens food modal from quick log button', async () => {
     await user.click(screen.getByRole('button', { name: /log food/i }));
 
     await waitFor(() => {
-      expect(screen.getByText(/add food entry/i)).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: /add food entry/i })).toBeInTheDocument();
     });
   });
 
@@ -168,7 +168,7 @@ it('opens workout modal from quick log button', async () => {
 
     await user.click(screen.getByRole('button', { name: /log workout/i }));
     await waitFor(() => {
-      expect(screen.getByText(/add workout/i)).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: /add workout/i })).toBeInTheDocument();
     });
   });
 });

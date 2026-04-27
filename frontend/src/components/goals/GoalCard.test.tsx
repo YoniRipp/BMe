@@ -83,12 +83,12 @@ const wrapper = ({ children }: { children: React.ReactNode }) => (
 describe('GoalCard', () => {
   it('renders goal card with title', () => {
     render(<GoalCard goal={mockGoal} />, { wrapper });
-    expect(screen.getByText(/calories goal/i)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /calories goal/i })).toBeInTheDocument();
   });
 
   it('displays goal progress', () => {
     render(<GoalCard goal={mockGoal} />, { wrapper });
-    expect(screen.getByText(/calories goal/i)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /calories goal/i })).toBeInTheDocument();
     expect(document.body.textContent).toMatch(/0\s*\/\s*2,?000/);
   });
 
@@ -127,7 +127,7 @@ describe('GoalCard', () => {
       id: 'achieved-goal',
     };
     render(<GoalCard goal={achievedGoal} />, { wrapper });
-    expect(screen.getByText(/calories goal/i)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /calories goal/i })).toBeInTheDocument();
     expect(screen.getByText(/100% complete/i)).toBeInTheDocument();
   });
 });
