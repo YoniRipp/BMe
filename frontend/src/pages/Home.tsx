@@ -1,16 +1,16 @@
 import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useWorkouts } from '@/hooks/useWorkouts';
 import { useEnergy } from '@/hooks/useEnergy';
 import { useGoals } from '@/hooks/useGoals';
 import { useMacroGoals } from '@/hooks/useMacroGoals';
+import { useWeight } from '@/hooks/useWeight';
+import { useWater } from '@/hooks/useWater';
 import { MacroGoalModal } from '@/components/home/MacroGoalModal';
 import { SleepEditModal } from '@/components/energy/SleepEditModal';
 import { FoodEntryModal } from '@/components/energy/FoodEntryModal';
 import { WorkoutModal } from '@/components/body/WorkoutModal';
 import { GoalModal } from '@/components/goals/GoalModal';
 import { ContentWithLoading } from '@/components/shared/ContentWithLoading';
-import { Card, CardContent } from '@/components/ui/card';
 import { VoiceMicHero } from '@/components/voice/VoiceMicHero';
 import { WaterTracker } from '@/components/home/WaterTracker';
 import { WeightProgress } from '@/components/home/WeightProgress';
@@ -23,18 +23,133 @@ import { Goal } from '@/types/goals';
 import { FoodEntry } from '@/types/energy';
 import { Workout } from '@/types/workout';
 import { StreakCard } from '@/components/home/StreakCard';
-import { Apple, ChevronRight, Droplets, Dumbbell, Moon, Scale, UtensilsCrossed } from 'lucide-react';
-import { isSameDay, format } from 'date-fns';
+import { DashboardProgressCards } from '@/components/home/DashboardProgressCards';
+import { SectionHeader } from '@/components/shared/SectionHeader';
+import { Card, CardContent } from '@/components/ui/card';
+import { Dumbbell, Moon, Scale, Apple, ChevronRight, Droplets } from 'lucide-react';
+import { isSameDay, format, isWithinInterval } from 'date-fns';
+import { getPeriodRange } from '@/lib/dateRanges';
 import { toast } from 'sonner';
-import { cn } from '@/lib/utils';
+
+/* ── Circular progress ring ───────────────────────────────── */
+function Ring({
+  pct,
+  size = 120,
+  stroke = 10,
+  color = 'hsl(var(--primary))',
+  track = 'hsl(var(--muted))',
+  children,
+}: {
+  pct: number;
+  size?: number;
+  stroke?: number;
+  color?: string;
+  track?: string;
+  children?: React.ReactNode;
+}) {
+  const r = (size - stroke) / 2;
+  const c = 2 * Math.PI * r;
+  const offset = c * (1 - Math.max(0, Math.min(1, pct)));
+  return (
+    <div style={{ position: 'relative', width: size, height: size, flexShrink: 0 }}>
+      <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={track} strokeWidth={stroke} />
+        <circle
+          cx={size / 2} cy={size / 2} r={r} fill="none" stroke={color} strokeWidth={stroke}
+          strokeLinecap="round" strokeDasharray={c} strokeDashoffset={offset}
+          style={{ transition: 'stroke-dashoffset 0.7s cubic-bezier(.2,.8,.2,1)' }}
+        />
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center">{children}</div>
+    </div>
+  );
+}
+
+/* ── Mini stat card ───────────────────────────────────────── */
+function StatCard({
+  icon,
+  label,
+  value,
+  sub,
+  tint,
+  onClick,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  sub: string;
+  tint: string;
+  onClick?: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      aria-label={label}
+      className="flex-1 flex flex-col gap-1.5 p-3 rounded-2xl bg-card border border-border/50 text-left active:scale-95 transition-transform tap-target"
+    >
+      <div className="flex items-center justify-between">
+        <span style={{ color: tint }}>{icon}</span>
+        <ChevronRight className="w-3 h-3 text-muted-foreground/50" />
+      </div>
+      <div className="text-xl font-bold tabular-nums leading-tight">{value}</div>
+      <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider leading-tight">{sub}</div>
+    </button>
+  );
+}
+
+/* ── Quick log button ─────────────────────────────────────── */
+function QuickButton({
+  label,
+  icon: Icon,
+  primary,
+  pill,
+  onClick,
+}: {
+  label: string;
+  icon: typeof Apple;
+  primary?: boolean;
+  pill?: string;
+  onClick?: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`flex flex-col justify-between p-3.5 rounded-2xl tap-target active:scale-95 transition-transform ${
+        primary
+          ? 'bg-primary text-primary-foreground shadow-md'
+          : 'bg-card border border-border/50 text-foreground'
+      }`}
+      style={{ height: 80 }}
+    >
+      <div className="flex items-center justify-between w-full">
+        <Icon
+          className="w-5 h-5"
+          style={{ opacity: primary ? 1 : 0.8 }}
+          strokeWidth={2}
+        />
+        {pill && (
+          <span
+            className={`text-[11px] font-bold px-2 py-0.5 rounded-lg ${
+              primary ? 'bg-primary-foreground/20 text-primary-foreground' : 'bg-muted text-muted-foreground'
+            }`}
+          >
+            {pill}
+          </span>
+        )}
+      </div>
+      <div className="text-sm font-bold">{label}</div>
+    </button>
+  );
+}
 
 export function Home() {
-  const navigate = useNavigate();
   const { workouts, workoutsLoading, addWorkout } = useWorkouts();
   const { checkIns, foodEntries, addCheckIn, updateCheckIn, addFoodEntry, getCheckInByDate, energyLoading } = useEnergy();
   const { addGoal, updateGoal, goalsLoading } = useGoals();
   const { macroGoals, setMacroGoals, calorieGoal } = useMacroGoals();
   const { profile, profileLoading } = useProfile();
+  const { latestWeight } = useWeight();
+  const { glasses } = useWater();
 
   const [goalModalOpen, setGoalModalOpen] = useState(false);
   const [editingGoal, setEditingGoal] = useState<Goal | undefined>(undefined);
@@ -85,61 +200,27 @@ export function Home() {
   const todaySummary = useMemo(() => {
     const now = new Date();
     const todayFoods = foodEntries.filter((f) => isSameDay(new Date(f.date), now));
-    const totalCal = todayFoods.reduce((s, f) => s + f.calories, 0);
-    const totalProtein = todayFoods.reduce((s, f) => s + f.protein, 0);
-    const totalCarbs = todayFoods.reduce((s, f) => s + f.carbs, 0);
-    const totalFats = todayFoods.reduce((s, f) => s + f.fats, 0);
-    const mealsCount = todayFoods.length;
-    return { totalCal, totalProtein, totalCarbs, totalFats, mealsCount };
+    return {
+      totalCal: todayFoods.reduce((s, f) => s + f.calories, 0),
+      totalProtein: todayFoods.reduce((s, f) => s + f.protein, 0),
+      totalCarbs: todayFoods.reduce((s, f) => s + f.carbs, 0),
+      totalFats: todayFoods.reduce((s, f) => s + f.fats, 0),
+    };
   }, [foodEntries]);
 
-  const calGoalTarget = calorieGoal;
-  const macroRows = [
-    { label: 'Protein', current: Math.round(todaySummary.totalProtein), goal: macroGoals.protein, color: 'bg-info' },
-    { label: 'Carbs', current: Math.round(todaySummary.totalCarbs), goal: macroGoals.carbs, color: 'bg-gold' },
-    { label: 'Fat', current: Math.round(todaySummary.totalFats), goal: macroGoals.fat, color: 'bg-terracotta' },
-  ];
+  const workoutsThisWeek = useMemo(() => {
+    const { start, end } = getPeriodRange('weekly', new Date());
+    return workouts.filter((w) => isWithinInterval(new Date(w.date), { start, end })).length;
+  }, [workouts]);
 
-  const progressMessage = useMemo(() => {
-    if (todaySummary.mealsCount === 0) return 'Start tracking your progress';
-    if (todaySummary.mealsCount >= 3) return 'Crushing it!';
-    if (todaySummary.mealsCount >= 2) return 'Great progress!';
-    return 'Keep going!';
-  }, [todaySummary.mealsCount]);
+  const calPct = calorieGoal > 0 ? Math.min(todaySummary.totalCal / calorieGoal, 1) : 0;
+  const sleepHours = todayCheckIn?.sleepHours;
+  const weightKg = latestWeight?.weight;
 
-  const recentActivity = useMemo(() => {
-    const foodItems = foodEntries.slice(0, 10).map((f) => ({
-      id: f.id,
-      type: 'food' as const,
-      name: f.name,
-      detail: `${f.calories} cal`,
-      date: new Date(f.date),
-    }));
-    const workoutItems = workouts.slice(0, 10).map((w) => ({
-      id: w.id,
-      type: 'workout' as const,
-      name: w.title,
-      detail: `${w.exercises.length} exercise${w.exercises.length !== 1 ? 's' : ''}`,
-      date: new Date(w.date),
-    }));
-    return [...foodItems, ...workoutItems]
-      .sort((a, b) => b.date.getTime() - a.date.getTime())
-      .slice(0, 5);
-  }, [foodEntries, workouts]);
+  const today = new Date();
+  const dateLabel = format(today, 'EEE · MMM d');
+  const userName = profile?.setupCompleted ? (profile as { name?: string }).name ?? 'there' : 'there';
 
-  const calPct = calGoalTarget > 0 ? Math.min(todaySummary.totalCal / calGoalTarget, 1) : 0;
-  const workoutsThisWeek = workouts.filter((w) => {
-    const d = new Date(w.date);
-    const now = new Date();
-    const start = new Date(now);
-    start.setDate(now.getDate() - now.getDay());
-    start.setHours(0, 0, 0, 0);
-    return d >= start && d <= now;
-  }).length;
-  const sleepHours = Number(todayCheckIn?.sleepHours ?? 0);
-  const weightKg = profile?.currentWeight ? Number(profile.currentWeight).toFixed(1) : '--';
-
-  // Onboarding flow: SetupWizard → OnboardingTour → Dashboard
   if (!profileLoading && !profile.setupCompleted) {
     return <SetupWizard onComplete={() => window.location.reload()} />;
   }
@@ -147,165 +228,180 @@ export function Home() {
   const todayDate = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
 
   return (
-    <div className="max-w-lg md:max-w-6xl mx-auto space-y-6">
-      <div>
-        <p className="text-xs font-medium uppercase tracking-[0.15em] text-muted-foreground">{todayDate}</p>
-        <h1 className="font-display text-[32px] md:text-[40px] font-medium tracking-tight leading-tight mt-1">Today</h1>
-        <p className="text-sm text-muted-foreground mt-1.5">{progressMessage}</p>
-      </div>
-
+    <div className="max-w-lg mx-auto">
       <ContentWithLoading loading={workoutsLoading || energyLoading || goalsLoading} loadingText="Loading dashboard...">
-      <div className="space-y-5">
-        <Card className="overflow-hidden relative" data-onboarding="dashboard">
-          <div className="absolute top-[-60px] right-[-40px] w-[200px] h-[200px] rounded-full bg-primary/[0.12] blur-3xl pointer-events-none" />
-          <CardContent className="p-5">
-            <div className="flex items-center justify-between text-[11px] font-bold uppercase tracking-[0.18em] text-muted-foreground mb-4">
-              <span className="text-primary">Today's fuel</span>
-              <span>{Math.round(todaySummary.totalCal)} / {calGoalTarget} kcal</span>
-            </div>
-            <div className="flex items-center gap-5">
-              <div className="relative w-[132px] h-[132px]">
-                <svg viewBox="0 0 100 100" className="w-[132px] h-[132px] -rotate-90">
-                  <circle cx="50" cy="50" r="42" fill="none" stroke="hsl(var(--muted))" strokeWidth="8" />
-                  <circle cx="50" cy="50" r="42" fill="none" stroke="hsl(var(--primary))" strokeWidth="8" strokeLinecap="round" strokeDasharray={2 * Math.PI * 42} strokeDashoffset={2 * Math.PI * 42 * (1 - calPct)} className="transition-all duration-700 ease-out" />
-                </svg>
-                <div className="absolute inset-0 flex flex-col items-center justify-center">
-                  <span className="font-display text-2xl font-medium tabular-nums leading-none">{Math.round(todaySummary.totalCal)}</span>
-                  <span className="text-[10px] text-muted-foreground mt-1">kcal</span>
-                </div>
-              </div>
-              <div className="flex-1 space-y-3">
-                {macroRows.map((row) => {
-                  const pct = row.goal > 0 ? Math.min(row.current / row.goal, 1) : 0;
-                  return (
-                    <div key={row.label}>
-                      <div className="flex justify-between text-xs mb-1">
-                        <span className="font-medium">{row.label}</span>
-                        <span className="text-muted-foreground tabular-nums">{row.current}/{row.goal}g</span>
-                      </div>
-                      <div className="h-[5px] rounded-full bg-muted overflow-hidden">
-                        <div className={cn('h-full rounded-full', row.color)} style={{ width: `${pct * 100}%` }} />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="space-y-4 pb-6">
 
-        <div className="grid grid-cols-3 gap-2.5">
-          <button type="button" className="rounded-[18px] border border-border bg-card p-3 h-[100px] text-left press" onClick={() => navigate('/body')}>
-            <Dumbbell className="w-4 h-4 text-primary mb-2" />
-            <p className="font-display text-2xl leading-none">{workoutsThisWeek}</p>
-            <p className="text-xs text-muted-foreground mt-1">this week</p>
-          </button>
-          <button type="button" className="rounded-[18px] border border-border bg-card p-3 h-[100px] text-left press" onClick={() => setSleepModalOpen(true)}>
-            <Moon className="w-4 h-4 text-info mb-2" />
-            <p className="font-display text-2xl leading-none">{sleepHours}h</p>
-            <p className="text-xs text-muted-foreground mt-1">last night</p>
-          </button>
-          <button type="button" className="rounded-[18px] border border-border bg-card p-3 h-[100px] text-left press" onClick={() => navigate('/settings')}>
-            <Scale className="w-4 h-4 text-terracotta mb-2" />
-            <p className="font-display text-2xl leading-none">{weightKg}</p>
-            <p className="text-xs text-muted-foreground mt-1">kg</p>
-          </button>
-        </div>
+          {/* Header */}
+          <div className="px-1 pt-1">
+            <p className="text-[11px] font-bold tracking-[0.18em] text-muted-foreground uppercase">{dateLabel}</p>
+            <h1 className="text-[28px] font-extrabold tracking-tight leading-tight mt-0.5">
+              Hey {userName} 👋
+            </h1>
+          </div>
 
-        <div className="grid grid-cols-2 gap-2.5">
-          <button type="button" onClick={() => setFoodModalOpen(true)} className="h-14 rounded-2xl bg-primary text-primary-foreground px-4 flex items-center justify-between press">
-            <span className="text-sm font-semibold">Log food</span>
-            <Apple className="w-4 h-4" />
-          </button>
-          <button type="button" onClick={() => setWorkoutModalOpen(true)} className="h-14 rounded-2xl border border-border bg-card px-4 flex items-center justify-between press">
-            <span className="text-sm font-semibold">Log workout</span>
-            <Dumbbell className="w-4 h-4" />
-          </button>
-          <button type="button" onClick={() => navigate('/settings')} className="h-14 rounded-2xl border border-border bg-card px-4 flex items-center justify-between press">
-            <span className="text-sm font-semibold">Water</span>
-            <span className="inline-flex items-center gap-1 text-xs text-muted-foreground"><Droplets className="w-3.5 h-3.5" />0/8</span>
-          </button>
-          <button type="button" onClick={() => setSleepModalOpen(true)} className="h-14 rounded-2xl border border-border bg-card px-4 flex items-center justify-between press">
-            <span className="text-sm font-semibold">Sleep</span>
-            <span className="inline-flex items-center gap-1 text-xs text-muted-foreground"><Moon className="w-3.5 h-3.5" />{sleepHours}h</span>
-          </button>
-        </div>
-
-        {/* Voice Input */}
-        <div data-onboarding="voice">
-          <VoiceMicHero />
-        </div>
-
-        {/* Streaks */}
-        <StreakCard />
-        {/* Health Trackers */}
-        <div className="grid grid-cols-2 gap-4" data-onboarding="trackers">
-          <WaterTracker />
-          <WeightProgress />
-        </div>
-
-        {/* Cycle Tracker (if enabled) */}
-        {profile.cycleTrackingEnabled && <CycleTracker />}
-
-        {/* Recent Activity */}
-        {recentActivity.length > 0 && (
-          <Card className="overflow-hidden">
-            <CardContent className="p-6">
-              <h3 className="font-display text-lg font-medium tracking-tight mb-4">Recent activity</h3>
-              <div className="space-y-1">
-                {recentActivity.map((item) => (
-                  <div
-                    key={`${item.type}-${item.id}`}
-                    className="flex items-center gap-3 py-2.5"
+          {/* ── Hero Fuel Card ──────────────────────────────── */}
+          <div data-onboarding="dashboard">
+            <Card className="rounded-[28px] border border-border/40 shadow-sm overflow-hidden">
+              <CardContent className="p-5">
+                <div className="flex items-center justify-between mb-4">
+                  <p className="text-[11px] font-bold tracking-[0.18em] text-primary uppercase">Today's fuel</p>
+                  <button
+                    onClick={() => setMacroGoalModalOpen(true)}
+                    className="text-[11px] font-bold text-muted-foreground/60 hover:text-muted-foreground transition-colors"
                   >
-                    <div className={`h-8 w-8 rounded-lg flex items-center justify-center shrink-0 ${item.type === 'food' ? 'bg-terracotta/10 text-terracotta' : 'bg-info/10 text-info'}`}>
-                      {item.type === 'food'
-                        ? <UtensilsCrossed className="w-4 h-4" />
-                        : <Dumbbell className="w-4 h-4" />}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{item.name}</p>
-                      <p className="text-xs text-muted-foreground">{item.detail}</p>
-                    </div>
-                    <span className="text-xs text-muted-foreground shrink-0 inline-flex items-center gap-1">
-                      {isSameDay(item.date, new Date()) ? 'Today' : format(item.date, 'EEE, MMM d')}
-                      <ChevronRight className="w-3 h-3" />
+                    {todaySummary.totalCal} / {calorieGoal} kcal
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-5">
+                  {/* Calorie ring */}
+                  <Ring pct={calPct} size={132} stroke={11}>
+                    <span className="text-[38px] font-extrabold tabular-nums leading-none tracking-tight">
+                      {todaySummary.totalCal}
                     </span>
+                    <span className="text-[10px] font-bold tracking-widest text-muted-foreground uppercase mt-1">
+                      kcal in
+                    </span>
+                  </Ring>
+
+                  {/* Macro progress bars */}
+                  <div className="flex-1 flex flex-col gap-3">
+                    {[
+                      { label: 'Protein', cur: todaySummary.totalProtein, goal: macroGoals.protein, color: 'hsl(var(--primary))' },
+                      { label: 'Carbs', cur: todaySummary.totalCarbs, goal: macroGoals.carbs, color: 'hsl(var(--info))' },
+                      { label: 'Fat', cur: todaySummary.totalFats, goal: macroGoals.fat, color: 'hsl(var(--gold))' },
+                    ].map((m) => (
+                      <div key={m.label}>
+                        <div className="flex justify-between text-[11px] font-bold mb-1">
+                          <span className="text-muted-foreground">{m.label}</span>
+                          <span className="tabular-nums">
+                            {m.cur}<span className="text-muted-foreground/60">/{m.goal}g</span>
+                          </span>
+                        </div>
+                        <div className="h-[5px] rounded-full overflow-hidden" style={{ background: 'hsl(var(--muted))' }}>
+                          <div
+                            className="h-full rounded-full transition-all duration-700"
+                            style={{
+                              width: `${Math.min((m.cur / (m.goal || 1)) * 100, 100)}%`,
+                              background: m.color,
+                            }}
+                          />
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* ── Stat mini-cards ─────────────────────────────── */}
+          <div className="flex gap-2.5">
+            <StatCard
+              icon={<Dumbbell className="w-4 h-4" />}
+              label="Workouts"
+              value={String(workoutsThisWeek)}
+              sub="this week"
+              tint="hsl(var(--primary))"
+              onClick={() => setWorkoutModalOpen(true)}
+            />
+            <StatCard
+              icon={<Moon className="w-4 h-4" />}
+              label="Sleep"
+              value={sleepHours ? `${sleepHours.toFixed(1)}h` : '—'}
+              sub="last night"
+              tint="hsl(var(--info))"
+              onClick={() => setSleepModalOpen(true)}
+            />
+            <StatCard
+              icon={<Scale className="w-4 h-4" />}
+              label="Weight"
+              value={weightKg ? `${weightKg.toFixed(1)}` : '—'}
+              sub="kg"
+              tint="hsl(var(--terracotta))"
+            />
+          </div>
+
+          {/* ── Quick log grid ──────────────────────────────── */}
+          <div>
+            <div className="flex items-center justify-between mb-2 px-0.5">
+              <h2 className="text-base font-bold">Quick log</h2>
+              <span className="text-[11px] text-muted-foreground font-semibold">Tap to add</span>
+            </div>
+            <div className="grid grid-cols-2 gap-2.5">
+              <QuickButton label="Log food" icon={Apple} primary onClick={() => setFoodModalOpen(true)} />
+              <QuickButton label="Log workout" icon={Dumbbell} onClick={() => setWorkoutModalOpen(true)} />
+              <QuickButton
+                label="Water"
+                icon={Droplets}
+                pill={`${glasses}/8`}
+                onClick={() => {}}
+              />
+              <QuickButton
+                label="Sleep"
+                icon={Moon}
+                pill={sleepHours ? `${sleepHours.toFixed(1)}h` : undefined}
+                onClick={() => setSleepModalOpen(true)}
+              />
+            </div>
+          </div>
+
+          {/* ── Voice Input ─────────────────────────────────── */}
+          <div data-onboarding="voice">
+            <VoiceMicHero />
+          </div>
+
+          {/* ── Streak ──────────────────────────────────────── */}
+          <StreakCard />
+
+          {/* ── Goals progress ──────────────────────────────── */}
+          <Card className="rounded-2xl border border-border/40 shadow-sm" data-onboarding="goals">
+            <CardContent className="p-5">
+              <SectionHeader title="Goals" subtitle="Your progress" />
+              <DashboardProgressCards
+                onAddGoal={() => { setEditingGoal(undefined); setGoalModalOpen(true); }}
+                onAddWorkout={() => setWorkoutModalOpen(true)}
+                onAddFood={() => setFoodModalOpen(true)}
+                onAddSleep={() => setSleepModalOpen(true)}
+              />
             </CardContent>
           </Card>
-        )}
-      </div>
+
+          {/* ── Health trackers ─────────────────────────────── */}
+          <div className="grid grid-cols-2 gap-4" data-onboarding="trackers">
+            <WaterTracker />
+            <WeightProgress />
+          </div>
+
+          {/* Cycle Tracker (if enabled) */}
+          {profile.cycleTrackingEnabled && <CycleTracker />}
+        </div>
       </ContentWithLoading>
 
+      {/* ── Modals ──────────────────────────────────────────── */}
       <GoalModal
         open={goalModalOpen}
         onOpenChange={setGoalModalOpen}
         onSave={handleGoalSave}
         goal={editingGoal}
       />
-
       <WorkoutModal
         open={workoutModalOpen}
         onOpenChange={setWorkoutModalOpen}
         onSave={handleWorkoutSave}
       />
-
       <FoodEntryModal
         open={foodModalOpen}
         onOpenChange={setFoodModalOpen}
         onSave={handleFoodSave}
       />
-
       <SleepEditModal
         open={sleepModalOpen}
         onOpenChange={setSleepModalOpen}
         onSave={handleSleepSave}
         currentHours={todayCheckIn?.sleepHours}
       />
-
       <MacroGoalModal
         open={macroGoalModalOpen}
         onOpenChange={setMacroGoalModalOpen}
@@ -313,7 +409,6 @@ export function Home() {
         onSave={setMacroGoals}
       />
 
-      {/* Onboarding tour for first-time users */}
       {showTour && <OnboardingTour />}
     </div>
   );

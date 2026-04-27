@@ -15,7 +15,6 @@ interface BottomNavigationProps {
 }
 
 export function BottomNavigation({ items, currentPath, onCenterPress }: BottomNavigationProps) {
-  // Split items into left and right halves for the center button
   const half = Math.ceil(items.length / 2);
   const leftItems = items.slice(0, half);
   const rightItems = items.slice(half);
@@ -53,20 +52,77 @@ export function BottomNavigation({ items, currentPath, onCenterPress }: BottomNa
       style={{ paddingBottom: 'env(safe-area-inset-bottom, 14px)' }}
       aria-label="Main navigation"
     >
-      <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-background/95 to-transparent pointer-events-none" />
-      <div className="relative mx-3.5 mb-3.5 h-16 bg-card border border-border rounded-[22px] flex items-center justify-around shadow-card-lg pointer-events-auto">
-        {leftItems.map(renderItem)}
-        <div className="w-16" />
-        {rightItems.map(renderItem)}
+      {/* Floating pill */}
+      <div
+        className="mx-3.5 mb-3.5 pointer-events-auto"
+        style={{ position: 'relative' }}
+      >
+        {/* Center voice FAB — floats above the pill */}
         <button
           type="button"
           onClick={onCenterPress}
-          className="absolute top-[-22px] left-1/2 -translate-x-1/2 w-[60px] h-[60px] rounded-full bg-primary flex items-center justify-center ring-[3px] ring-background press"
-          style={{ boxShadow: '0 0 24px hsl(var(--primary) / 0.35), 0 8px 20px rgba(0,0,0,0.3)' }}
-          aria-label="Open voice"
+          className="absolute left-1/2 -translate-x-1/2 -top-6 w-14 h-14 rounded-full bg-primary flex items-center justify-center shadow-lg active:scale-95 transition-transform z-10"
+          style={{ boxShadow: '0 0 20px hsl(var(--primary) / 0.4), 0 8px 20px rgba(0,0,0,0.25)' }}
+          aria-label="Voice log"
         >
           <Mic className="w-6 h-6 text-primary-foreground" strokeWidth={2.2} />
         </button>
+
+        {/* Pill bar */}
+        <div
+          className="flex items-center bg-card border border-border/60 rounded-[22px]"
+          style={{
+            height: 64,
+            boxShadow: '0 8px 28px rgba(0,0,0,0.14), 0 2px 6px rgba(0,0,0,0.08)',
+          }}
+        >
+          {/* Left items */}
+          {leftItems.map((item) => {
+            const isActive = currentPath === item.path;
+            const Icon = item.icon;
+            return (
+              <Link
+                key={item.path}
+                to={item.path}
+                data-onboarding={onboardingKey(item.path)}
+                className="flex-1 flex flex-col items-center gap-0.5 py-2 transition-colors tap-target"
+                style={{ color: isActive ? 'hsl(var(--primary))' : 'hsl(var(--muted-foreground))' }}
+              >
+                <Icon className="w-5 h-5" />
+                <span
+                  className="text-[10px] font-bold tracking-widest uppercase"
+                >
+                  {item.name}
+                </span>
+              </Link>
+            );
+          })}
+
+          {/* Center spacer for FAB */}
+          <div className="w-16 shrink-0" />
+
+          {/* Right items */}
+          {rightItems.map((item) => {
+            const isActive = currentPath === item.path;
+            const Icon = item.icon;
+            return (
+              <Link
+                key={item.path}
+                to={item.path}
+                data-onboarding={onboardingKey(item.path)}
+                className="flex-1 flex flex-col items-center gap-0.5 py-2 transition-colors tap-target"
+                style={{ color: isActive ? 'hsl(var(--primary))' : 'hsl(var(--muted-foreground))' }}
+              >
+                <Icon className="w-5 h-5" />
+                <span
+                  className="text-[10px] font-bold tracking-widest uppercase"
+                >
+                  {item.name}
+                </span>
+              </Link>
+            );
+          })}
+        </div>
       </div>
     </nav>
   );
