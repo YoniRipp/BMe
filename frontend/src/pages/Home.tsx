@@ -86,6 +86,7 @@ function StatCard({
   return (
     <button
       onClick={onClick}
+      aria-label={label}
       className="flex-1 flex flex-col gap-1.5 p-3 rounded-2xl bg-card border border-border/50 text-left active:scale-95 transition-transform tap-target"
     >
       <div className="flex items-center justify-between">
@@ -238,7 +239,7 @@ export function Home() {
           <div className="px-1 pt-1">
             <p className="text-[11px] font-bold tracking-[0.18em] text-muted-foreground uppercase">{dateLabel}</p>
             <h1 className="text-[28px] font-extrabold tracking-tight leading-tight mt-0.5">
-              Hey there 👋
+              Hey {userName} 👋
             </h1>
           </div>
 

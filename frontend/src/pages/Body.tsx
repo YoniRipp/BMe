@@ -130,9 +130,9 @@ export function Body() {
   const weekPct = Math.min(weekDone / weekGoalTarget, 1);
 
   // Week calendar dots (Mon–Sun)
-  const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
+  const calWeekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
   const weekDays = Array.from({ length: 7 }, (_, i) => {
-    const day = addDays(weekStart, i);
+    const day = addDays(calWeekStart, i);
     const dateStr = format(day, 'yyyy-MM-dd');
     const hasWorkout = workouts.some((w) => format(new Date(w.date), 'yyyy-MM-dd') === dateStr);
     const isCurrentDay = isToday(day);
