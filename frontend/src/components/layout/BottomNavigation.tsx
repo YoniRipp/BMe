@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Plus } from 'lucide-react';
+import { Mic } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
 interface NavItem {
@@ -15,7 +15,6 @@ interface BottomNavigationProps {
 }
 
 export function BottomNavigation({ items, currentPath, onCenterPress }: BottomNavigationProps) {
-  // Split items into left and right halves for the center button
   const half = Math.ceil(items.length / 2);
   const leftItems = items.slice(0, half);
   const rightItems = items.slice(half);
@@ -29,68 +28,81 @@ export function BottomNavigation({ items, currentPath, onCenterPress }: BottomNa
 
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 bg-card/95 backdrop-blur-lg border-t border-border/50 z-30 lg:hidden"
-      style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
+      className="fixed bottom-0 left-0 right-0 z-30 lg:hidden pointer-events-none"
+      style={{ paddingBottom: 'env(safe-area-inset-bottom, 14px)' }}
       aria-label="Main navigation"
     >
-      <div className="flex items-end px-2 pb-2 pt-1.5" style={{ minHeight: '68px' }}>
-        {/* Left nav items */}
-        {leftItems.map((item) => {
-          const isActive = currentPath === item.path;
-          const Icon = item.icon;
-          return (
-            <Link
-              key={item.path}
-              to={item.path}
-              data-onboarding={onboardingKey(item.path)}
-              className={`flex-1 flex flex-col items-center gap-1 py-2 transition-colors tap-target
-                ${isActive ? 'text-primary' : 'text-muted-foreground'}`}
-            >
-              <div className="relative">
-                <Icon className="w-5 h-5" />
-                {isActive && (
-                  <span className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-primary" />
-                )}
-              </div>
-              <span className={`text-xs ${isActive ? 'font-semibold' : 'font-medium'}`}>{item.name}</span>
-            </Link>
-          );
-        })}
+      {/* Floating pill */}
+      <div
+        className="mx-3.5 mb-3.5 pointer-events-auto"
+        style={{ position: 'relative' }}
+      >
+        {/* Center voice FAB — floats above the pill */}
+        <button
+          type="button"
+          onClick={onCenterPress}
+          className="absolute left-1/2 -translate-x-1/2 -top-6 w-14 h-14 rounded-full bg-primary flex items-center justify-center shadow-lg active:scale-95 transition-transform z-10"
+          style={{ boxShadow: '0 0 20px hsl(var(--primary) / 0.4), 0 8px 20px rgba(0,0,0,0.25)' }}
+          aria-label="Voice log"
+        >
+          <Mic className="w-6 h-6 text-primary-foreground" strokeWidth={2.2} />
+        </button>
 
-        {/* Center "+" button */}
-        <div className="flex-1 flex flex-col items-center -mt-4">
-          <button
-            type="button"
-            onClick={onCenterPress}
-            className="w-14 h-14 rounded-full bg-primary flex items-center justify-center shadow-lg shadow-primary/25 active:scale-95 transition-transform"
-            aria-label="Quick add"
-          >
-            <Plus className="w-7 h-7 text-primary-foreground" strokeWidth={2.5} />
-          </button>
+        {/* Pill bar */}
+        <div
+          className="flex items-center bg-card border border-border/60 rounded-[22px]"
+          style={{
+            height: 64,
+            boxShadow: '0 8px 28px rgba(0,0,0,0.14), 0 2px 6px rgba(0,0,0,0.08)',
+          }}
+        >
+          {/* Left items */}
+          {leftItems.map((item) => {
+            const isActive = currentPath === item.path;
+            const Icon = item.icon;
+            return (
+              <Link
+                key={item.path}
+                to={item.path}
+                data-onboarding={onboardingKey(item.path)}
+                className="flex-1 flex flex-col items-center gap-0.5 py-2 transition-colors tap-target"
+                style={{ color: isActive ? 'hsl(var(--primary))' : 'hsl(var(--muted-foreground))' }}
+              >
+                <Icon className="w-5 h-5" />
+                <span
+                  className="text-[10px] font-bold tracking-widest uppercase"
+                >
+                  {item.name}
+                </span>
+              </Link>
+            );
+          })}
+
+          {/* Center spacer for FAB */}
+          <div className="w-16 shrink-0" />
+
+          {/* Right items */}
+          {rightItems.map((item) => {
+            const isActive = currentPath === item.path;
+            const Icon = item.icon;
+            return (
+              <Link
+                key={item.path}
+                to={item.path}
+                data-onboarding={onboardingKey(item.path)}
+                className="flex-1 flex flex-col items-center gap-0.5 py-2 transition-colors tap-target"
+                style={{ color: isActive ? 'hsl(var(--primary))' : 'hsl(var(--muted-foreground))' }}
+              >
+                <Icon className="w-5 h-5" />
+                <span
+                  className="text-[10px] font-bold tracking-widest uppercase"
+                >
+                  {item.name}
+                </span>
+              </Link>
+            );
+          })}
         </div>
-
-        {/* Right nav items */}
-        {rightItems.map((item) => {
-          const isActive = currentPath === item.path;
-          const Icon = item.icon;
-          return (
-            <Link
-              key={item.path}
-              to={item.path}
-              data-onboarding={onboardingKey(item.path)}
-              className={`flex-1 flex flex-col items-center gap-1 py-2 transition-colors tap-target
-                ${isActive ? 'text-primary' : 'text-muted-foreground'}`}
-            >
-              <div className="relative">
-                <Icon className="w-5 h-5" />
-                {isActive && (
-                  <span className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-primary" />
-                )}
-              </div>
-              <span className={`text-xs ${isActive ? 'font-semibold' : 'font-medium'}`}>{item.name}</span>
-            </Link>
-          );
-        })}
       </div>
     </nav>
   );

@@ -429,77 +429,136 @@ export function Energy() {
         </Button>
       </div>
 
-      {/* Calorie + Macro Section */}
-      {(() => {
-        const calGoalTarget = calorieGoal;
-        const calPct = calGoalTarget > 0 ? Math.min(periodTotals.calories / calGoalTarget, 1) : 0;
+      {/* Period selector */}
+      <PeriodSelector
+        options={(['daily', 'weekly', 'monthly', 'yearly'] as const).map((period) => {
+          const range = getPeriodRange(period, today);
+          const entries = foodEntries.filter(f => isWithinInterval(new Date(f.date), range));
+          const totalCal = entries.reduce((sum, e) => sum + e.calories, 0);
+          if (period === 'daily') return { value: period, label: period, summary: `${totalCal} cal` };
+          const days = new Set(entries.map(e => e.date)).size;
+          const avg = days > 0 ? Math.round(totalCal / days) : 0;
+          return { value: period, label: period, summary: `${avg} avg` };
+        })}
+        selected={caloriePeriod}
+        onChange={setCaloriePeriod}
+      />
 
-        const periodSelectorEl = (
-          <PeriodSelector
-            options={(['daily', 'weekly', 'monthly', 'yearly'] as const).map((period) => {
-              const range = getPeriodRange(period, today);
-              const entries = foodEntries.filter(f => isWithinInterval(new Date(f.date), range));
-              const totalCal = entries.reduce((sum, e) => sum + e.calories, 0);
-              if (period === 'daily') return { value: period, label: period, summary: `${totalCal} cal` };
-              const days = new Set(entries.map(e => e.date)).size;
-              const avg = days > 0 ? Math.round(totalCal / days) : 0;
-              return { value: period, label: period, summary: `${avg} avg` };
-            })}
-            selected={caloriePeriod}
-            onChange={setCaloriePeriod}
-          />
-        );
-
-        const calorieRingEl = (
-          <div className="relative w-44 h-44">
-            <svg viewBox="0 0 100 100" className="w-44 h-44 -rotate-90">
-              <circle cx="50" cy="50" r="42" fill="none" stroke="currentColor" strokeWidth="7" className="text-muted" />
-              <circle cx="50" cy="50" r="42" fill="none" stroke="hsl(var(--primary))" strokeWidth="7" strokeLinecap="round" strokeDasharray={2 * Math.PI * 42} strokeDashoffset={2 * Math.PI * 42 * (1 - calPct)} className="transition-all duration-700 ease-out" />
-            </svg>
-            <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <span className="text-3xl font-bold tabular-nums leading-none">{Math.round(periodTotals.calories)}</span>
-              <span className="text-xs text-muted-foreground leading-none mt-1">/{calGoalTarget}{caloriePeriod !== 'daily' ? ' cal/day' : ''}</span>
-            </div>
-          </div>
-        );
-
-        const macroCirclesEl = (
-          <MacroCircles
-            carbs={{ current: Math.round(periodTotals.carbs), goal: macroGoals.carbs }}
-            fat={{ current: Math.round(periodTotals.fats), goal: macroGoals.fat }}
-            protein={{ current: Math.round(periodTotals.protein), goal: macroGoals.protein }}
-            onEditGoals={() => setMacroGoalModalOpen(true)}
-          />
-        );
-
-        return (
-          <>
-            {/* Mobile: stacked cards */}
-            <div className="md:hidden space-y-5">
-              <Card className="rounded-2xl overflow-hidden border border-border/30 shadow-sm">
-                <CardContent className="p-5">
-                  {periodSelectorEl}
-                  <div className="flex justify-center my-4">{calorieRingEl}</div>
-                </CardContent>
-              </Card>
-              <Card className="rounded-2xl overflow-hidden border border-border/30 shadow-sm">
-                <CardContent className="p-5">{macroCirclesEl}</CardContent>
-              </Card>
+      {/* Calorie Strip Card */}
+      {caloriePeriod === 'daily' ? (
+        <Card className="rounded-[22px] border border-border/40 shadow-sm overflow-hidden">
+          <CardContent className="p-5">
+            {/* Top row */}
+            <div className="flex items-end justify-between mb-3">
+              <div>
+                <p className="text-[11px] font-bold tracking-[0.14em] text-muted-foreground uppercase mb-1">Today</p>
+                <div className="flex items-baseline gap-1.5">
+                  <span className="text-[36px] font-extrabold tabular-nums leading-none tracking-tight">
+                    {Math.round(periodTotals.calories)}
+                  </span>
+                  <span className="text-sm text-muted-foreground font-semibold">/ {calorieGoal} kcal</span>
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="text-[11px] font-bold tracking-[0.12em] text-muted-foreground uppercase mb-1">Remaining</p>
+                <p className="text-[22px] font-extrabold tabular-nums text-primary leading-none">
+                  {Math.max(0, calorieGoal - Math.round(periodTotals.calories))}
+                </p>
+              </div>
             </div>
 
-            {/* Desktop: single card, all circles in one row */}
-            <Card className="hidden md:block rounded-2xl overflow-hidden border border-border/30 shadow-sm">
+            {/* Progress bar */}
+            <div className="h-2 rounded-full overflow-hidden mb-4" style={{ background: 'hsl(var(--muted))' }}>
+              <div
+                className="h-full rounded-full transition-all duration-700"
+                style={{
+                  width: `${Math.min((periodTotals.calories / (calorieGoal || 1)) * 100, 100)}%`,
+                  background: 'linear-gradient(90deg, hsl(var(--primary)), hsl(var(--sage-dark)))',
+                }}
+              />
+            </div>
+
+            {/* Macro breakdown */}
+            <div className="flex justify-between">
+              {[
+                { label: 'Protein', cur: Math.round(periodTotals.protein), goal: macroGoals.protein, color: 'hsl(var(--primary))' },
+                { label: 'Carbs', cur: Math.round(periodTotals.carbs), goal: macroGoals.carbs, color: 'hsl(var(--info))' },
+                { label: 'Fat', cur: Math.round(periodTotals.fats), goal: macroGoals.fat, color: 'hsl(var(--gold))' },
+              ].map((m) => (
+                <div key={m.label}>
+                  <p className="text-[10px] font-bold tracking-[0.08em] text-muted-foreground uppercase mb-0.5">{m.label}</p>
+                  <p className="text-sm font-bold tabular-nums">
+                    <span style={{ color: m.color }}>{m.cur}</span>
+                    <span className="text-muted-foreground/60">/{m.goal}g</span>
+                  </p>
+                </div>
+              ))}
+              <button
+                onClick={() => setMacroGoalModalOpen(true)}
+                className="text-[11px] font-semibold text-muted-foreground/50 hover:text-primary transition-colors self-end"
+              >
+                Edit goals
+              </button>
+            </div>
+          </CardContent>
+        </Card>
+      ) : (
+        /* Non-daily: ring + macro circles */
+        <>
+          <div className="md:hidden space-y-4">
+            <Card className="rounded-2xl overflow-hidden border border-border/30 shadow-sm">
               <CardContent className="p-5">
-                {periodSelectorEl}
-                <div className="flex items-center justify-center gap-8 my-4">
-                  <div className="shrink-0">{calorieRingEl}</div>
-                  <div className="flex-1">{macroCirclesEl}</div>
+                <div className="flex justify-center">
+                  <div className="relative w-44 h-44">
+                    <svg viewBox="0 0 100 100" className="w-44 h-44 -rotate-90">
+                      <circle cx="50" cy="50" r="42" fill="none" stroke="currentColor" strokeWidth="7" className="text-muted" />
+                      <circle cx="50" cy="50" r="42" fill="none" stroke="hsl(var(--primary))" strokeWidth="7" strokeLinecap="round" strokeDasharray={2 * Math.PI * 42} strokeDashoffset={2 * Math.PI * 42 * (1 - Math.min(periodTotals.calories / (calorieGoal || 1), 1))} className="transition-all duration-700 ease-out" />
+                    </svg>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center">
+                      <span className="text-3xl font-bold tabular-nums leading-none">{Math.round(periodTotals.calories)}</span>
+                      <span className="text-xs text-muted-foreground leading-none mt-1">/{calorieGoal} avg</span>
+                    </div>
+                  </div>
                 </div>
               </CardContent>
             </Card>
-          </>
-        );
-      })()}
+            <Card className="rounded-2xl overflow-hidden border border-border/30 shadow-sm">
+              <CardContent className="p-5">
+                <MacroCircles
+                  carbs={{ current: Math.round(periodTotals.carbs), goal: macroGoals.carbs }}
+                  fat={{ current: Math.round(periodTotals.fats), goal: macroGoals.fat }}
+                  protein={{ current: Math.round(periodTotals.protein), goal: macroGoals.protein }}
+                  onEditGoals={() => setMacroGoalModalOpen(true)}
+                />
+              </CardContent>
+            </Card>
+          </div>
+          <Card className="hidden md:block rounded-2xl overflow-hidden border border-border/30 shadow-sm">
+            <CardContent className="p-5">
+              <div className="flex items-center justify-center gap-8">
+                <div className="relative w-44 h-44 shrink-0">
+                  <svg viewBox="0 0 100 100" className="w-44 h-44 -rotate-90">
+                    <circle cx="50" cy="50" r="42" fill="none" stroke="currentColor" strokeWidth="7" className="text-muted" />
+                    <circle cx="50" cy="50" r="42" fill="none" stroke="hsl(var(--primary))" strokeWidth="7" strokeLinecap="round" strokeDasharray={2 * Math.PI * 42} strokeDashoffset={2 * Math.PI * 42 * (1 - Math.min(periodTotals.calories / (calorieGoal || 1), 1))} className="transition-all duration-700 ease-out" />
+                  </svg>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center">
+                    <span className="text-3xl font-bold tabular-nums leading-none">{Math.round(periodTotals.calories)}</span>
+                    <span className="text-xs text-muted-foreground leading-none mt-1">/{calorieGoal} avg</span>
+                  </div>
+                </div>
+                <div className="flex-1">
+                  <MacroCircles
+                    carbs={{ current: Math.round(periodTotals.carbs), goal: macroGoals.carbs }}
+                    fat={{ current: Math.round(periodTotals.fats), goal: macroGoals.fat }}
+                    protein={{ current: Math.round(periodTotals.protein), goal: macroGoals.protein }}
+                    onEditGoals={() => setMacroGoalModalOpen(true)}
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </>
+      )}
 
       {/* Food entries */}
       <div className="space-y-3">

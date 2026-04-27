@@ -9,113 +9,114 @@
 
 @layer base {
   :root {
-    /* Brand palette — "Natural Vitality" — enriched earth-inspired tones */
-    --sage: 145 20% 52%;
-    --sage-light: 145 25% 72%;
-    --sage-dark: 148 24% 38%;
-    --sage-50: 145 20% 96%;
-    --sage-100: 145 20% 90%;
+    /* Brand palette — "Fresh" light theme: warm cream + vivid forest green */
+    --sage: 131 46% 34%;
+    --sage-light: 131 40% 55%;
+    --sage-dark: 131 52% 26%;
+    --sage-50: 131 40% 95%;
+    --sage-100: 131 35% 88%;
     --cream: 0 0% 100%;
-    --cream-warm: 220 16% 97%;
-    --terracotta: 14 55% 58%;
-    --terracotta-light: 14 60% 80%;
-    --gold: 42 55% 55%;
-    --charcoal: 220 15% 15%;
-    --stone: 220 10% 52%;
-    --mist: 220 12% 94%;
-    --border-base44: 220 13% 91%;
+    --cream-warm: 40 33% 93%;
+    --terracotta: 14 55% 52%;
+    --terracotta-light: 14 60% 78%;
+    --gold: 38 72% 48%;
+    --charcoal: 130 8% 12%;
+    --stone: 130 5% 46%;
+    --mist: 40 22% 88%;
+    --border-base44: 40 16% 86%;
     /* Semantic status colors */
-    --success: 145 60% 42%;
-    --info: 210 70% 55%;
-    --warning: 38 90% 55%;
-    /* Semantic tokens — clean MFP-inspired with sage accent */
-    --background: 0 0% 100%;
+    --success: 131 55% 38%;
+    --info: 210 70% 52%;
+    --warning: 38 90% 52%;
+    /* Semantic tokens — Fresh: warm paper bg + forest green primary */
+    --background: 40 33% 93%;
     --foreground: var(--charcoal);
     --card: 0 0% 100%;
     --card-foreground: var(--charcoal);
     --popover: 0 0% 100%;
     --popover-foreground: var(--charcoal);
-    --primary: var(--sage-dark);
+    --primary: 131 46% 34%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 220 14% 96%;
+    --secondary: 40 20% 90%;
     --secondary-foreground: var(--charcoal);
-    --muted: 220 14% 96%;
+    --muted: 40 20% 90%;
     --muted-foreground: var(--stone);
-    --accent: 220 14% 96%;
+    --accent: 40 20% 90%;
     --accent-foreground: var(--charcoal);
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 220 13% 91%;
-    --input: 220 13% 91%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 40 16% 86%;
+    --input: 40 16% 86%;
     --ring: var(--charcoal);
     --radius: 0.5rem;
     /* Sidebar */
     --sidebar-background: 0 0% 100%;
     --sidebar-foreground: var(--charcoal);
-    --sidebar-primary: var(--sage-dark);
+    --sidebar-primary: 131 46% 34%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 220 14% 96%;
+    --sidebar-accent: 40 20% 90%;
     --sidebar-accent-foreground: var(--charcoal);
-    --sidebar-border: 220 13% 91%;
+    --sidebar-border: 40 16% 86%;
     --sidebar-ring: var(--charcoal);
     /* Chart */
-    --chart-1: 145 20% 52%;
-    --chart-2: 14 55% 58%;
-    --chart-3: 42 55% 55%;
-    --chart-4: 220 10% 52%;
-    --chart-5: 220 12% 94%;
+    --chart-1: 131 46% 34%;
+    --chart-2: 14 55% 52%;
+    --chart-3: 38 72% 48%;
+    --chart-4: 210 70% 52%;
+    --chart-5: 40 22% 88%;
   }
 
-  /* Dark mode — deep blue-gray (not pure black, per Apple HIG) */
+  /* Dark mode — "Pulse": deep ink bg + neon-lime primary */
   .dark {
-    --sage: 145 22% 55%;
-    --sage-light: 145 20% 40%;
-    --sage-dark: 148 28% 50%;
-    --sage-50: 145 15% 14%;
-    --sage-100: 145 15% 20%;
-    --cream: 220 16% 10%;
-    --cream-warm: 220 14% 12%;
-    --terracotta: 14 50% 62%;
-    --terracotta-light: 14 40% 30%;
-    --gold: 42 50% 58%;
-    --charcoal: 220 10% 90%;
-    --stone: 220 8% 60%;
-    --mist: 220 14% 18%;
-    --success: 145 55% 48%;
-    --info: 210 65% 60%;
-    --warning: 38 85% 58%;
-    --background: 220 16% 10%;
-    --foreground: 220 10% 90%;
-    --card: 220 14% 14%;
-    --card-foreground: 220 10% 90%;
-    --popover: 220 14% 14%;
-    --popover-foreground: 220 10% 90%;
-    --primary: 148 28% 50%;
-    --primary-foreground: 220 16% 10%;
-    --secondary: 220 14% 18%;
-    --secondary-foreground: 220 10% 85%;
-    --muted: 220 14% 18%;
-    --muted-foreground: 220 8% 60%;
-    --accent: 220 14% 18%;
-    --accent-foreground: 220 10% 85%;
-    --destructive: 0 70% 55%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 220 12% 22%;
-    --input: 220 12% 22%;
-    --ring: 220 10% 70%;
-    --sidebar-background: 220 14% 12%;
-    --sidebar-foreground: 220 10% 90%;
-    --sidebar-primary: 148 28% 50%;
-    --sidebar-primary-foreground: 220 16% 10%;
-    --sidebar-accent: 220 14% 18%;
-    --sidebar-accent-foreground: 220 10% 85%;
-    --sidebar-border: 220 12% 22%;
-    --sidebar-ring: 220 10% 70%;
-    --chart-1: 145 22% 55%;
-    --chart-2: 14 50% 62%;
-    --chart-3: 42 50% 58%;
-    --chart-4: 220 8% 60%;
-    --chart-5: 220 14% 18%;
+    --sage: 94 85% 65%;
+    --sage-light: 94 60% 45%;
+    --sage-dark: 94 70% 52%;
+    --sage-50: 150 10% 8%;
+    --sage-100: 150 10% 14%;
+    --cream: 150 8% 5%;
+    --cream-warm: 210 10% 9%;
+    --terracotta: 22 90% 62%;
+    --terracotta-light: 22 55% 30%;
+    --gold: 45 90% 55%;
+    --charcoal: 145 8% 95%;
+    --stone: 145 5% 60%;
+    --mist: 210 10% 16%;
+    --success: 94 70% 52%;
+    --info: 200 80% 60%;
+    --warning: 45 90% 55%;
+    /* Pulse: near-black bg, neon lime primary */
+    --background: 150 8% 5%;
+    --foreground: 145 8% 95%;
+    --card: 210 10% 9%;
+    --card-foreground: 145 8% 95%;
+    --popover: 210 10% 9%;
+    --popover-foreground: 145 8% 95%;
+    --primary: 94 85% 65%;
+    --primary-foreground: 150 8% 5%;
+    --secondary: 210 10% 14%;
+    --secondary-foreground: 145 8% 85%;
+    --muted: 210 10% 14%;
+    --muted-foreground: 145 5% 55%;
+    --accent: 210 10% 14%;
+    --accent-foreground: 145 8% 85%;
+    --destructive: 0 72% 58%;
+    --destructive-foreground: 145 8% 95%;
+    --border: 210 8% 18%;
+    --input: 210 8% 18%;
+    --ring: 145 8% 65%;
+    --sidebar-background: 210 10% 7%;
+    --sidebar-foreground: 145 8% 95%;
+    --sidebar-primary: 94 85% 65%;
+    --sidebar-primary-foreground: 150 8% 5%;
+    --sidebar-accent: 210 10% 14%;
+    --sidebar-accent-foreground: 145 8% 85%;
+    --sidebar-border: 210 8% 18%;
+    --sidebar-ring: 145 8% 65%;
+    --chart-1: 94 85% 65%;
+    --chart-2: 22 90% 62%;
+    --chart-3: 45 90% 55%;
+    --chart-4: 200 80% 60%;
+    --chart-5: 210 10% 16%;
   }
 }
 

@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useWorkouts } from '@/hooks/useWorkouts';
+import { useGoals } from '@/hooks/useGoals';
 import { Workout } from '@/types/workout';
 import { WorkoutCard } from '@/components/body/WorkoutCard';
 import { WorkoutModal } from '@/components/body/WorkoutModal';
@@ -8,8 +9,10 @@ import { ContentWithLoading } from '@/components/shared/ContentWithLoading';
 import { SearchBar } from '@/components/shared/SearchBar';
 import { EmptyStateCard } from '@/components/shared/EmptyStateCard';
 import { AddAnotherCard } from '@/components/shared/AddAnotherCard';
+import { Card, CardContent } from '@/components/ui/card';
 import { toast } from 'sonner';
-import { format, isToday, isYesterday, parseISO, isWithinInterval } from 'date-fns';
+import { Check } from 'lucide-react';
+import { format, isToday, isYesterday, parseISO, isWithinInterval, startOfWeek, addDays } from 'date-fns';
 import { getPeriodRange } from '@/lib/dateRanges';
 
 function groupWorkoutsByDate(workouts: Workout[], ascending = false): { date: string; label: string; workouts: Workout[] }[] {
@@ -36,6 +39,7 @@ function groupWorkoutsByDate(workouts: Workout[], ascending = false): { date: st
 
 export function Body() {
   const { workouts, workoutsLoading, addWorkout, updateWorkout, deleteWorkout, toggleWorkoutCompleted } = useWorkouts();
+  const { goals } = useGoals();
   const [modalOpen, setModalOpen] = useState(false);
   const [editingWorkout, setEditingWorkout] = useState<Workout | undefined>(undefined);
   const [searchQuery, setSearchQuery] = useState('');
@@ -96,8 +100,79 @@ export function Body() {
     setModalOpen(true);
   };
 
+  // Weekly goal ring data
+  const workoutsGoal = goals.find((g) => g.type === 'workouts');
+  const weekGoalTarget = workoutsGoal?.target ?? 4;
+  const weekDone = workoutsThisWeek.length;
+  const weekPct = Math.min(weekDone / weekGoalTarget, 1);
+
+  // Week calendar dots (Mon–Sun)
+  const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
+  const weekDays = Array.from({ length: 7 }, (_, i) => {
+    const day = addDays(weekStart, i);
+    const dateStr = format(day, 'yyyy-MM-dd');
+    const hasWorkout = workouts.some((w) => format(new Date(w.date), 'yyyy-MM-dd') === dateStr);
+    const isCurrentDay = isToday(day);
+    return { label: format(day, 'EEEEE'), hasWorkout, isCurrentDay };
+  });
+
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
+    <div className="max-w-6xl mx-auto space-y-5">
+      {/* ── Weekly goal card ────────────────────────────── */}
+      <Card className="rounded-[22px] border border-border/40 shadow-sm overflow-hidden">
+        <CardContent className="p-5">
+          <div className="flex items-start justify-between mb-4">
+            <div>
+              <p className="text-[11px] font-bold tracking-[0.14em] text-muted-foreground uppercase mb-1">
+                Goal · {weekGoalTarget} / week
+              </p>
+              <p className="text-[32px] font-extrabold leading-none tracking-tight">
+                <span className="text-primary">{weekDone}</span>
+                <span className="text-muted-foreground/50 font-semibold text-xl">/{weekGoalTarget}</span>
+              </p>
+            </div>
+            {/* Ring */}
+            <div className="relative w-[72px] h-[72px] shrink-0">
+              <svg width={72} height={72} style={{ transform: 'rotate(-90deg)' }}>
+                <circle cx={36} cy={36} r={30} fill="none" stroke="hsl(var(--muted))" strokeWidth={6} />
+                <circle
+                  cx={36} cy={36} r={30} fill="none" stroke="hsl(var(--primary))" strokeWidth={6}
+                  strokeLinecap="round"
+                  strokeDasharray={2 * Math.PI * 30}
+                  strokeDashoffset={2 * Math.PI * 30 * (1 - weekPct)}
+                  style={{ transition: 'stroke-dashoffset 0.7s cubic-bezier(.2,.8,.2,1)' }}
+                />
+              </svg>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <span className="text-[11px] font-extrabold text-primary">
+                  {Math.round(weekPct * 100)}%
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Day dots */}
+          <div className="flex justify-between gap-1">
+            {weekDays.map((d, i) => (
+              <div key={i} className="flex flex-col items-center gap-1.5">
+                <span className="text-[10px] font-bold text-muted-foreground">{d.label}</span>
+                <div
+                  className="w-8 h-8 rounded-[10px] flex items-center justify-center transition-colors"
+                  style={{
+                    background: d.hasWorkout ? 'hsl(var(--primary))' : 'hsl(var(--muted))',
+                    border: d.isCurrentDay ? '2px solid hsl(var(--foreground))' : 'none',
+                  }}
+                >
+                  {d.hasWorkout ? (
+                    <Check className="w-3.5 h-3.5 text-primary-foreground" strokeWidth={3} />
+                  ) : null}
+                </div>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
       <div>
         <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-4">
           <h2 className="text-xl font-semibold sm:flex-1">Workouts</h2>
