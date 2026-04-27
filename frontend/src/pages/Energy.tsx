@@ -213,15 +213,15 @@ function MealGroupHeader({
 }) {
   const Icon = MEAL_ICONS[meal];
   return (
-    <div className="flex items-end justify-between px-1 pt-1 pb-2">
+    <div className="flex items-center justify-between px-1 pt-1 pb-2">
       <div className="flex items-center gap-2">
-        <div className="h-7 w-7 rounded-lg bg-terracotta/10 text-terracotta flex items-center justify-center">
+        <div className="h-7 w-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
           <Icon className="w-4 h-4" />
         </div>
-        <span className="font-display text-base font-medium tracking-tight">{meal}</span>
+        <span className="text-[13px] font-bold uppercase tracking-[0.04em]">{meal}</span>
       </div>
-      <div className="flex items-baseline gap-2">
-        <span className="font-display text-sm font-medium tabular-nums">{totalCal}<span className="text-[10px] uppercase tracking-wider text-muted-foreground ml-1 font-sans">kcal</span></span>
+      <div className="text-right">
+        <p className="text-sm text-muted-foreground tabular-nums">{totalCal} kcal</p>
         <span className="text-[10px] text-muted-foreground tabular-nums hidden sm:inline">
           P {totalProtein}g · C {totalCarbs}g · F {totalFats}g
         </span>
@@ -475,29 +475,51 @@ export function Energy() {
           />
         );
 
+        const remainingCal = Math.max(calGoalTarget - Math.round(periodTotals.calories), 0);
         return (
           <>
+            {caloriePeriod === 'daily' && (
+              <Card className="overflow-hidden">
+                <CardContent className="p-5 space-y-3">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className="font-display text-3xl leading-none tabular-nums">{Math.round(periodTotals.calories)}</p>
+                      <p className="text-sm text-muted-foreground mt-1">/ {calGoalTarget} kcal</p>
+                    </div>
+                    <p className="text-sm text-muted-foreground">Remaining: <span className="tabular-nums text-foreground">{remainingCal}</span></p>
+                  </div>
+                  <div className="h-2 rounded-full bg-muted overflow-hidden">
+                    <div className="h-full bg-primary rounded-full" style={{ width: `${calPct * 100}%` }} />
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 text-xs text-muted-foreground tabular-nums">
+                    <p>P {Math.round(periodTotals.protein)}/{macroGoals.protein}g</p>
+                    <p>C {Math.round(periodTotals.carbs)}/{macroGoals.carbs}g</p>
+                    <p>F {Math.round(periodTotals.fats)}/{macroGoals.fat}g</p>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
             {/* Mobile: stacked cards */}
             <div className="md:hidden space-y-4">
               <Card className="overflow-hidden">
                 <CardContent className="p-5">
                   {periodSelectorEl}
-                  <div className="flex justify-center mt-4">{calorieRingEl}</div>
+                  {caloriePeriod !== 'daily' && <div className="flex justify-center mt-4">{calorieRingEl}</div>}
                 </CardContent>
               </Card>
-              <Card className="overflow-hidden">
+              {caloriePeriod !== 'daily' && <Card className="overflow-hidden">
                 <CardContent className="p-5">{macroCirclesEl}</CardContent>
-              </Card>
+              </Card>}
             </div>
 
             {/* Desktop: single card, all circles in one row */}
             <Card className="hidden md:block overflow-hidden">
               <CardContent className="p-6">
                 {periodSelectorEl}
-                <div className="flex items-center justify-center gap-10 mt-5">
+                {caloriePeriod !== 'daily' && <div className="flex items-center justify-center gap-10 mt-5">
                   <div className="shrink-0">{calorieRingEl}</div>
                   <div className="flex-1">{macroCirclesEl}</div>
-                </div>
+                </div>}
               </CardContent>
             </Card>
           </>
@@ -548,9 +570,7 @@ export function Energy() {
 
                 {/* Compact meal-grouped timeline */}
                 <div className="space-y-5">
-                  {mealGroups
-                    .filter((group) => group.entries.length > 0)
-                    .map((group) => (
+                  {mealGroups.map((group) => (
                       <div key={group.meal}>
                         <MealGroupHeader
                           meal={group.meal}
@@ -559,18 +579,28 @@ export function Energy() {
                           totalCarbs={group.totalCarbs}
                           totalFats={group.totalFats}
                         />
-                        <Card>
-                          <div className="p-2 space-y-1">
-                            {group.entries.map((entry) => (
-                              <FoodCard
-                                key={entry.id}
-                                entry={entry}
-                                onEdit={handleEditFood}
-                                onDelete={handleDeleteFood}
-                              />
-                            ))}
-                          </div>
-                        </Card>
+                        {group.entries.length > 0 ? (
+                          <Card>
+                            <div className="p-2 space-y-1">
+                              {group.entries.map((entry) => (
+                                <FoodCard
+                                  key={entry.id}
+                                  entry={entry}
+                                  onEdit={handleEditFood}
+                                  onDelete={handleDeleteFood}
+                                />
+                              ))}
+                            </div>
+                          </Card>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => handleAddFood(group.meal)}
+                            className="w-full border-[1.5px] border-dashed border-border/80 rounded-2xl py-3.5 text-sm text-muted-foreground flex items-center justify-center gap-2 hover:border-primary/40 hover:text-primary transition-colors press"
+                          >
+                            <Plus className="w-4 h-4" /> Add to {group.meal.toLowerCase()}
+                          </button>
+                        )}
                       </div>
                     ))}
                 </div>

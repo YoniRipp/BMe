@@ -96,24 +96,24 @@
     --shadow-lg: 0 6px 16px -4px hsl(28 20% 20% / 0.08), 0 12px 32px -8px hsl(28 20% 20% / 0.08);
   }
 
-  /* Dark mode — warm near-black (not pure black) */
+  /* Dark mode — PULSE deep-ink palette */
   .dark {
-    --sage: 148 28% 58%;
-    --sage-light: 148 22% 42%;
-    --sage-dark: 148 32% 52%;
-    --sage-50: 148 20% 14%;
-    --sage-100: 148 20% 20%;
+    --paper: 12 10% 5%;
+    --paper-2: 200 7% 9%;
+    --ink: 138 10% 96%;
+    --ink-2: 138 8% 68%;
+    --ink-3: 138 5% 44%;
+    --hairline: 200 8% 16%;
 
-    --paper: 30 8% 9%;
-    --paper-2: 30 8% 13%;
-    --ink: 30 14% 92%;
-    --ink-2: 28 10% 76%;
-    --ink-3: 24 8% 60%;
-    --hairline: 30 8% 20%;
+    --sage: 83 83% 64%;
+    --sage-dark: 83 65% 48%;
+    --sage-light: 83 83% 78%;
+    --sage-50: 83 30% 10%;
+    --sage-100: 83 30% 16%;
 
-    --terracotta: 14 52% 64%;
-    --terracotta-light: 14 30% 22%;
-    --gold: 38 62% 60%;
+    --terracotta: 18 100% 61%;
+    --terracotta-light: 18 38% 20%;
+    --gold: 43 100% 64%;
     --cream: var(--paper);
     --cream-warm: var(--paper-2);
     --charcoal: var(--ink);
@@ -122,43 +122,43 @@
     --border-base44: var(--hairline);
 
     --success: 150 40% 54%;
-    --info: 212 52% 62%;
-    --warning: 32 72% 60%;
+    --info: 206 100% 68%;
+    --warning: 43 100% 64%;
 
     --background: var(--paper);
     --foreground: var(--ink);
-    --card: 30 8% 12%;
+    --card: 200 8% 10%;
     --card-foreground: var(--ink);
-    --popover: 30 8% 12%;
+    --popover: 200 8% 10%;
     --popover-foreground: var(--ink);
-    --primary: 148 32% 52%;
-    --primary-foreground: 30 8% 9%;
-    --secondary: 30 8% 16%;
+    --primary: 83 83% 64%;
+    --primary-foreground: 12 10% 5%;
+    --secondary: 200 8% 14%;
     --secondary-foreground: var(--ink);
-    --muted: 30 8% 16%;
+    --muted: 200 8% 14%;
     --muted-foreground: var(--ink-3);
-    --accent: 30 8% 16%;
+    --accent: 200 8% 14%;
     --accent-foreground: var(--ink);
     --destructive: 6 64% 54%;
     --destructive-foreground: 30 14% 95%;
     --border: var(--hairline);
     --input: var(--hairline);
-    --ring: 148 32% 52%;
+    --ring: 83 83% 64%;
 
-    --sidebar-background: 30 8% 11%;
+    --sidebar-background: 200 8% 10%;
     --sidebar-foreground: var(--ink);
-    --sidebar-primary: 148 32% 52%;
-    --sidebar-primary-foreground: 30 8% 9%;
-    --sidebar-accent: 30 8% 16%;
+    --sidebar-primary: 83 83% 64%;
+    --sidebar-primary-foreground: 12 10% 5%;
+    --sidebar-accent: 200 8% 14%;
     --sidebar-accent-foreground: var(--ink);
     --sidebar-border: var(--hairline);
-    --sidebar-ring: 148 32% 52%;
+    --sidebar-ring: 83 83% 64%;
 
-    --chart-1: 148 28% 58%;
-    --chart-2: 14 52% 64%;
-    --chart-3: 38 62% 60%;
-    --chart-4: 212 52% 62%;
-    --chart-5: 28 10% 76%;
+    --chart-1: 83 83% 64%;
+    --chart-2: 18 100% 61%;
+    --chart-3: 43 100% 64%;
+    --chart-4: 206 100% 68%;
+    --chart-5: 138 8% 68%;
 
     --shadow-xs: 0 1px 2px 0 hsl(0 0% 0% / 0.2);
     --shadow-sm: 0 1px 2px 0 hsl(0 0% 0% / 0.22), 0 1px 3px 0 hsl(0 0% 0% / 0.3);
@@ -232,6 +232,7 @@
   .dark .glass {
     background-color: hsl(var(--paper) / 0.78);
   }
+  .dark .primary-glow { box-shadow: 0 0 24px hsl(83 83% 64% / 0.35); }
 
   /* Animations */
   .animate-in { animation: fadeIn 0.2s ease-in; }

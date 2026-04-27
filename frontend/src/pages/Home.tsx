@@ -1,17 +1,15 @@
 import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useWorkouts } from '@/hooks/useWorkouts';
 import { useEnergy } from '@/hooks/useEnergy';
 import { useGoals } from '@/hooks/useGoals';
 import { useMacroGoals } from '@/hooks/useMacroGoals';
-import { DashboardProgressCards } from '@/components/home/DashboardProgressCards';
-import { MacroCircles } from '@/components/home/MacroCircles';
 import { MacroGoalModal } from '@/components/home/MacroGoalModal';
 import { SleepEditModal } from '@/components/energy/SleepEditModal';
 import { FoodEntryModal } from '@/components/energy/FoodEntryModal';
 import { WorkoutModal } from '@/components/body/WorkoutModal';
 import { GoalModal } from '@/components/goals/GoalModal';
 import { ContentWithLoading } from '@/components/shared/ContentWithLoading';
-import { SectionHeader } from '@/components/shared/SectionHeader';
 import { Card, CardContent } from '@/components/ui/card';
 import { VoiceMicHero } from '@/components/voice/VoiceMicHero';
 import { WaterTracker } from '@/components/home/WaterTracker';
@@ -25,11 +23,13 @@ import { Goal } from '@/types/goals';
 import { FoodEntry } from '@/types/energy';
 import { Workout } from '@/types/workout';
 import { StreakCard } from '@/components/home/StreakCard';
-import { Dumbbell, UtensilsCrossed } from 'lucide-react';
+import { Apple, ChevronRight, Droplets, Dumbbell, Moon, Scale, UtensilsCrossed } from 'lucide-react';
 import { isSameDay, format } from 'date-fns';
 import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
 
 export function Home() {
+  const navigate = useNavigate();
   const { workouts, workoutsLoading, addWorkout } = useWorkouts();
   const { checkIns, foodEntries, addCheckIn, updateCheckIn, addFoodEntry, getCheckInByDate, energyLoading } = useEnergy();
   const { addGoal, updateGoal, goalsLoading } = useGoals();
@@ -94,6 +94,11 @@ export function Home() {
   }, [foodEntries]);
 
   const calGoalTarget = calorieGoal;
+  const macroRows = [
+    { label: 'Protein', current: Math.round(todaySummary.totalProtein), goal: macroGoals.protein, color: 'bg-info' },
+    { label: 'Carbs', current: Math.round(todaySummary.totalCarbs), goal: macroGoals.carbs, color: 'bg-gold' },
+    { label: 'Fat', current: Math.round(todaySummary.totalFats), goal: macroGoals.fat, color: 'bg-terracotta' },
+  ];
 
   const progressMessage = useMemo(() => {
     if (todaySummary.mealsCount === 0) return 'Start tracking your progress';
@@ -123,6 +128,16 @@ export function Home() {
   }, [foodEntries, workouts]);
 
   const calPct = calGoalTarget > 0 ? Math.min(todaySummary.totalCal / calGoalTarget, 1) : 0;
+  const workoutsThisWeek = workouts.filter((w) => {
+    const d = new Date(w.date);
+    const now = new Date();
+    const start = new Date(now);
+    start.setDate(now.getDate() - now.getDay());
+    start.setHours(0, 0, 0, 0);
+    return d >= start && d <= now;
+  }).length;
+  const sleepHours = Number(todayCheckIn?.sleepHours ?? 0);
+  const weightKg = profile?.currentWeight ? Number(profile.currentWeight).toFixed(1) : '--';
 
   // Onboarding flow: SetupWizard → OnboardingTour → Dashboard
   if (!profileLoading && !profile.setupCompleted) {
@@ -141,99 +156,85 @@ export function Home() {
 
       <ContentWithLoading loading={workoutsLoading || energyLoading || goalsLoading} loadingText="Loading dashboard...">
       <div className="space-y-5">
-
-        {/* Mobile: two stacked cards */}
-        <div className="md:hidden space-y-4" data-onboarding="dashboard">
-          <Card className="overflow-hidden">
-            <CardContent className="p-6">
-              <div className="flex flex-col items-center gap-2">
-                <p className="text-[11px] font-semibold tracking-[0.18em] uppercase text-muted-foreground">Calories</p>
-                <div className="relative w-52 h-52 my-1">
-                  <svg viewBox="0 0 100 100" className="w-52 h-52 -rotate-90">
-                    <defs>
-                      <linearGradient id="calRingGradMobile" x1="0%" y1="0%" x2="100%" y2="0%">
-                        <stop offset="0%" stopColor="hsl(var(--sage))" />
-                        <stop offset="100%" stopColor="hsl(var(--sage-dark))" />
-                      </linearGradient>
-                    </defs>
-                    <circle cx="50" cy="50" r="42" fill="none" stroke="hsl(var(--muted))" strokeWidth="5" />
-                    <circle cx="50" cy="50" r="42" fill="none" stroke="url(#calRingGradMobile)" strokeWidth="5" strokeLinecap="round" strokeDasharray={2 * Math.PI * 42} strokeDashoffset={2 * Math.PI * 42 * (1 - calPct)} className="transition-all duration-700 ease-out" style={{ filter: calPct >= 0.9 ? 'drop-shadow(0 0 6px hsl(var(--sage) / 0.4))' : undefined }} />
-                  </svg>
-                  <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    <span className="font-display text-5xl font-medium tabular-nums leading-none tracking-tight animate-count-up">{Math.round(todaySummary.totalCal)}</span>
-                    <span className="text-xs text-muted-foreground leading-none mt-2">of {calGoalTarget} kcal</span>
-                  </div>
+        <Card className="overflow-hidden relative" data-onboarding="dashboard">
+          <div className="absolute top-[-60px] right-[-40px] w-[200px] h-[200px] rounded-full bg-primary/[0.12] blur-3xl pointer-events-none" />
+          <CardContent className="p-5">
+            <div className="flex items-center justify-between text-[11px] font-bold uppercase tracking-[0.18em] text-muted-foreground mb-4">
+              <span className="text-primary">Today's fuel</span>
+              <span>{Math.round(todaySummary.totalCal)} / {calGoalTarget} kcal</span>
+            </div>
+            <div className="flex items-center gap-5">
+              <div className="relative w-[132px] h-[132px]">
+                <svg viewBox="0 0 100 100" className="w-[132px] h-[132px] -rotate-90">
+                  <circle cx="50" cy="50" r="42" fill="none" stroke="hsl(var(--muted))" strokeWidth="8" />
+                  <circle cx="50" cy="50" r="42" fill="none" stroke="hsl(var(--primary))" strokeWidth="8" strokeLinecap="round" strokeDasharray={2 * Math.PI * 42} strokeDashoffset={2 * Math.PI * 42 * (1 - calPct)} className="transition-all duration-700 ease-out" />
+                </svg>
+                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                  <span className="font-display text-2xl font-medium tabular-nums leading-none">{Math.round(todaySummary.totalCal)}</span>
+                  <span className="text-[10px] text-muted-foreground mt-1">kcal</span>
                 </div>
               </div>
-            </CardContent>
-          </Card>
-          <Card className="overflow-hidden">
-            <CardContent className="p-6">
-              <MacroCircles
-                carbs={{ current: todaySummary.totalCarbs, goal: macroGoals.carbs }}
-                fat={{ current: todaySummary.totalFats, goal: macroGoals.fat }}
-                protein={{ current: todaySummary.totalProtein, goal: macroGoals.protein }}
-                onEditGoals={() => setMacroGoalModalOpen(true)}
-              />
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Desktop: all circles in one row */}
-        <Card className="hidden md:block overflow-hidden">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-center gap-10">
-              <div className="flex flex-col items-center gap-2 shrink-0">
-                <p className="text-[11px] font-semibold tracking-[0.18em] uppercase text-muted-foreground">Calories</p>
-                <div className="relative w-48 h-48">
-                  <svg viewBox="0 0 100 100" className="w-48 h-48 -rotate-90">
-                    <defs>
-                      <linearGradient id="calRingGradDesktop" x1="0%" y1="0%" x2="100%" y2="0%">
-                        <stop offset="0%" stopColor="hsl(var(--sage))" />
-                        <stop offset="100%" stopColor="hsl(var(--sage-dark))" />
-                      </linearGradient>
-                    </defs>
-                    <circle cx="50" cy="50" r="42" fill="none" stroke="hsl(var(--muted))" strokeWidth="5" />
-                    <circle cx="50" cy="50" r="42" fill="none" stroke="url(#calRingGradDesktop)" strokeWidth="5" strokeLinecap="round" strokeDasharray={2 * Math.PI * 42} strokeDashoffset={2 * Math.PI * 42 * (1 - calPct)} className="transition-all duration-700 ease-out" style={{ filter: calPct >= 0.9 ? 'drop-shadow(0 0 6px hsl(var(--sage) / 0.4))' : undefined }} />
-                  </svg>
-                  <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    <span className="font-display text-5xl font-medium tabular-nums leading-none tracking-tight animate-count-up">{Math.round(todaySummary.totalCal)}</span>
-                    <span className="text-xs text-muted-foreground leading-none mt-2">of {calGoalTarget} kcal</span>
-                  </div>
-                </div>
-              </div>
-              <div className="flex-1">
-                <MacroCircles
-                  carbs={{ current: todaySummary.totalCarbs, goal: macroGoals.carbs }}
-                  fat={{ current: todaySummary.totalFats, goal: macroGoals.fat }}
-                  protein={{ current: todaySummary.totalProtein, goal: macroGoals.protein }}
-                  onEditGoals={() => setMacroGoalModalOpen(true)}
-                />
+              <div className="flex-1 space-y-3">
+                {macroRows.map((row) => {
+                  const pct = row.goal > 0 ? Math.min(row.current / row.goal, 1) : 0;
+                  return (
+                    <div key={row.label}>
+                      <div className="flex justify-between text-xs mb-1">
+                        <span className="font-medium">{row.label}</span>
+                        <span className="text-muted-foreground tabular-nums">{row.current}/{row.goal}g</span>
+                      </div>
+                      <div className="h-[5px] rounded-full bg-muted overflow-hidden">
+                        <div className={cn('h-full rounded-full', row.color)} style={{ width: `${pct * 100}%` }} />
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </CardContent>
         </Card>
 
+        <div className="grid grid-cols-3 gap-2.5">
+          <button type="button" className="rounded-[18px] border border-border bg-card p-3 h-[100px] text-left press" onClick={() => navigate('/body')}>
+            <Dumbbell className="w-4 h-4 text-primary mb-2" />
+            <p className="font-display text-2xl leading-none">{workoutsThisWeek}</p>
+            <p className="text-xs text-muted-foreground mt-1">this week</p>
+          </button>
+          <button type="button" className="rounded-[18px] border border-border bg-card p-3 h-[100px] text-left press" onClick={() => setSleepModalOpen(true)}>
+            <Moon className="w-4 h-4 text-info mb-2" />
+            <p className="font-display text-2xl leading-none">{sleepHours}h</p>
+            <p className="text-xs text-muted-foreground mt-1">last night</p>
+          </button>
+          <button type="button" className="rounded-[18px] border border-border bg-card p-3 h-[100px] text-left press" onClick={() => navigate('/settings')}>
+            <Scale className="w-4 h-4 text-terracotta mb-2" />
+            <p className="font-display text-2xl leading-none">{weightKg}</p>
+            <p className="text-xs text-muted-foreground mt-1">kg</p>
+          </button>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2.5">
+          <button type="button" onClick={() => setFoodModalOpen(true)} className="h-14 rounded-2xl bg-primary text-primary-foreground px-4 flex items-center justify-between press">
+            <span className="text-sm font-semibold">Log food</span>
+            <Apple className="w-4 h-4" />
+          </button>
+          <button type="button" onClick={() => setWorkoutModalOpen(true)} className="h-14 rounded-2xl border border-border bg-card px-4 flex items-center justify-between press">
+            <span className="text-sm font-semibold">Log workout</span>
+            <Dumbbell className="w-4 h-4" />
+          </button>
+          <button type="button" onClick={() => navigate('/settings')} className="h-14 rounded-2xl border border-border bg-card px-4 flex items-center justify-between press">
+            <span className="text-sm font-semibold">Water</span>
+            <span className="inline-flex items-center gap-1 text-xs text-muted-foreground"><Droplets className="w-3.5 h-3.5" />0/8</span>
+          </button>
+          <button type="button" onClick={() => setSleepModalOpen(true)} className="h-14 rounded-2xl border border-border bg-card px-4 flex items-center justify-between press">
+            <span className="text-sm font-semibold">Sleep</span>
+            <span className="inline-flex items-center gap-1 text-xs text-muted-foreground"><Moon className="w-3.5 h-3.5" />{sleepHours}h</span>
+          </button>
+        </div>
+
         {/* Voice Input */}
         <div data-onboarding="voice">
           <VoiceMicHero />
         </div>
-
-        {/* Goals Progress */}
-        <Card className="overflow-hidden" data-onboarding="goals">
-          <CardContent className="p-6">
-            <SectionHeader title="Goals" subtitle="Your progress this week" />
-            <DashboardProgressCards
-              onAddGoal={() => {
-                setEditingGoal(undefined);
-                setGoalModalOpen(true);
-              }}
-              onAddWorkout={() => setWorkoutModalOpen(true)}
-              onAddFood={() => setFoodModalOpen(true)}
-              onAddSleep={() => setSleepModalOpen(true)}
-            />
-          </CardContent>
-        </Card>
 
         {/* Streaks */}
         <StreakCard />
@@ -266,8 +267,9 @@ export function Home() {
                       <p className="text-sm font-medium truncate">{item.name}</p>
                       <p className="text-xs text-muted-foreground">{item.detail}</p>
                     </div>
-                    <span className="text-xs text-muted-foreground shrink-0">
+                    <span className="text-xs text-muted-foreground shrink-0 inline-flex items-center gap-1">
                       {isSameDay(item.date, new Date()) ? 'Today' : format(item.date, 'EEE, MMM d')}
+                      <ChevronRight className="w-3 h-3" />
                     </span>
                   </div>
                 ))}

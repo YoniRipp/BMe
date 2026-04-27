@@ -16,8 +16,8 @@ import {
   User,
   Users,
   BookOpen,
-  MoreHorizontal,
   Sparkles,
+  Flame,
 } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
@@ -57,10 +57,10 @@ const SIDEBAR_NAV_BASE = [
 
 /** MFP-style bottom nav: 4 items split around a center "+" button */
 const BOTTOM_NAV_ITEMS = [
-  { name: 'Dashboard', path: '/', icon: Home },
-  { name: 'Journal', path: '/energy', icon: BookOpen },
-  { name: 'Workouts', path: '/body', icon: Dumbbell },
-  { name: 'More', path: '/settings', icon: MoreHorizontal },
+  { name: 'Home', path: '/', icon: Home },
+  { name: 'Body', path: '/body', icon: Dumbbell },
+  { name: 'Energy', path: '/energy', icon: Flame },
+  { name: 'Goals', path: '/goals', icon: Target },
 ];
 
 function getSidebarNav(isAdmin: boolean, isTrainer: boolean) {
@@ -81,6 +81,7 @@ export function Base44Layout() {
   const [scrolled, setScrolled] = useState(false);
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [aiChatOpen, setAiChatOpen] = useState(false);
+  const [voicePanelOpen, setVoicePanelOpen] = useState(false);
   const { user } = useApp();
   const { logout } = useAuth();
   const { hasAiAccess } = useSubscription();
@@ -238,11 +239,11 @@ export function Base44Layout() {
       <BottomNavigation
         items={BOTTOM_NAV_ITEMS}
         currentPath={pathname}
-        onCenterPress={() => setQuickAddOpen(true)}
+        onCenterPress={() => setVoicePanelOpen((prev) => !prev)}
       />
 
       <QuickAddMenu open={quickAddOpen} onOpenChange={setQuickAddOpen} />
-      {pathname !== '/' && <VoiceAgentButton />}
+      {pathname !== '/' && <VoiceAgentButton panelOpen={voicePanelOpen} onTogglePanel={() => setVoicePanelOpen((prev) => !prev)} />}
 
       {/* AI Chat FAB — bottom-right, above mobile nav */}
       {hasAiAccess && pathname !== '/insights' && (
