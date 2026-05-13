@@ -10,6 +10,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useEnergy } from '@/hooks/useEnergy';
 import { useWorkouts } from '@/hooks/useWorkouts';
 import { useGoals } from '@/hooks/useGoals';
+import { useExercises } from '@/hooks/useExercises';
 import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
 import { executeVoiceAction, type VoiceExecutorContext } from '@/lib/voiceActionExecutor';
 import { queryKeys } from '@/lib/queryClient';
@@ -27,6 +28,7 @@ export function VoiceAgentPanel({ open, onOpenChange }: VoiceAgentPanelProps) {
   const { foodEntries, addFoodEntry, updateFoodEntry, deleteFoodEntry, updateCheckIn, addCheckIn, deleteCheckIn, getCheckInByDate } = useEnergy();
   const { workouts, addWorkout, updateWorkout, deleteWorkout } = useWorkouts();
   const { goals, addGoal, updateGoal, deleteGoal } = useGoals();
+  const { resolveExerciseName } = useExercises();
 
   const [error, setError] = useState<string | null>(null);
   const [transcript, setTranscript] = useState('');
@@ -63,11 +65,12 @@ export function VoiceAgentPanel({ open, onOpenChange }: VoiceAgentPanelProps) {
     addGoal,
     updateGoal,
     deleteGoal,
+    resolveExerciseName,
   } as VoiceExecutorContext), [
     foodEntries, addFoodEntry, updateFoodEntry, deleteFoodEntry,
     addCheckIn, updateCheckIn, deleteCheckIn, getCheckInByDate,
     workouts, addWorkout, updateWorkout, deleteWorkout,
-    goals, addGoal, updateGoal, deleteGoal,
+    goals, addGoal, updateGoal, deleteGoal, resolveExerciseName,
   ]);
 
   const handleStartRecording = useCallback(async () => {

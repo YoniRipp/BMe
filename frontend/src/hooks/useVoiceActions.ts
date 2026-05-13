@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useEnergy } from '@/hooks/useEnergy';
 import { useWorkouts } from '@/hooks/useWorkouts';
 import { useGoals } from '@/hooks/useGoals';
+import { useExercises } from '@/hooks/useExercises';
 import { executeVoiceAction, type VoiceExecutorContext } from '@/lib/voiceActionExecutor';
 import { type VoiceUnderstandResult } from '@/lib/voiceApi';
 import { queryKeys } from '@/lib/queryClient';
@@ -18,17 +19,19 @@ export function useVoiceActions() {
   const { foodEntries, addFoodEntry, updateFoodEntry, deleteFoodEntry, updateCheckIn, addCheckIn, deleteCheckIn, getCheckInByDate } = useEnergy();
   const { workouts, addWorkout, updateWorkout, deleteWorkout } = useWorkouts();
   const { goals, addGoal, updateGoal, deleteGoal } = useGoals();
+  const { resolveExerciseName } = useExercises();
 
   const voiceContext = useMemo<VoiceExecutorContext>(() => ({
     foodEntries, addFoodEntry, updateFoodEntry, deleteFoodEntry,
     addCheckIn, updateCheckIn, deleteCheckIn, getCheckInByDate,
     workouts, addWorkout, updateWorkout, deleteWorkout,
     goals, addGoal, updateGoal, deleteGoal,
+    resolveExerciseName,
   }), [
     foodEntries, addFoodEntry, updateFoodEntry, deleteFoodEntry,
     addCheckIn, updateCheckIn, deleteCheckIn, getCheckInByDate,
     workouts, addWorkout, updateWorkout, deleteWorkout,
-    goals, addGoal, updateGoal, deleteGoal,
+    goals, addGoal, updateGoal, deleteGoal, resolveExerciseName,
   ]);
 
   const processVoiceResult = useCallback(async (result: VoiceUnderstandResult): Promise<ProcessResult> => {

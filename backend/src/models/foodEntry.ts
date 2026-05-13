@@ -6,7 +6,7 @@ import { getPool } from '../db/pool.js';
 import { buildUpdateQuery, type UpdateBuilder } from '../db/queryBuilder.js';
 import type { FoodEntry, CreateFoodEntryInput, UpdateFoodEntryInput, PaginationParams } from '../types/domain.js';
 
-const RETURNING = 'id, date, name, calories, protein, carbs, fats, portion_amount, portion_unit, serving_type, start_time, end_time, meal_type';
+const RETURNING = 'id, date, name, calories, protein, carbs, fats, portion_amount, portion_unit, serving_type, start_time, end_time, meal_type, checked';
 
 function rowToEntry(row: Record<string, unknown>): FoodEntry {
   return {
@@ -23,6 +23,7 @@ function rowToEntry(row: Record<string, unknown>): FoodEntry {
     startTime: (row.start_time as string) ?? undefined,
     endTime: (row.end_time as string) ?? undefined,
     mealType: (row.meal_type as FoodEntry['mealType']) ?? undefined,
+    checked: Boolean(row.checked),
   };
 }
 
@@ -40,6 +41,7 @@ const UPDATE_SPEC: UpdateBuilder<UpdateFoodEntryInput> = {
     startTime: { column: 'start_time' },
     endTime: { column: 'end_time' },
     mealType: { column: 'meal_type' },
+    checked: { column: 'checked' },
   },
 };
 

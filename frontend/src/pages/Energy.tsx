@@ -1,4 +1,17 @@
 import { useState, useMemo, useCallback } from 'react';
+import {
+  DndContext,
+  DragOverlay,
+  PointerSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+  useDroppable,
+  useDraggable,
+  type DragEndEvent,
+  type DragStartEvent,
+} from '@dnd-kit/core';
+import { CSS } from '@dnd-kit/utilities';
 import { useEnergy } from '@/hooks/useEnergy';
 import { useMacroGoals } from '@/hooks/useMacroGoals';
 import { FoodEntry, type DailyCheckIn } from '@/types/energy';
@@ -17,7 +30,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { EmptyStateCard } from '@/components/shared/EmptyStateCard';
 import { AddAnotherCard } from '@/components/shared/AddAnotherCard';
 import { PeriodSelector } from '@/components/shared/PeriodSelector';
-import { Moon, Trash2, Pencil, ChevronDown, Plus, ClipboardList, Copy, Sun, CloudSun, Sunset, Cookie, Mic } from 'lucide-react';
+import { Moon, Trash2, Pencil, ChevronDown, Plus, ClipboardList, Copy, Sun, CloudSun, Sunset, Cookie, Mic, GripVertical } from 'lucide-react';
 import { isSameDay, isWithinInterval, format, startOfWeek, endOfWeek } from 'date-fns';
 import { getPeriodRange, toLocalDateString } from '@/lib/dateRanges';
 import { PulseCard, PulseHeader, PulsePage } from '@/components/pulse/PulseUI';
@@ -42,7 +55,6 @@ const MEAL_ICONS: Record<MealType, typeof Sun> = {
 };
 
 function getMealType(entry: FoodEntry): MealType {
-  // Prefer explicit mealType field
   if (entry.mealType) {
     const mt = entry.mealType.charAt(0).toUpperCase() + entry.mealType.slice(1);
     if (mt === 'Breakfast' || mt === 'Lunch' || mt === 'Dinner' || mt === 'Snack') return mt;
@@ -90,7 +102,6 @@ function groupByMeal(entries: FoodEntry[]): MealGroup[] {
       totalFats: mealEntries.reduce((s, e) => s + e.fats, 0),
     };
   });
-  // All 4 meals always returned - no filter
 }
 
 function groupFoodEntries(
@@ -206,14 +217,12 @@ function MealGroupHeader({
   totalProtein,
   totalCarbs,
   totalFats,
-  onVoiceAdd,
 }: {
   meal: MealType;
   totalCal: number;
   totalProtein: number;
   totalCarbs: number;
   totalFats: number;
-  onVoiceAdd: (meal: MealType) => void;
 }) {
   const Icon = MEAL_ICONS[meal];
   return (
@@ -230,14 +239,52 @@ function MealGroupHeader({
           P {totalProtein}g - C {totalCarbs}g - F {totalFats}g
         </span>
       </div>
+    </div>
+  );
+}
+
+// Draggable wrapper for a food card within the daily meal view.
+function DraggableFoodCard({
+  entry,
+  onEdit,
+  onDelete,
+  onToggleChecked,
+}: {
+  entry: FoodEntry;
+  onEdit: (entry: FoodEntry) => void;
+  onDelete: (id: string) => void;
+  onToggleChecked: (id: string, checked: boolean) => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id: entry.id,
+    data: { entry },
+  });
+
+  const style = {
+    transform: CSS.Translate.toString(transform),
+    opacity: isDragging ? 0.4 : 1,
+    zIndex: isDragging ? 50 : undefined,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} className="flex items-center gap-1">
       <button
         type="button"
-        onClick={() => onVoiceAdd(meal)}
-        className="ml-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-card-lg press"
-        aria-label={`Log ${meal.toLowerCase()} by voice`}
+        className="shrink-0 flex items-center justify-center p-1.5 text-muted-foreground/40 hover:text-muted-foreground touch-none cursor-grab active:cursor-grabbing"
+        aria-label="Drag to move to another meal"
+        {...listeners}
+        {...attributes}
       >
-        <Mic className="h-4 w-4" />
+        <GripVertical className="w-4 h-4" />
       </button>
+      <div className="flex-1 min-w-0">
+        <FoodCard
+          entry={entry}
+          onEdit={onEdit}
+          onDelete={onDelete}
+          onToggleChecked={onToggleChecked}
+        />
+      </div>
     </div>
   );
 }
@@ -259,8 +306,16 @@ export function Energy() {
   const [activeMealType, setActiveMealType] = useState<MealType | undefined>();
   const [quickVoiceOpen, setQuickVoiceOpen] = useState(false);
   const [quickVoiceMealType, setQuickVoiceMealType] = useState<MealType | undefined>();
+  const [activeDragEntry, setActiveDragEntry] = useState<FoodEntry | null>(null);
 
   const today = useMemo(() => new Date(), []);
+
+  // dnd-kit sensors — require 8px movement before activating (prevents
+  // accidental drags during scroll), touch sensor has a 200ms press delay.
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } }),
+  );
 
   const periodFoodEntries = useMemo(() => {
     const range = getPeriodRange(caloriePeriod, today);
@@ -364,10 +419,7 @@ export function Energy() {
     } else if (todayCheckIn) {
       updateCheckIn(todayCheckIn.id, { sleepHours: hours });
     } else {
-      addCheckIn({
-        date: today,
-        sleepHours: hours,
-      });
+      addCheckIn({ date: today, sleepHours: hours });
     }
   };
 
@@ -435,7 +487,6 @@ export function Energy() {
     });
   }, [addFoodEntriesBatch, today]);
 
-
   const handleEditFood = useCallback((entry: FoodEntry) => {
     setEditingFoodEntry(entry);
     setActiveMealType(undefined);
@@ -446,12 +497,33 @@ export function Energy() {
     setDeleteConfirmId(id);
   }, []);
 
+  const handleToggleChecked = useCallback((id: string, checked: boolean) => {
+    updateFoodEntry(id, { checked } as Partial<FoodEntry>);
+  }, [updateFoodEntry]);
+
   const confirmDeleteFood = () => {
     if (deleteConfirmId) {
       deleteFoodEntry(deleteConfirmId);
       setDeleteConfirmId(null);
     }
   };
+
+  const handleDragStart = useCallback((event: DragStartEvent) => {
+    const entry = event.active.data.current?.entry as FoodEntry | undefined;
+    setActiveDragEntry(entry ?? null);
+  }, []);
+
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
+    setActiveDragEntry(null);
+    const { active, over } = event;
+    if (!over) return;
+    const entry = active.data.current?.entry as FoodEntry | undefined;
+    if (!entry) return;
+    const targetMeal = over.id as MealType;
+    const currentMeal = getMealType(entry);
+    if (targetMeal === currentMeal) return;
+    updateFoodEntry(entry.id, { mealType: targetMeal.toLowerCase() as FoodEntry['mealType'] });
+  }, [updateFoodEntry]);
 
   return (
     <PulsePage className="pb-24">
@@ -460,7 +532,7 @@ export function Energy() {
           <PulseHeader
             kicker="Energy"
             title="Food log"
-            subtitle={caloriePeriod === 'daily' ? 'Tap a meal mic and log naturally.' : 'Review your nutrition history.'}
+            subtitle={caloriePeriod === 'daily' ? 'Tap a meal to log. Drag items between meals.' : 'Review your nutrition history.'}
           />
 
           {(() => {
@@ -557,18 +629,33 @@ export function Energy() {
             </div>
 
             {caloriePeriod === 'daily' ? (
-              <div className="grid gap-4 lg:grid-cols-2">
-                {mealGroups.map((group) => (
-                  <MealJournalCard
-                    key={group.meal}
-                    group={group}
-                    onVoiceAdd={handleVoiceFood}
-                    onManualAdd={handleAddFood}
-                    onEdit={handleEditFood}
-                    onDelete={handleDeleteFood}
-                  />
-                ))}
-              </div>
+              <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+                <div className="grid gap-4 lg:grid-cols-2">
+                  {mealGroups.map((group) => (
+                    <MealJournalCard
+                      key={group.meal}
+                      group={group}
+                      onVoiceAdd={handleVoiceFood}
+                      onManualAdd={handleAddFood}
+                      onEdit={handleEditFood}
+                      onDelete={handleDeleteFood}
+                      onToggleChecked={handleToggleChecked}
+                    />
+                  ))}
+                </div>
+                <DragOverlay dropAnimation={null}>
+                  {activeDragEntry && (
+                    <div className="rotate-1 opacity-90 shadow-xl">
+                      <FoodCard
+                        entry={activeDragEntry}
+                        onEdit={() => {}}
+                        onDelete={() => {}}
+                        onToggleChecked={() => {}}
+                      />
+                    </div>
+                  )}
+                </DragOverlay>
+              </DndContext>
             ) : periodFoodEntries.length === 0 ? (
               <EmptyStateCard
                 onClick={() => handleAddFood()}
@@ -605,61 +692,61 @@ export function Energy() {
               selected={sleepPeriod}
               onChange={setSleepPeriod}
             />
-        <div className="my-5">
-          <p className="text-4xl font-extrabold tabular-nums tracking-tight leading-none">
-            {sleepPeriod === 'daily'
-              ? (selectedSleep.count > 0 ? <>{selectedSleep.hours.toFixed(1)}<span className="text-xl font-sans font-normal text-muted-foreground ml-1.5">h</span></> : <span className="text-base font-sans text-muted-foreground">Not logged</span>)
-              : selectedSleep.count > 0
-                ? <>{selectedSleep.hours.toFixed(1)}<span className="text-xl font-sans font-normal text-muted-foreground ml-1.5">h avg</span></>
-                : <span className="text-base font-sans text-muted-foreground">No data</span>}
-          </p>
-          {sleepPeriod !== 'daily' && selectedSleep.count > 0 && (
-            <p className="text-sm text-muted-foreground mt-1.5">
-              {selectedSleep.count} {selectedSleep.count === 1 ? 'day' : 'days'} logged
-            </p>
-          )}
-        </div>
+            <div className="my-5">
+              <p className="text-4xl font-extrabold tabular-nums tracking-tight leading-none">
+                {sleepPeriod === 'daily'
+                  ? (selectedSleep.count > 0 ? <>{selectedSleep.hours.toFixed(1)}<span className="text-xl font-sans font-normal text-muted-foreground ml-1.5">h</span></> : <span className="text-base font-sans text-muted-foreground">Not logged</span>)
+                  : selectedSleep.count > 0
+                    ? <>{selectedSleep.hours.toFixed(1)}<span className="text-xl font-sans font-normal text-muted-foreground ml-1.5">h avg</span></>
+                    : <span className="text-base font-sans text-muted-foreground">No data</span>}
+              </p>
+              {sleepPeriod !== 'daily' && selectedSleep.count > 0 && (
+                <p className="text-sm text-muted-foreground mt-1.5">
+                  {selectedSleep.count} {selectedSleep.count === 1 ? 'day' : 'days'} logged
+                </p>
+              )}
+            </div>
 
-        {recentCheckIns.length > 0 && (
-          <div className="space-y-2 mb-4">
-            <h4 className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground mb-2">Sleep log</h4>
-            {recentCheckIns.map((c) => {
-              const dateStr = toLocalDateString(new Date(c.date));
-              return (
-                <div
-                  key={c.id}
-                  className="flex items-center justify-between p-3 bg-muted/60 rounded-xl"
-                >
-                  <div>
-                    <p className="font-medium text-sm">{format(new Date(c.date), 'EEE, MMM d, yyyy')}</p>
-                    <p className="text-xs text-muted-foreground tabular-nums">{c.sleepHours ?? 0}h slept</p>
-                  </div>
-                  <div className="flex gap-1">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => openSleepModalForCheckIn(c)}
-                      aria-label={`Edit sleep for ${dateStr}`}
+            {recentCheckIns.length > 0 && (
+              <div className="space-y-2 mb-4">
+                <h4 className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground mb-2">Sleep log</h4>
+                {recentCheckIns.map((c) => {
+                  const dateStr = toLocalDateString(new Date(c.date));
+                  return (
+                    <div
+                      key={c.id}
+                      className="flex items-center justify-between p-3 bg-muted/60 rounded-xl"
                     >
-                      <Pencil className="w-4 h-4" aria-hidden="true" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => setDeleteConfirmCheckInId(c.id)}
-                      aria-label={`Delete sleep for ${dateStr}`}
-                    >
-                      <Trash2 className="w-4 h-4" aria-hidden="true" />
-                    </Button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
+                      <div>
+                        <p className="font-medium text-sm">{format(new Date(c.date), 'EEE, MMM d, yyyy')}</p>
+                        <p className="text-xs text-muted-foreground tabular-nums">{c.sleepHours ?? 0}h slept</p>
+                      </div>
+                      <div className="flex gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => openSleepModalForCheckIn(c)}
+                          aria-label={`Edit sleep for ${dateStr}`}
+                        >
+                          <Pencil className="w-4 h-4" aria-hidden="true" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setDeleteConfirmCheckInId(c.id)}
+                          aria-label={`Delete sleep for ${dateStr}`}
+                        >
+                          <Trash2 className="w-4 h-4" aria-hidden="true" />
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
 
-        <AddAnotherCard onClick={openSleepModalForToday} icon={Moon} label="Log sleep" />
-      </PulseCard>
+            <AddAnotherCard onClick={openSleepModalForToday} icon={Moon} label="Log sleep" />
+          </PulseCard>
         </div>
       </ContentWithLoading>
 
@@ -739,49 +826,57 @@ function MealJournalCard({
   onManualAdd,
   onEdit,
   onDelete,
+  onToggleChecked,
 }: {
   group: MealGroup;
   onVoiceAdd: (meal: MealType) => void;
   onManualAdd: (meal: MealType) => void;
   onEdit: (entry: FoodEntry) => void;
   onDelete: (id: string) => void;
+  onToggleChecked: (id: string, checked: boolean) => void;
 }) {
+  const { setNodeRef, isOver } = useDroppable({ id: group.meal });
   const hasEntries = group.entries.length > 0;
 
   return (
-    <PulseCard className="overflow-hidden p-4 sm:p-5">
+    <div ref={setNodeRef}>
+    <PulseCard
+      className={`overflow-hidden p-4 sm:p-5 transition-colors ${isOver ? 'ring-2 ring-primary/50 bg-primary/[0.03]' : ''}`}
+    >
       <MealGroupHeader
         meal={group.meal}
         totalCal={group.totalCal}
         totalProtein={Math.round(group.totalProtein)}
         totalCarbs={Math.round(group.totalCarbs)}
         totalFats={Math.round(group.totalFats)}
-        onVoiceAdd={onVoiceAdd}
       />
 
       {hasEntries ? (
         <div className="mt-3 space-y-2">
           {group.entries.map((entry) => (
-            <FoodCard
+            <DraggableFoodCard
               key={entry.id}
               entry={entry}
               onEdit={onEdit}
               onDelete={onDelete}
+              onToggleChecked={onToggleChecked}
             />
           ))}
         </div>
       ) : (
-        <div className="mt-3 rounded-2xl border border-dashed border-border bg-muted/25 px-4 py-5 text-center">
-          <p className="text-sm font-bold">Log {group.meal.toLowerCase()}</p>
-          <p className="mt-1 text-xs text-muted-foreground">Use voice for the fastest entry.</p>
+        <div className={`mt-3 rounded-2xl border border-dashed px-4 py-5 text-center transition-colors ${isOver ? 'border-primary/50 bg-primary/[0.04]' : 'border-border bg-muted/25'}`}>
+          <p className="text-sm font-bold">
+            {isOver ? `Drop here to move to ${group.meal.toLowerCase()}` : `Log ${group.meal.toLowerCase()}`}
+          </p>
+          {!isOver && <p className="mt-1 text-xs text-muted-foreground">Use voice for the fastest entry.</p>}
         </div>
       )}
 
-      <div className="mt-3 grid grid-cols-[1fr_auto] gap-2">
+      <div className="mt-3 grid grid-cols-2 gap-2">
         <button
           type="button"
           onClick={() => onVoiceAdd(group.meal)}
-          className="flex h-11 items-center justify-center gap-2 rounded-xl bg-primary text-sm font-extrabold text-primary-foreground press"
+          className="flex h-11 items-center justify-center gap-2 rounded-2xl bg-primary text-sm font-extrabold text-primary-foreground press"
         >
           <Mic className="h-4 w-4" />
           Voice log
@@ -789,13 +884,13 @@ function MealJournalCard({
         <button
           type="button"
           onClick={() => onManualAdd(group.meal)}
-          className="flex h-11 min-w-24 items-center justify-center gap-2 rounded-xl border border-border bg-background px-3 text-sm font-bold text-muted-foreground hover:border-primary/40 hover:text-foreground press"
+          className="flex h-11 items-center justify-center gap-2 rounded-2xl border border-border bg-background px-3 text-sm font-bold text-muted-foreground hover:border-primary/40 hover:text-foreground press"
         >
           <Plus className="h-4 w-4" />
           Add
         </button>
       </div>
     </PulseCard>
+    </div>
   );
 }
-

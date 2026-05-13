@@ -76,6 +76,9 @@ export interface VoiceExecutorContext {
   updateCycleEntry?: (id: string, updates: Partial<CycleEntry>) => Promise<void>;
   deleteCycleEntry?: (id: string) => Promise<void>;
 
+  // Resolves an AI-generated exercise name to the canonical catalog name (fuzzy match)
+  resolveExerciseName?: (name: string) => string;
+
   // Profile
   updateProfile?: (updates: Record<string, unknown>) => Promise<void>;
 }
@@ -122,10 +125,11 @@ function mergeExerciseOverrides(
 const handleAddWorkout: Handler = async (action, ctx) => {
   if (action.intent !== 'add_workout') return { success: false };
   const rawExercises = Array.isArray(action.exercises) ? action.exercises : [];
+  const resolve = ctx.resolveExerciseName ?? ((n: string) => n);
   const exercisesFromAction = rawExercises
     .filter((e: { name?: string }) => e?.name && String(e.name).trim())
     .map((e: { name?: string; sets?: number; reps?: number; weight?: number; notes?: string }) => ({
-      name: String(e.name).trim(),
+      name: resolve(String(e.name).trim()),
       sets: Math.max(0, Number(e.sets) ?? 0),
       reps: Math.max(0, Number(e.reps) ?? 0),
       weight: Number(e.weight) > 0 ? Number(e.weight) : undefined,

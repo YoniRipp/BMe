@@ -82,6 +82,7 @@ export const updateFoodEntrySchema = z.object({
   startTime: timeString,
   endTime: timeString,
   mealType: z.enum(['breakfast', 'lunch', 'dinner', 'snack']).optional().nullable(),
+  checked: z.boolean().optional(),
 }).strict().refine((obj) => Object.keys(obj).length > 0, 'At least one field required');
 
 // ─── Food entry batch schemas ─────────────────────────────

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { UtensilsCrossed, Dumbbell } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -32,14 +33,16 @@ interface ImagePlaceholderProps {
 export function ImagePlaceholder({ type, size = 'md', imageUrl, className }: ImagePlaceholderProps) {
   const { icon: Icon, bg, text, ring } = CONFIG[type];
   const { container, icon } = SIZES[size];
+  const [imgError, setImgError] = useState(false);
 
-  if (imageUrl) {
+  if (imageUrl && !imgError) {
     return (
       <img
         src={imageUrl}
         alt=""
         className={cn('rounded-xl object-cover shrink-0 ring-2', ring, container, className)}
         loading="lazy"
+        onError={() => setImgError(true)}
       />
     );
   }

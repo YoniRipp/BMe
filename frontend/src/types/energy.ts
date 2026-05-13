@@ -20,4 +20,5 @@ export interface FoodEntry {
   startTime?: string;
   endTime?: string;
   mealType?: 'breakfast' | 'lunch' | 'dinner' | 'snack';
+  checked?: boolean;
 }
