@@ -257,6 +257,14 @@ export interface AgentChatResponse {
 
 // ─── Streaming send message ─────────────────────────────────────────────────
 
+// Phrases the model uses when it describes a plan in text instead of calling
+// the propose_plan tool. If detected without a tool call, we force a retry.
+const PLAN_CLAIM_PATTERN = /(confirmation card|save to app|will (now |then )?(show|appear)|prepared (the |a |your |this )?(plan|program|routine|schedule)|successfully prepared|put together (a |the |your )(new |updated |\d+-day )?(plan|program|routine|schedule|workout)|here'?s (the |a |your )?(plan|program|schedule|routine|new )|i'?ve (created|designed|built|drafted|set up|prepared) (a |the |your |this )(new |updated |\d+-day )?(plan|program|routine|schedule|workout))/i;
+
+// User intent: clear ask to create or save a multi-item plan. Triggers
+// the propose_plan fallback if the model only replied with text.
+const USER_PLAN_INTENT_PATTERN = /\b(create|make|build|design|write|generate|draft|put together|set up|set-up|prepare|give me|i want|change my workout|update my workout|switch (my )?workout)\b.*\b(plan|program|routine|schedule|workout|split|push[\s\-/]*pull|ppl|workouts?\b)|\b(push (it|them|the plan|to (my )?workouts?)|save (it|them|the plan|to (my )?workouts?)|add (it|them|the plan|to (my )?workouts?)|log (it|them|the plan)|go ahead|do it|approve|confirm|yes save|push to (my )?workouts?)\b/i;
+
 const AGENT_SYSTEM_INIT = `You are an AI agent — not just a chatbot. CRITICAL RULES:
 1. For single-item logs the user is already committing to (e.g. "I ate 2 eggs", "I did squats today") — call the appropriate add tool directly.
 2. For multi-item PLANS the user is asking you to design (workout programs across multiple days, meal plans) — you MUST call propose_plan ONCE with the full plan IN THE SAME TURN as describing it. Do NOT call add_workout / add_food directly for plans. The app will show a confirmation card so the user can choose to save the plan. Never describe a plan in text without also calling propose_plan.
@@ -398,6 +406,26 @@ export async function sendMessageStream(
           await new Promise(r => setTimeout(r, 10));
         }
         responseText = responseText.trim();
+      }
+    }
+
+    // Fallback: model described a plan but didn't actually call propose_plan.
+    // Force a second turn that requires the tool call so the user sees the card.
+    // We gate on user intent (asked to create/save a plan) OR clear claim-language
+    // in the model's reply, so info-only questions don't trigger this.
+    const claimedPlan = PLAN_CLAIM_PATTERN.test(responseText || streamedText);
+    const userWantsAction = USER_PLAN_INTENT_PATTERN.test(userMessage);
+    if (proposals.length === 0 && (userWantsAction || claimedPlan)) {
+      onThinking();
+      const forceResult = await chat.sendMessage(
+        '[SYSTEM] You described a plan in text but did NOT call the propose_plan tool, so the user cannot see the confirmation card. Call propose_plan NOW with the FULL plan (all workouts and/or foods) you just described. Use today\'s date for the first day and increment for subsequent days. Reply only with the tool call.',
+      );
+      const forceCalls = forceResult.response.functionCalls?.() ?? [];
+      const planForceCalls = forceCalls.filter(fc => fc.name === 'propose_plan');
+      for (const fc of planForceCalls) {
+        const proposal = buildProposal(fc.args as Record<string, unknown>);
+        proposals.push(proposal);
+        onProposal?.(proposal);
       }
     }
 
