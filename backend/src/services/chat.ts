@@ -261,9 +261,17 @@ export interface AgentChatResponse {
 // the propose_plan tool. If detected without a tool call, we force a retry.
 const PLAN_CLAIM_PATTERN = /(confirmation card|save to app|will (now |then )?(show|appear)|prepared (the |a |your |this )?(plan|program|routine|schedule)|successfully prepared|put together (a |the |your )(new |updated |\d+-day )?(plan|program|routine|schedule|workout)|here'?s (the |a |your )?(plan|program|schedule|routine|new )|i'?ve (created|designed|built|drafted|set up|prepared) (a |the |your |this )(new |updated |\d+-day )?(plan|program|routine|schedule|workout))/i;
 
-// User intent: clear ask to create or save a multi-item plan. Triggers
-// the propose_plan fallback if the model only replied with text.
-const USER_PLAN_INTENT_PATTERN = /\b(create|make|build|design|write|generate|draft|put together|set up|set-up|prepare|give me|i want|change my workout|update my workout|switch (my )?workout)\b.*\b(plan|program|routine|schedule|workout|split|push[\s\-/]*pull|ppl|workouts?\b)|\b(push (it|them|the plan|to (my )?workouts?)|save (it|them|the plan|to (my )?workouts?)|add (it|them|the plan|to (my )?workouts?)|log (it|them|the plan)|go ahead|do it|approve|confirm|yes save|push to (my )?workouts?)\b/i;
+// User intent: clear ask to create or save a MULTI-item plan. Triggers the
+// propose_plan fallback if the model only replied with text. Intentionally
+// excludes bare "workout" so single-workout requests fall through to the
+// single-action fallback below (which forces add_workout, not propose_plan).
+const USER_PLAN_INTENT_PATTERN = /\b(create|make|build|design|write|generate|draft|put together|set up|set-up|prepare|give me|i want)\b.*\b(plan|program|routine|schedule|split|push[\s\-/]*pull|ppl)\b|\b(push (the plan|the program|the routine)|save (the plan|the program|the routine)|add (the plan|the program|the routine)|log the plan|go ahead|do it|approve|confirm|yes save)\b/i;
+
+// Phrases the model uses when it claims to have logged a SINGLE item
+// (workout, food, weight, sleep, water, goal) without actually calling
+// the corresponding add/log tool. If detected with no successful write
+// in this turn, we force a tool call.
+const SINGLE_ACTION_CLAIM_PATTERN = /\b(i'?ve|i have|just|all)?\s*(logged|added|saved|recorded|tracked|noted|created|set)\s+(your|the|that|it|a|an|this|that)\b|\b(done|got it|all set)[!.]?\s*$/i;
 
 const AGENT_SYSTEM_INIT = `You are an AI agent — not just a chatbot. CRITICAL RULES:
 1. For single-item logs the user is already committing to (e.g. "I ate 2 eggs", "I did squats today") — call the appropriate add tool directly.
@@ -429,6 +437,26 @@ export async function sendMessageStream(
       }
     }
 
+    // Fallback: model claimed to have logged a single item (workout/food/etc.)
+    // but didn't actually call any write tool. Force a tool call so the entry
+    // really lands in the DB. Skip if a plan proposal was made or a write
+    // already succeeded this turn.
+    const hasSuccessfulWrite = allActions.some(a => a.success);
+    const claimedSingleAction = SINGLE_ACTION_CLAIM_PATTERN.test(responseText || streamedText);
+    if (proposals.length === 0 && !hasSuccessfulWrite && claimedSingleAction) {
+      onThinking();
+      const forceResult = await chat.sendMessage(
+        '[SYSTEM] You claimed to have logged/added/saved an item but did NOT actually call the tool, so nothing was saved. Call the appropriate write tool NOW (add_workout, add_food, log_sleep, log_weight, add_water, log_cycle, add_goal, edit_*, delete_*) for exactly what the user asked. Reply only with the tool call(s).',
+      );
+      const forceCalls = forceResult.response.functionCalls?.() ?? [];
+      const writeCalls = forceCalls.filter(fc => fc.name !== 'propose_plan' && !fc.name.startsWith('get_'));
+      if (writeCalls.length > 0) {
+        const forceActions = writeCalls.map(fc => ({ intent: fc.name, ...fc.args }));
+        const forceResults = await executeActions(forceActions as { intent: string; [key: string]: unknown }[], userId);
+        allActions.push(...forceResults);
+      }
+    }
+
     if (!responseText) {
       responseText = 'Done.';
       onChunk(responseText);
@@ -563,6 +591,23 @@ export async function sendMessage(userId: string, userMessage: string): Promise<
     }
 
     responseText = response.text().trim();
+
+    // Same fallback as the streaming path: if the model only described an
+    // action without calling a tool, force the tool call so the entry lands.
+    const hasSuccessfulWrite = allActions.some(a => a.success);
+    const claimedSingleAction = SINGLE_ACTION_CLAIM_PATTERN.test(responseText);
+    if (proposals.length === 0 && !hasSuccessfulWrite && claimedSingleAction) {
+      const forceResult = await chat.sendMessage(
+        '[SYSTEM] You claimed to have logged/added/saved an item but did NOT actually call the tool, so nothing was saved. Call the appropriate write tool NOW (add_workout, add_food, log_sleep, log_weight, add_water, log_cycle, add_goal, edit_*, delete_*) for exactly what the user asked. Reply only with the tool call(s).',
+      );
+      const forceCalls = forceResult.response.functionCalls?.() ?? [];
+      const writeCalls = forceCalls.filter(fc => fc.name !== 'propose_plan' && !fc.name.startsWith('get_'));
+      if (writeCalls.length > 0) {
+        const forceActions = writeCalls.map(fc => ({ intent: fc.name, ...fc.args }));
+        const forceResults = await executeActions(forceActions as { intent: string; [key: string]: unknown }[], userId);
+        allActions.push(...forceResults);
+      }
+    }
   } catch (err) {
     logger.error({ err }, 'AI agent chat response failed');
     responseText = 'I apologize, but I encountered an issue. Please try again.';
