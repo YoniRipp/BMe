@@ -63,9 +63,9 @@ describe('Body Page', () => {
     expect(screen.getByRole('heading', { name: /workouts/i })).toBeInTheDocument();
   });
 
-  it('shows This week and Older sections when workouts span both', async () => {
+  it('shows This week and Last week sections when workouts span both', async () => {
     const today = format(new Date(), 'yyyy-MM-dd');
-    const twoWeeksAgo = format(subWeeks(new Date(), 2), 'yyyy-MM-dd');
+    const lastWeek = format(subWeeks(new Date(), 1), 'yyyy-MM-dd');
     mockUseWorkouts.mockReturnValue({
       ...defaultHookReturn,
       workouts: [
@@ -80,8 +80,8 @@ describe('Body Page', () => {
         },
         {
           id: '2',
-          date: new Date(twoWeeksAgo),
-          title: 'Older Workout',
+          date: new Date(lastWeek),
+          title: 'Last Week Workout',
           type: 'strength',
           durationMinutes: 30,
           exercises: [{ name: 'Bench', sets: 3, reps: 8 }],
@@ -95,8 +95,8 @@ describe('Body Page', () => {
     await waitFor(() => {
       expect(screen.getByText('This week')).toBeInTheDocument();
     });
-    expect(screen.getByText('Older')).toBeInTheDocument();
+    expect(screen.getByText('Last week')).toBeInTheDocument();
     expect(screen.getByText('This Week Workout')).toBeInTheDocument();
-    expect(screen.getByText('Older Workout')).toBeInTheDocument();
+    expect(screen.getByText('Last Week Workout')).toBeInTheDocument();
   });
 });
