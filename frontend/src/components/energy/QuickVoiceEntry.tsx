@@ -7,7 +7,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet';
-import { useBrowserSpeech } from '@/hooks/useBrowserSpeech';
+import { useLiveTranscript } from '@/hooks/useLiveTranscript';
 import { parseFoodItems, getMealStartTime, inferMealFromTime, textContainsMealKeyword } from '@/features/energy/parseFoodText';
 import type { MealType } from '@/features/energy/parseFoodText';
 import { searchFoods, lookupOrCreateFood } from '@/features/energy/api';
@@ -42,7 +42,7 @@ export default function QuickVoiceEntry({
   onSave,
 }: QuickVoiceEntryProps) {
   const { isListening, transcript, error: speechError, isSupported, start, stop, reset } =
-    useBrowserSpeech();
+    useLiveTranscript();
 
   const [phase, setPhase] = useState<Phase>('recording');
   const [showTextInput, setShowTextInput] = useState(false);
