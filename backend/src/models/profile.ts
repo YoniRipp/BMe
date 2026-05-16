@@ -7,10 +7,25 @@ import type { UserProfile, UpsertProfileInput } from '../types/domain.js';
 
 const RETURNING = 'id, date_of_birth, sex, height_cm, current_weight, target_weight, activity_level, water_goal_glasses, cycle_tracking_enabled, average_cycle_length, setup_completed, macro_carbs, macro_fat, macro_protein';
 
+function formatDate(value: unknown): string | undefined {
+  if (!value) return undefined;
+  // pg returns DATE columns as JS Date objects by default. Date#toString
+  // produces the long locale form (e.g. "Wed Aug 17 1994 ..."), which breaks
+  // the YYYY-MM-DD contract the API and clients expect.
+  if (value instanceof Date) {
+    const y = value.getUTCFullYear().toString().padStart(4, '0');
+    const m = (value.getUTCMonth() + 1).toString().padStart(2, '0');
+    const d = value.getUTCDate().toString().padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+  const s = String(value);
+  return s.length >= 10 ? s.slice(0, 10) : s;
+}
+
 function rowToProfile(row: Record<string, unknown>): UserProfile {
   return {
     id: row.id as string,
-    dateOfBirth: row.date_of_birth ? String(row.date_of_birth) : undefined,
+    dateOfBirth: formatDate(row.date_of_birth),
     sex: (row.sex as string) ?? undefined,
     heightCm: row.height_cm != null ? Number(row.height_cm) : undefined,
     currentWeight: row.current_weight != null ? Number(row.current_weight) : undefined,
