@@ -5,11 +5,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useProfile } from '@/hooks/useProfile';
+import { useSettings } from '@/hooks/useSettings';
 import { User } from 'lucide-react';
 import { toast } from 'sonner';
+import { DateOfBirthInput } from './DateOfBirthInput';
 
 export function ProfileSection() {
   const { profile, updateProfile, isUpdating } = useProfile();
+  const { settings } = useSettings();
   const [form, setForm] = useState({
     dateOfBirth: '',
     sex: '',
@@ -22,8 +25,11 @@ export function ProfileSection() {
 
   useEffect(() => {
     if (profile) {
+      const dob = profile.dateOfBirth ?? '';
+      // Accept either YYYY-MM-DD or an ISO datetime; ignore anything else.
+      const normalizedDob = /^\d{4}-\d{2}-\d{2}/.test(dob) ? dob.slice(0, 10) : '';
       setForm({
-        dateOfBirth: profile.dateOfBirth?.split('T')[0] ?? '',
+        dateOfBirth: normalizedDob,
         sex: profile.sex ?? '',
         heightCm: profile.heightCm?.toString() ?? '',
         currentWeight: profile.currentWeight?.toString() ?? '',
@@ -46,8 +52,8 @@ export function ProfileSection() {
         waterGoalGlasses: Number(form.waterGoalGlasses) || 8,
       });
       toast.success('Profile updated');
-    } catch {
-      toast.error('Could not update profile');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not update profile');
     }
   };
 
@@ -73,12 +79,11 @@ export function ProfileSection() {
           </div>
           <div>
             <Label className="text-xs">Date of Birth</Label>
-            <Input
-              type="date"
-              className="h-9"
+            <DateOfBirthInput
               value={form.dateOfBirth}
-              onChange={(e) => setForm({ ...form, dateOfBirth: e.target.value })}
-              max={new Date().toISOString().split('T')[0]}
+              onChange={(v) => setForm({ ...form, dateOfBirth: v })}
+              dateFormat={settings.dateFormat}
+              maxYear={new Date().getFullYear()}
             />
           </div>
         </div>
