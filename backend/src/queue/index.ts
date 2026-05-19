@@ -36,6 +36,8 @@ export async function enqueue(jobType: string, data: Record<string, unknown>) {
   await queue.add(jobType, data, {
     removeOnComplete: true,
     removeOnFail: 100,
+    attempts: 3,
+    backoff: { type: 'exponential', delay: 1000 },
   });
 }
 

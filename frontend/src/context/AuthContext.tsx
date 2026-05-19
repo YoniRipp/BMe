@@ -1,6 +1,8 @@
 import React, { createContext, useCallback, useEffect, useState } from 'react';
 import { User } from '@/types/user';
-import { authApi, setToken, hasSession } from '@/features/auth/api';
+import { authApi, setToken } from '@/features/auth/api';
+import { queryClient } from '@/lib/queryClient';
+import { clearOfflineQueue } from '@/lib/syncQueue';
 
 type AuthProviderName = 'google' | 'facebook' | 'twitter';
 
@@ -35,11 +37,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [authLoading, setAuthLoading] = useState(true);
 
   const loadUser = useCallback(async () => {
-    if (!hasSession()) {
-      setUser(null);
-      setAuthLoading(false);
-      return;
-    }
     try {
       const me = await authApi.me();
       setUser(apiUserToUser(me));
@@ -57,8 +54,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = useCallback(async (email: string, password: string) => {
     const res = await authApi.login(email, password);
-    setToken(res.token);
+    setToken(res.token ?? null);
     setUser(apiUserToUser(res.user));
+  }, []);
+
+  const clearClientSession = useCallback(async () => {
+    setToken(null);
+    setUser(null);
+    queryClient.clear();
+    await clearOfflineQueue().catch(() => {});
+    if ('caches' in window) {
+      const names = await caches.keys();
+      await Promise.all(names.filter((name) => name === 'api-cache').map((name) => caches.delete(name)));
+    }
   }, []);
 
   const logout = useCallback(async () => {
@@ -68,9 +76,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch {
       // Ignore errors - we still want to clear local state
     }
-    setToken(null);
-    setUser(null);
-  }, []);
+    await clearClientSession();
+  }, [clearClientSession]);
 
   useEffect(() => {
     const onLogout = () => {
@@ -82,7 +89,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const register = useCallback(async (email: string, password: string, name: string) => {
     const res = await authApi.register(email, password, name);
-    setToken(res.token);
+    setToken(res.token ?? null);
     setUser(apiUserToUser(res.user));
   }, []);
 
@@ -93,7 +100,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         : provider === 'facebook'
           ? await authApi.loginWithFacebook(token)
           : await authApi.loginWithTwitter(token);
-    setToken(res.token);
+    setToken(res.token ?? null);
     setUser(apiUserToUser(res.user));
   }, []);
 

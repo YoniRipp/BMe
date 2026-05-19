@@ -76,6 +76,7 @@ export function registerUserActivityLogConsumer(subscribe: SubscribeFn) {
       );
     } catch (err) {
       logger.error({ err, eventId: event.eventId, eventType: event.type }, 'User activity log consumer failed');
+      throw err;
     }
   });
 }

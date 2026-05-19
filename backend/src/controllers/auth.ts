@@ -25,6 +25,12 @@ function clearTokenCookie(res: Response) {
   res.clearCookie('token', { path: '/' });
 }
 
+function authPayload(req: Request, result: { user: unknown; token: string }) {
+  return req.get('X-Client-Platform') === 'web'
+    ? { user: result.user }
+    : { user: result.user, token: result.token };
+}
+
 function base64UrlEncode(buf: Buffer) {
   return buf.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
@@ -33,14 +39,14 @@ export const register = asyncHandler(async (req: Request, res: Response) => {
   const { email, password, name } = req.body ?? {};
   const result = await authService.register({ email, password, name });
   setTokenCookie(res, result.token);
-  sendCreated(res, { user: result.user, token: result.token });
+  sendCreated(res, authPayload(req, result));
 });
 
 export const login = asyncHandler(async (req: Request, res: Response) => {
   const { email, password } = req.body ?? {};
   const result = await authService.login(email, password);
   setTokenCookie(res, result.token);
-  sendJson(res, { user: result.user, token: result.token });
+  sendJson(res, authPayload(req, result));
 });
 
 export const me = asyncHandler(async (req: Request, res: Response) => {
@@ -52,21 +58,21 @@ export const loginGoogle = asyncHandler(async (req: Request, res: Response) => {
   const token = typeof req.body?.token === 'string' ? req.body.token.trim() : '';
   const result = await authService.loginWithGoogle(token);
   setTokenCookie(res, result.token);
-  sendJson(res, { user: result.user, token: result.token });
+  sendJson(res, authPayload(req, result));
 });
 
 export const loginFacebook = asyncHandler(async (req: Request, res: Response) => {
   const token = typeof req.body?.token === 'string' ? req.body.token.trim() : '';
   const result = await authService.loginWithFacebook(token);
   setTokenCookie(res, result.token);
-  sendJson(res, { user: result.user, token: result.token });
+  sendJson(res, authPayload(req, result));
 });
 
 export const loginTwitter = asyncHandler(async (req: Request, res: Response) => {
   const token = typeof req.body?.token === 'string' ? req.body.token.trim() : '';
   const result = await authService.loginWithTwitter(token);
   setTokenCookie(res, result.token);
-  sendJson(res, { user: result.user, token: result.token });
+  sendJson(res, authPayload(req, result));
 });
 
 export const twitterRedirect = asyncHandler(async (req: Request, res: Response) => {
@@ -113,13 +119,12 @@ export const exchangeCode = asyncHandler(async (req: Request, res: Response) => 
   const { code } = req.body ?? {};
   const result = await authService.exchangeCode(code);
   setTokenCookie(res, result.token);
-  sendJson(res, { user: result.user, token: result.token });
+  sendJson(res, authPayload(req, result));
 });
 
 export const refresh = asyncHandler(async (req: Request, res: Response) => {
-  const result = await authService.refreshToken(req.user!.id);
-  setTokenCookie(res, result.token);
-  sendJson(res, { user: result.user, token: result.token });
+  const user = await authService.getUser(req.user!.id);
+  sendJson(res, { user });
 });
 
 export const logout = asyncHandler(async (req: Request, res: Response) => {

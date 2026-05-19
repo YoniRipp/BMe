@@ -5,6 +5,7 @@ import { FEATURE_FLAGS } from '@/lib/featureFlags';
 import { enqueue } from '@/lib/syncQueue';
 
 const API_BASE = (import.meta as { env?: { VITE_API_URL?: string } }).env?.VITE_API_URL
+  || (typeof window !== 'undefined' && (import.meta as { env?: { PROD?: boolean } }).env?.PROD ? window.location.origin : '')
   || (typeof window !== 'undefined' ? `http://${window.location.hostname}:3000` : '');
 
 const DEFAULT_TIMEOUT_MS = 30000;
@@ -13,49 +14,30 @@ export function getApiBase(): string {
   return API_BASE;
 }
 
-/**
- * Token storage. The JWT is persisted to localStorage so the session
- * survives page refreshes. On load we restore the token from storage
- * and use it in the Authorization header for all API requests.
- */
-let inMemoryToken: string | null = (() => {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEYS.TOKEN);
-    // Ignore legacy '1' flag from old session-flag-only storage
-    if (stored && stored !== '1') return stored;
-    return null;
-  } catch {
-    return null;
-  }
-})();
+let inMemoryToken: string | null = null;
 
 export function getToken(): string | null {
   return inMemoryToken;
 }
 
-/** Returns true if the user previously authenticated (token exists in storage). */
+/** Cookie sessions cannot be inspected from JS; callers should verify via /auth/me. */
 export function hasSession(): boolean {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEYS.TOKEN);
-    return stored != null && stored !== '';
-  } catch {
-    return false;
-  }
+  return true;
 }
 
 export function setToken(token: string | null): void {
   inMemoryToken = token;
   try {
-    if (token == null) localStorage.removeItem(STORAGE_KEYS.TOKEN);
-    else localStorage.setItem(STORAGE_KEYS.TOKEN, token);
+    localStorage.removeItem(STORAGE_KEYS.TOKEN);
   } catch {
     // ignore
   }
 }
 
 /** Call this when the API returns 401 so auth state is cleared and UI can redirect. */
-export function handleUnauthorized(): void {
+export function handleUnauthorized(options: { suppressEvent?: boolean } = {}): void {
   setToken(null);
+  if (options.suppressEvent) return;
   try {
     window.dispatchEvent(new CustomEvent('auth:logout'));
   } catch {
@@ -68,15 +50,18 @@ export interface RequestOptions {
   headers?: HeadersInit;
   body?: unknown;
   timeoutMs?: number;
+  suppressUnauthorizedEvent?: boolean;
 }
 
 export async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
-  const { method = 'GET', body, headers, timeoutMs = DEFAULT_TIMEOUT_MS } = options;
-  const token = getToken();
-  const authHeaders: HeadersInit = token ? { ...headers, Authorization: `Bearer ${token}` } : { ...headers };
+  const { method = 'GET', body, headers, timeoutMs = DEFAULT_TIMEOUT_MS, suppressUnauthorizedEvent } = options;
   const isMutation = method !== 'GET';
   const fullUrl = `${API_BASE}${path}`;
-  const requestHeaders: Record<string, string> = { 'Content-Type': 'application/json', ...authHeaders } as Record<string, string>;
+  const requestHeaders: Record<string, string> = {
+    'Content-Type': 'application/json',
+    'X-Client-Platform': 'web',
+    ...headers,
+  } as Record<string, string>;
   const bodyStr = body != null ? JSON.stringify(body) : null;
 
   // Offline queue: enqueue mutations when offline instead of failing
@@ -111,7 +96,7 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
   }
   clearTimeout(timeoutId);
   if (res.status === 401) {
-    handleUnauthorized();
+    handleUnauthorized({ suppressEvent: suppressUnauthorizedEvent });
     const err = (await res.json().catch(() => ({}))) as { error?: string };
     throw new Error(err.error ?? 'Session expired');
   }

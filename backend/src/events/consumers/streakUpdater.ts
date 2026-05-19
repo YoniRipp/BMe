@@ -30,6 +30,7 @@ export function registerStreakUpdaterConsumer(subscribe: SubscribeFn) {
       logger.debug({ eventType: event.type, userId, date }, 'streakUpdater: workout streak updated');
     } catch (err) {
       logger.warn({ err, userId, date }, 'streakUpdater: failed to update workout streak');
+      throw err;
     }
   });
 
@@ -42,6 +43,7 @@ export function registerStreakUpdaterConsumer(subscribe: SubscribeFn) {
       logger.debug({ eventType: event.type, userId, date }, 'streakUpdater: food streak updated');
     } catch (err) {
       logger.warn({ err, userId, date }, 'streakUpdater: failed to update food streak');
+      throw err;
     }
   });
 }

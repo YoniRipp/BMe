@@ -4,16 +4,15 @@
  */
 import { SQSEvent, SQSRecord, Context } from 'aws-lambda';
 import { createDispatcher } from '../src/events/dispatcher.js';
-import { registerUserActivityLogConsumer } from '../src/events/consumers/userActivityLog.js';
+import { registerAllEventConsumers } from '../src/events/consumers/register.js';
 import { ensureDb, ensureRedis, closeConnections } from './connections.js';
 
 const dispatcher = createDispatcher();
+registerAllEventConsumers(dispatcher.subscribe);
 
 export async function handler(event: SQSEvent, context: Context) {
   await ensureDb();
   await ensureRedis();
-
-  registerUserActivityLogConsumer(dispatcher.subscribe);
 
   const failures: { itemIdentifier: string }[] = [];
 

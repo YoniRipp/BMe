@@ -60,6 +60,18 @@ export async function findByUserId(userId: string, pagination?: PaginationParams
   return { data: result.rows.map(rowToEntry), total };
 }
 
+export async function findByUserIdAndDate(userId: string, date: string, client?: pg.Pool | pg.PoolClient): Promise<FoodEntry[]> {
+  const db = client ?? getPool('energy');
+  const result = await db.query(
+    `SELECT ${RETURNING}
+     FROM food_entries
+     WHERE user_id = $1 AND date = $2::date
+     ORDER BY created_at ASC`,
+    [userId, date],
+  );
+  return result.rows.map(rowToEntry);
+}
+
 export async function create(input: CreateFoodEntryInput, client?: pg.Pool | pg.PoolClient): Promise<FoodEntry> {
   const db = client ?? getPool('energy');
   const result = await db.query(

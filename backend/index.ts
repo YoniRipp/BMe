@@ -11,18 +11,12 @@ import { Worker } from 'bullmq';
 import { WebSocketServer } from 'ws';
 import { startVoiceWorker } from './src/workers/voice.js';
 import { subscribe, startEventsWorker, closeEventsBus } from './src/events/bus.js';
-import { registerStatsAggregatorConsumer } from './src/events/consumers/statsAggregator.js';
-import { registerUserActivityLogConsumer } from './src/events/consumers/userActivityLog.js';
-import { registerPushNotifierConsumer } from './src/events/consumers/pushNotifier.js';
-import { registerStreakUpdaterConsumer } from './src/events/consumers/streakUpdater.js';
+import { registerAllEventConsumers } from './src/events/consumers/register.js';
 import { setupVoiceStreamingWs } from './src/ws/voiceStreaming.js';
 import { logger } from './src/lib/logger.js';
 
 // Register event-driven data pipeline consumers
-registerUserActivityLogConsumer(subscribe);
-registerStatsAggregatorConsumer(subscribe);
-registerPushNotifierConsumer(subscribe);
-registerStreakUpdaterConsumer(subscribe);
+registerAllEventConsumers(subscribe);
 
 async function applyColumnPatches(db: { query: (sql: string) => Promise<unknown> }) {
   // Idempotent column additions that must be present regardless of migration state.
@@ -44,10 +38,10 @@ async function start() {
         await initSchema();
         logger.info('Database schema initialized');
       }
-      // Production uses migrations: run `npm run migrate:up` at deploy; set SKIP_SCHEMA_INIT=true
-      // Ensure critical columns exist regardless of migration state (idempotent patches).
-      await applyColumnPatches(getPool());
-      logger.info('Column patches applied');
+      if (!config.isProduction) {
+        await applyColumnPatches(getPool());
+        logger.info('Development column patches applied');
+      }
     } catch (e) {
       logger.error({ err: e }, 'Database init failed - exiting');
       process.exit(1);

@@ -22,6 +22,7 @@ const isProduction = process.env.NODE_ENV === 'production';
 const configSchema = z.object({
   port: z.coerce.number().int().min(1).max(65535),
   host: z.string().optional(),
+  isProduction: z.boolean(),
   dbUrl: z.string().optional(),
   isDbConfigured: z.boolean(),
   geminiApiKey: z.string().optional(),
@@ -102,6 +103,7 @@ if (isProduction && !rawCorsOrigin) {
 const rawConfig = {
   port: Number(PORT),
   host: process.env.HOST,
+  isProduction,
   dbUrl: DATABASE_URL,
   isDbConfigured: !!DATABASE_URL,
   geminiApiKey: process.env.GEMINI_API_KEY,

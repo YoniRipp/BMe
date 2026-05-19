@@ -16,6 +16,9 @@ import { getPool } from '../db/pool.js';
 import { voiceContext } from '../lib/voiceContext.js';
 import type { WorkoutType, GoalType, GoalPeriod } from '../types/domain.js';
 
+const MEAL_TYPES = ['breakfast', 'lunch', 'dinner', 'snack'] as const;
+type MealType = typeof MEAL_TYPES[number];
+
 export interface ExecuteResult {
   intent: string;
   success: boolean;
@@ -107,6 +110,10 @@ function parseDate(v: unknown): string {
   if (v == null || v === '') return new Date().toISOString().slice(0, 10);
   const d = new Date(v as string);
   return isNaN(d.getTime()) ? new Date().toISOString().slice(0, 10) : d.toISOString().slice(0, 10);
+}
+
+function parseMealType(v: unknown): MealType | undefined {
+  return typeof v === 'string' && MEAL_TYPES.includes(v as MealType) ? v as MealType : undefined;
 }
 
 async function resolveWorkout(userId: string, action: VoiceAction) {
@@ -288,6 +295,7 @@ export async function executeActions(actions: VoiceAction[], userId: string): Pr
             portionUnit: action.portionUnit as string,
             startTime: action.startTime as string,
             endTime: action.endTime as string,
+            mealType: parseMealType(action.mealType),
           });
           results.push({ intent: 'add_food', success: true, message: `Logged ${(action.name as string) ?? 'food'}${action.calories ? `, ${Number(action.calories)} cal` : ''}` });
           break;
@@ -305,6 +313,7 @@ export async function executeActions(actions: VoiceAction[], userId: string): Pr
             carbs: action.carbs != null ? Number(action.carbs) : undefined,
             fats: action.fats != null ? Number(action.fats) : undefined,
             date: action.date ? parseDate(action.date) : undefined,
+            mealType: parseMealType(action.mealType),
           });
           results.push({ intent: 'edit_food_entry', success: true, message: 'Updated food entry' });
           break;
@@ -601,6 +610,7 @@ export async function executeActions(actions: VoiceAction[], userId: string): Pr
             fats: Number(action.fats) || 0,
             portionAmount: action.portionAmount != null ? Number(action.portionAmount) : undefined,
             portionUnit: action.portionUnit as string,
+            mealType: parseMealType(action.mealType),
           });
           results.push({ intent: 'add_client_food', success: true, message: `Logged food for ${action.clientName ?? 'client'}: ${(action.name as string) ?? 'food'}` });
           break;

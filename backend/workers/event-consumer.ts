@@ -6,15 +6,11 @@
  */
 import { config } from '../src/config/index.js';
 import { subscribe, startEventsWorker, closeEventsBus } from '../src/events/bus.js';
-import { registerUserActivityLogConsumer } from '../src/events/consumers/userActivityLog.js';
-import { registerStatsAggregatorConsumer } from '../src/events/consumers/statsAggregator.js';
-import { registerPushNotifierConsumer } from '../src/events/consumers/pushNotifier.js';
+import { registerAllEventConsumers } from '../src/events/consumers/register.js';
 import { getRedisClient, closeRedis } from '../src/redis/client.js';
 import { logger } from '../src/lib/logger.js';
 
-registerUserActivityLogConsumer(subscribe);
-registerStatsAggregatorConsumer(subscribe);
-registerPushNotifierConsumer(subscribe);
+registerAllEventConsumers(subscribe);
 
 const worker = startEventsWorker();
 if (!worker) {

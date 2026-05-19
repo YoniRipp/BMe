@@ -1,7 +1,6 @@
 import { useCallback, useRef, useState, useEffect } from 'react';
 import { getVoiceStreamUrl, parseVoiceResult, getUserTimezone, getPreferredAudioMimeType, type VoiceUnderstandResult } from '@/lib/voiceApi';
 import { toLocalDateString } from '@/lib/dateRanges';
-import { getToken } from '@/core/api/client';
 
 interface UseVoiceStreamReturn {
   isNative: false;
@@ -99,11 +98,7 @@ export function useVoiceStream(): UseVoiceStreamReturn {
     setCurrentTranscript('');
 
     try {
-      const token = getToken();
-      console.log(TAG, 'token:', token ? 'present' : 'MISSING');
-      if (!token) throw new Error('Authentication required');
-
-      const wsUrl = getVoiceStreamUrl(token);
+      const wsUrl = getVoiceStreamUrl();
       console.log(TAG, 'wsUrl:', wsUrl ? wsUrl.replace(/token=.*/, 'token=***') : 'MISSING');
       if (!wsUrl) throw new Error('Voice streaming not configured');
 

@@ -51,7 +51,11 @@ function normExercises(v: unknown) {
 
 const EDIT_WORKOUT_SPEC = { workoutTitle: trimOrUndefined, workoutId: trimOrUndefined, date: passThrough, title: trimOrUndefined, type: passThrough, durationMinutes: num, notes: passThrough, exercises: normExercises };
 const DELETE_WORKOUT_SPEC = { workoutTitle: trimOrUndefined, workoutId: trimOrUndefined, date: passThrough };
-const EDIT_FOOD_ENTRY_SPEC = { foodName: trimOrUndefined, entryId: trimOrUndefined, date: passThrough, name: trimOrUndefined, calories: num, protein: num, carbs: num, fats: num };
+const mealType = (v: unknown) => {
+  const s = trimOrUndefined(v);
+  return s === 'breakfast' || s === 'lunch' || s === 'dinner' || s === 'snack' ? s : undefined;
+};
+const EDIT_FOOD_ENTRY_SPEC = { foodName: trimOrUndefined, entryId: trimOrUndefined, date: passThrough, name: trimOrUndefined, calories: num, protein: num, carbs: num, fats: num, mealType };
 const DELETE_FOOD_ENTRY_SPEC = { foodName: trimOrUndefined, entryId: trimOrUndefined, date: passThrough };
 const EDIT_CHECK_IN_SPEC = { date: passThrough, sleepHours: num };
 const DELETE_CHECK_IN_SPEC = { date: passThrough };
@@ -100,6 +104,7 @@ export async function buildAddFood(args: Record<string, unknown>, ctx: BuildCont
     endTime: normTime(args.endTime as string | undefined | null) ?? undefined,
     portionAmount: numAmount,
     portionUnit: unit,
+    mealType: mealType(args.mealType),
   };
 
   const nutrition = await lookupNutrition(food || 'unknown', numAmount, unit);

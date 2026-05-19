@@ -18,14 +18,21 @@ import { logger } from '../lib/logger.js';
 
 const INACTIVITY_TIMEOUT_MS = 30_000;
 
-/** Extract and verify JWT from query string ?token=... */
+function getCookie(req: IncomingMessage, name: string): string | null {
+  const cookie = req.headers.cookie;
+  if (!cookie) return null;
+  const match = cookie.split(';').map((part) => part.trim()).find((part) => part.startsWith(`${name}=`));
+  return match ? decodeURIComponent(match.slice(name.length + 1)) : null;
+}
+
+/** Extract and verify JWT from query string ?token=... or the auth cookie. */
 async function authenticateWs(req: IncomingMessage): Promise<{ id: string; email: string; role: string } | null> {
   try {
     const url = new URL(req.url ?? '', `http://${req.headers.host}`);
-    const token = url.searchParams.get('token');
+    const token = url.searchParams.get('token') ?? getCookie(req, 'token');
     if (!token || !config.jwtSecret) return null;
 
-    const payload = jwt.verify(token, config.jwtSecret) as { sub?: string; email?: string; role?: string };
+    const payload = jwt.verify(token, config.jwtSecret, { algorithms: ['HS256'] }) as { sub?: string; email?: string; role?: string };
     if (!payload.sub) return null;
     return { id: payload.sub, email: payload.email ?? '', role: payload.role ?? 'user' };
   } catch {

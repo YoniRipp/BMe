@@ -1,4 +1,4 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
 import Constants from 'expo-constants';
 
 const STORAGE_KEY = 'trackvibe_token';
@@ -16,7 +16,7 @@ export function getApiBaseUrl(): string {
 
 export async function getToken(): Promise<string | null> {
   try {
-    return await AsyncStorage.getItem(STORAGE_KEY);
+    return await SecureStore.getItemAsync(STORAGE_KEY);
   } catch {
     return null;
   }
@@ -24,8 +24,8 @@ export async function getToken(): Promise<string | null> {
 
 export async function setToken(token: string | null): Promise<void> {
   try {
-    if (token == null) await AsyncStorage.removeItem(STORAGE_KEY);
-    else await AsyncStorage.setItem(STORAGE_KEY, token);
+    if (token == null) await SecureStore.deleteItemAsync(STORAGE_KEY);
+    else await SecureStore.setItemAsync(STORAGE_KEY, token);
   } catch {
     // ignore
   }
@@ -53,7 +53,9 @@ export interface RequestOptions {
 export async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const { method = 'GET', body, headers, timeoutMs = DEFAULT_TIMEOUT_MS } = options;
   const token = await getToken();
-  const authHeaders: HeadersInit = token ? { ...headers, Authorization: `Bearer ${token}` } : { ...headers };
+  const authHeaders: HeadersInit = token
+    ? { ...headers, Authorization: `Bearer ${token}`, 'X-Client-Platform': 'mobile' }
+    : { ...headers, 'X-Client-Platform': 'mobile' };
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
   let res: Response;

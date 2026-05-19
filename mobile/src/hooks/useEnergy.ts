@@ -12,16 +12,16 @@ export function useEnergy() {
   const checkInsQuery = useQuery({
     queryKey: queryKeys.checkIns,
     queryFn: async () => {
-      const list = await dailyCheckInsApi.list();
-      return list.map(apiCheckInToDailyCheckIn);
+      const result = await dailyCheckInsApi.list();
+      return result.data.map(apiCheckInToDailyCheckIn);
     },
   });
 
   const foodEntriesQuery = useQuery({
     queryKey: queryKeys.foodEntries,
     queryFn: async () => {
-      const list = await foodEntriesApi.list();
-      return list.map(apiFoodEntryToFoodEntry);
+      const result = await foodEntriesApi.list();
+      return result.data.map(apiFoodEntryToFoodEntry);
     },
   });
 

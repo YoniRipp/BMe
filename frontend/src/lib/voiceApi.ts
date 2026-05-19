@@ -156,9 +156,10 @@ export async function understandTranscript(
 }
 
 /** Build WebSocket URL for voice streaming. Returns null if API base is not set. */
-export function getVoiceStreamUrl(token: string): string | null {
+export function getVoiceStreamUrl(token?: string | null): string | null {
   const base = getApiBase();
   if (!base) return null;
   const wsBase = base.replace(/^http/, 'ws');
-  return `${wsBase}/ws/voice-stream?token=${encodeURIComponent(token)}`;
+  const query = token ? `?token=${encodeURIComponent(token)}` : '';
+  return `${wsBase}/ws/voice-stream${query}`;
 }

@@ -39,6 +39,7 @@ async function recomputeDayStats(userId: string, date: string) {
     );
   } catch (err) {
     logger.warn({ err, userId, date }, 'statsAggregator: recompute failed');
+    throw err;
   }
 }
 

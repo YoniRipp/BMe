@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { setToken, authApi } from '@/features/auth/api';
+import { authApi } from '@/features/auth/api';
 
 /**
  * Handles OAuth callback (e.g. Twitter redirect flow). Exchanges auth code for token
@@ -25,10 +25,9 @@ export function AuthCallback() {
       }
 
       try {
-        const { token } = await authApi.exchangeCode(code);
-        setToken(token);
+        await authApi.exchangeCode(code);
         if (window.opener) {
-          window.opener.postMessage({ type: 'auth', token }, window.location.origin);
+          window.opener.postMessage({ type: 'auth' }, window.location.origin);
           window.close();
         } else {
           navigate('/', { replace: true });

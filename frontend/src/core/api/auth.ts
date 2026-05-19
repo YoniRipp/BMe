@@ -14,7 +14,7 @@ export interface ApiUser {
 
 export interface AuthResponse {
   user: ApiUser;
-  token: string;
+  token?: string;
 }
 
 export const authApi = {
@@ -30,6 +30,6 @@ export const authApi = {
     request<AuthResponse>('/api/auth/twitter', { method: 'POST', body: { token } }),
   exchangeCode: (code: string) =>
     request<AuthResponse>('/api/auth/exchange', { method: 'POST', body: { code } }),
-  me: () => request<ApiUser>('/api/auth/me'),
-  logout: () => request<void>('/api/auth/logout', { method: 'POST' }),
+  me: () => request<ApiUser>('/api/auth/me', { suppressUnauthorizedEvent: true }),
+  logout: () => request<void>('/api/auth/logout', { method: 'POST', suppressUnauthorizedEvent: true }),
 };

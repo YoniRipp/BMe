@@ -1,4 +1,4 @@
-import { request, getApiBase, getToken } from './client';
+import { request, getApiBase } from './client';
 
 export interface ChatMessage {
   id: string;
@@ -57,13 +57,12 @@ export const chatApi = {
     onError: (err: string) => void,
     onProposal?: (proposal: PlanProposal) => void,
   ): Promise<void> {
-    const token = getToken();
     const res = await fetch(`${getApiBase()}/api/chat/agent/stream`, {
       method: 'POST',
       credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        'X-Client-Platform': 'web',
       },
       body: JSON.stringify({ message }),
     });

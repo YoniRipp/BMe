@@ -10,7 +10,6 @@ export interface PendingRequest {
   url: string;
   method: string;
   body: string | null;
-  headers: Record<string, string>;
   timestamp: number;
   retries: number;
 }
@@ -39,7 +38,7 @@ export async function enqueue(
   url: string,
   method: string,
   body: string | null,
-  headers: Record<string, string>,
+  _headers: Record<string, string>,
 ): Promise<void> {
   if (!FEATURE_FLAGS.PWA_OFFLINE_SYNC) return;
   const db = await getDb();
@@ -47,10 +46,14 @@ export async function enqueue(
     url,
     method,
     body,
-    headers,
     timestamp: Date.now(),
     retries: 0,
   });
+}
+
+export async function clearOfflineQueue(): Promise<void> {
+  const db = await getDb();
+  await db.clear(STORE_NAME);
 }
 
 export async function getPendingCount(): Promise<number> {
@@ -83,7 +86,7 @@ export async function flush(): Promise<number> {
     try {
       const res = await fetch(req.url, {
         method: req.method,
-        headers: req.headers,
+        headers: { 'Content-Type': 'application/json', 'X-Client-Platform': 'web' },
         body: req.body,
         credentials: 'include',
       });

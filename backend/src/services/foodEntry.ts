@@ -28,6 +28,7 @@ export async function create(userId: string, body: CreateFoodEntryBody): Promise
     servingType: body.servingType ?? undefined,
     startTime: body.startTime ?? undefined,
     endTime: body.endTime ?? undefined,
+    mealType: body.mealType ?? undefined,
   });
   await publishEvent('energy.FoodEntryCreated', entry as unknown as Record<string, unknown>, userId);
   upsertEmbedding(userId, 'food_entry', entry.id, buildEmbeddingText('food_entry', entry as unknown as Record<string, unknown>));
@@ -48,6 +49,7 @@ export async function update(userId: string, id: string, body: UpdateFoodEntryBo
   if (body.servingType !== undefined) updates.servingType = body.servingType ?? undefined;
   if (body.startTime !== undefined) updates.startTime = body.startTime ?? undefined;
   if (body.endTime !== undefined) updates.endTime = body.endTime ?? undefined;
+  if (body.mealType !== undefined) updates.mealType = body.mealType ?? undefined;
 
   const updated = await foodEntryModel.update(id, userId, updates);
   if (!updated) throw new NotFoundError('Food entry not found');
@@ -76,6 +78,7 @@ export async function createBatch(userId: string, body: CreateFoodEntriesBatchBo
         servingType: item.servingType ?? undefined,
         startTime: item.startTime ?? undefined,
         endTime: item.endTime ?? undefined,
+        mealType: item.mealType ?? undefined,
       }, client);
       created.push(entry);
     }
@@ -95,8 +98,7 @@ export async function createBatch(userId: string, body: CreateFoodEntriesBatchBo
 }
 
 export async function duplicateDay(userId: string, sourceDate: string, targetDate: string): Promise<FoodEntry[]> {
-  const { data: sourceEntries } = await foodEntryModel.findByUserId(userId, undefined, undefined);
-  const dayEntries = sourceEntries.filter((e) => e.date === sourceDate);
+  const dayEntries = await foodEntryModel.findByUserIdAndDate(userId, sourceDate);
   if (dayEntries.length === 0) {
     throw new ValidationError('No food entries found for the source date');
   }
@@ -113,6 +115,7 @@ export async function duplicateDay(userId: string, sourceDate: string, targetDat
       servingType: e.servingType,
       startTime: e.startTime,
       endTime: e.endTime,
+      mealType: e.mealType,
     })),
   });
 }

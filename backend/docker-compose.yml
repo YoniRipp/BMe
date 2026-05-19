@@ -26,7 +26,6 @@ services:
       DATABASE_URL: postgresql://trackvibe:trackvibe_dev_password@postgres:5432/trackvibe_dev
       DB_SSL: "false"
       JWT_SECRET: dev-secret-key-minimum-32-characters-long
-      JWT_REFRESH_SECRET: dev-refresh-secret-key-minimum-32-characters
       CORS_ORIGIN: http://localhost:5173
       NODE_ENV: development
     depends_on:
@@ -34,7 +33,6 @@ services:
         condition: service_healthy
     volumes:
       - ./src:/app/src
-      - ./prisma:/app/prisma
 
 volumes:
   postgres_data:

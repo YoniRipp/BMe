@@ -12,7 +12,7 @@ interface AuthContextType {
   register: (email: string, password: string, name: string) => Promise<void>;
 }
 
-function apiUserToUser(a: { id: string; email: string; name: string; role: 'admin' | 'user'; createdAt?: string }): User {
+function apiUserToUser(a: { id: string; email: string; name: string; role: 'admin' | 'user' | 'trainer'; createdAt?: string }): User {
   return {
     id: a.id,
     email: a.email,

@@ -2,7 +2,7 @@
  * Client-side logger. Buffers log entries and ships them to POST /api/client-logs.
  * Also installs global error and unhandledrejection handlers.
  */
-import { getApiBase, getToken } from '@/core/api/client';
+import { getApiBase } from '@/core/api/client';
 
 type LogLevel = 'error' | 'warn' | 'info';
 
@@ -37,13 +37,11 @@ async function flush() {
   if (buffer.length === 0) return;
   const entries = buffer.splice(0, buffer.length);
   try {
-    const token = getToken();
-    if (!token) return; // not logged in — skip
     await fetch(`${getApiBase()}/api/client-logs`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        'X-Client-Platform': 'web',
       },
       credentials: 'include',
       body: JSON.stringify(entries),

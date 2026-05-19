@@ -1,4 +1,5 @@
 import { request } from './client';
+import type { MealType, PaginatedResponse } from '../../../../shared/api-contracts';
 
 export interface ApiFoodEntry {
   id: string;
@@ -13,11 +14,11 @@ export interface ApiFoodEntry {
   servingType?: string;
   startTime?: string;
   endTime?: string;
-  mealType?: string;
+  mealType?: MealType;
 }
 
 export const foodEntriesApi = {
-  list: () => request<ApiFoodEntry[]>('/api/food-entries'),
+  list: () => request<PaginatedResponse<ApiFoodEntry>>('/api/food-entries'),
   add: (e: {
     date?: string;
     name: string;
@@ -30,7 +31,7 @@ export const foodEntriesApi = {
     servingType?: string;
     startTime?: string;
     endTime?: string;
-    mealType?: string;
+    mealType?: MealType;
   }) => request<ApiFoodEntry>('/api/food-entries', { method: 'POST', body: e }),
   update: (id: string, updates: Partial<Omit<ApiFoodEntry, 'id'>>) =>
     request<ApiFoodEntry>(`/api/food-entries/${id}`, { method: 'PATCH', body: updates }),
@@ -44,7 +45,7 @@ export interface ApiDailyCheckIn {
 }
 
 export const dailyCheckInsApi = {
-  list: () => request<ApiDailyCheckIn[]>('/api/daily-check-ins'),
+  list: () => request<PaginatedResponse<ApiDailyCheckIn>>('/api/daily-check-ins'),
   add: (c: { date?: string; sleepHours?: number }) =>
     request<ApiDailyCheckIn>('/api/daily-check-ins', { method: 'POST', body: c }),
   update: (id: string, updates: Partial<Omit<ApiDailyCheckIn, 'id'>>) =>

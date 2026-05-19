@@ -18,7 +18,7 @@ const worker = new Worker(
     const redis = await getRedisClient();
     if (!redis) {
       logger.error({ jobId }, 'Voice job failed: Redis not available');
-      return;
+      throw new Error('Redis not available');
     }
 
     try {
@@ -38,15 +38,19 @@ const worker = new Worker(
       );
     } catch (e) {
       logger.error({ err: e, jobId }, 'Voice job failed');
-      await redis.setEx(
-        `job:${jobId}`,
-        300,
-        JSON.stringify({
-          status: 'failed',
-          error: (e as Error)?.message ?? 'Voice processing failed',
-          completedAt: Date.now(),
-        })
-      );
+      const maxAttempts = job.opts.attempts ?? 1;
+      if (job.attemptsMade + 1 >= maxAttempts) {
+        await redis.setEx(
+          `job:${jobId}`,
+          300,
+          JSON.stringify({
+            status: 'failed',
+            error: (e as Error)?.message ?? 'Voice processing failed',
+            completedAt: Date.now(),
+          })
+        );
+      }
+      throw e;
     }
   },
   {
@@ -56,6 +60,7 @@ const worker = new Worker(
 );
 
 worker.on('error', (err) => logger.error({ err }, 'Voice worker error'));
+worker.on('failed', (job, err) => logger.error({ err, jobId: job?.data?.jobId }, 'Voice job attempt failed'));
 
 async function shutdown() {
   logger.info('Voice worker shutting down');
